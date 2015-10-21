@@ -53,11 +53,13 @@ class Component {
     kLinearTransform,
     kConvolutionalComponent,
     kConvolutional2DComponent,
+    kConvolutional2DComponentFast,
     kLstmProjectedStreams,
     kBLstmProjectedStreams,
 
     kActivationFunction = 0x0200, 
     kSoftmax, 
+    kRelu,
     kBlockSoftmax, 
     kSigmoid,
     kTanh,
@@ -80,6 +82,7 @@ class Component {
     kAveragePooling2DComponent,
     kMaxPoolingComponent,
     kMaxPooling2DComponent,
+    kMaxPooling2DComponentFast,
     kFramePoolingComponent, 
     kParallelComponent
   } ComponentType;

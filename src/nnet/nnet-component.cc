@@ -33,8 +33,10 @@
 #include "nnet/nnet-max-pooling-component.h"
 
 #include "nnet/nnet-convolutional-2d-component.h"
+#include "nnet/nnet-convolutional-2d-component-fast.h"
 #include "nnet/nnet-average-pooling-2d-component.h"
 #include "nnet/nnet-max-pooling-2d-component.h"
+#include "nnet/nnet-max-pooling-2d-component-fast.h"
 
 #include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-blstm-projected-streams.h"
@@ -53,11 +55,13 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kLinearTransform,"<LinearTransform>" },
   { Component::kConvolutionalComponent,"<ConvolutionalComponent>"},
   { Component::kConvolutional2DComponent,"<Convolutional2DComponent>"},
+  { Component::kConvolutional2DComponentFast,"<Convolutional2DComponentFast>"},
   { Component::kLstmProjectedStreams,"<LstmProjectedStreams>"},
   { Component::kBLstmProjectedStreams,"<BLstmProjectedStreams>"},
   { Component::kSoftmax,"<Softmax>" },
   { Component::kBlockSoftmax,"<BlockSoftmax>" },
   { Component::kSigmoid,"<Sigmoid>" },
+  { Component::kRelu,"<Relu>" },
   { Component::kTanh,"<Tanh>" },
   { Component::kDropout,"<Dropout>" },
   { Component::kLengthNormComponent,"<LengthNormComponent>" },
@@ -71,6 +75,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kAveragePooling2DComponent,"<AveragePooling2DComponent>"},
   { Component::kMaxPoolingComponent, "<MaxPoolingComponent>"},
   { Component::kMaxPooling2DComponent, "<MaxPooling2DComponent>"},
+  { Component::kMaxPooling2DComponentFast, "<MaxPooling2DComponentFast>"},
   { Component::kSentenceAveragingComponent,"<SentenceAveragingComponent>"},
   { Component::kSimpleSentenceAveragingComponent,"<SimpleSentenceAveragingComponent>"},
   { Component::kFramePoolingComponent, "<FramePoolingComponent>"},
@@ -118,6 +123,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kConvolutional2DComponent :
       ans = new Convolutional2DComponent(input_dim, output_dim);
       break;
+    case Component::kConvolutional2DComponentFast :
+      ans = new Convolutional2DComponentFast(input_dim, output_dim);
+      break;
     case Component::kLstmProjectedStreams :
       ans = new LstmProjectedStreams(input_dim, output_dim);
       break;
@@ -132,6 +140,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kSigmoid :
       ans = new Sigmoid(input_dim, output_dim);
+      break;
+    case Component::kRelu :
+      ans = new Relu(input_dim, output_dim);
       break;
     case Component::kTanh :
       ans = new Tanh(input_dim, output_dim);
@@ -177,6 +188,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kMaxPooling2DComponent :
       ans = new MaxPooling2DComponent(input_dim, output_dim);
+      break;
+    case Component::kMaxPooling2DComponentFast :
+      ans = new MaxPooling2DComponentFast(input_dim, output_dim);
       break;
     case Component::kFramePoolingComponent :
       ans = new FramePoolingComponent(input_dim, output_dim);

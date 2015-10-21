@@ -248,6 +248,9 @@ class CuMatrixBase {
 
   void CopyRowsFromVec(const VectorBase<Real> &v);
 
+  /// Copy vector into specific row of matrix.
+  void CopyRowFromVec(const CuVectorBase<Real> &v, const MatrixIndexT row);
+
   /// Copy vector into specific column of matrix.
   void CopyColFromVec(const CuVectorBase<Real> &v, const MatrixIndexT col);
 

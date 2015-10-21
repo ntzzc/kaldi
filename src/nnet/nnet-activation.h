@@ -171,6 +171,33 @@ class Sigmoid : public Component {
   }
 };
 
+class Relu : public Component {
+ public:
+        Relu(int32 dim_in, int32 dim_out)
+    : Component(dim_in, dim_out)
+  { } 
+  ~Relu()
+  { } 
+
+  Component* Copy() const { return new Relu(*this); }
+  ComponentType GetType() const { return kRelu; }
+
+  void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
+    // y = (x >= 0 ? x : 0.0)
+          out->CopyFromMat(in);
+          out->ApplyFloor(0.0);
+  }
+
+  void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
+                        const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
+          // Now in_deriv(i, j) equals (out_value(i, j) > 0.0 ? 1.0 : 0.0),
+          // which is the derivative of the nonlinearity (well, except at zero
+          // where it's undefined).
+          in_diff->CopyFromMat(out);
+          in_diff->ApplyHeaviside();
+          in_diff->MulElements(out_diff);
+  }
+};
 
 
 class Tanh : public Component {
