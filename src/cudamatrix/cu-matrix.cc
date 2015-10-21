@@ -893,7 +893,119 @@ void CuMatrixBase<Real>::AddMat(Real alpha, const CuMatrixBase<Real>& A,
 }
 
 template<typename Real>
-void CuMatrixBase<Real>::AddMatBlocks(Real alpha, const CuMatrixBase<Real> &A,
+void CuMatrixBase<Real>::ConvolutionForwardExpandWorkspace(const CuMatrixBase<Real> &A, int num_input_fmaps, int fmap_x_len_, int fmap_y_len_,
+		int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap)
+{
+	int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
+	int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
+	//int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+	int32 num_frames = A.NumRows();
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+		KALDI_ASSERT(num_frames * out_fmap_x_len * out_fmap_y_len == num_rows_
+					&& filt_x_len_ * filt_y_len_ * num_input_fmaps == num_cols_);
+
+		Timer tim;
+		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+		dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+		cuda_convolution_forward_expand_workspace(dimGrid, dimBlock, data_, A.data_, Dim(), A.Dim(),
+				num_input_fmaps, fmap_x_len_, fmap_y_len_, filt_x_len_, filt_y_len_, filt_x_step_, filt_y_step_, connect_fmap);
+	    CU_SAFE_CALL(cudaGetLastError());
+
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	} else
+#endif
+	{
+	    //Mat().ConvolutionForwardExpansionWorkspace();
+	}
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::ConvolutionBackwardShrinkWorkspace(const CuMatrixBase<Real> &A, const CuArray<Int32Pair* > &map, const CuArray<int32> &mapsize)
+{
+	//int32 num_frames = NumRows();
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+
+		KALDI_ASSERT(map.Dim() == NumCols());
+		KALDI_ASSERT(mapsize.Dim() == NumCols());
+		Timer tim;
+		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+		dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+		cuda_convolution_backward_shrink_workspace(dimGrid, dimBlock, data_, A.data_, Dim(), A.Dim(), map.Data(), mapsize.Data());
+	    CU_SAFE_CALL(cudaGetLastError());
+
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	} else
+#endif
+	{
+	    //Mat().ConvolutionForwardExpansionWorkspace();
+	}
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::MaxPoolingForward(const CuMatrixBase<Real> &in,
+		int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+	int32 num_frames = NumRows();
+	int32 num_output_fmaps = num_input_fmaps;
+	int32 out_fmap_x_len = (fmap_x_len_ - pool_x_len_)/pool_x_step_ + 1;
+	int32 out_fmap_y_len = (fmap_y_len_ - pool_y_len_)/pool_y_step_ + 1;
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+
+		KALDI_ASSERT(num_output_fmaps*out_fmap_x_len*out_fmap_y_len == NumCols());
+		KALDI_ASSERT(num_frames == NumRows());
+
+		Timer tim;
+		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+		dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+		cuda_max_pooling_forward(dimGrid, dimBlock, data_, in.data_, Dim(), in.Dim(),
+				num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
+
+		CU_SAFE_CALL(cudaGetLastError());
+
+		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	}else
+#endif
+	{
+	    //Mat().ConvolutionForwardExpansionWorkspace();
+	}
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const CuMatrixBase<Real> &out, const CuMatrixBase<Real> &out_diff,
+		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+	int32 num_frames = NumRows();
+	int32 num_output_fmaps = num_input_fmaps;
+	int32 out_fmap_x_len = (fmap_x_len_ - pool_x_len_)/pool_x_step_ + 1;
+	int32 out_fmap_y_len = (fmap_y_len_ - pool_y_len_)/pool_y_step_ + 1;
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+
+		KALDI_ASSERT(num_input_fmaps*fmap_x_len_*fmap_y_len_ == in.NumCols());
+		KALDI_ASSERT(num_output_fmaps*out_fmap_x_len*out_fmap_y_len == out.NumCols());
+		KALDI_ASSERT(num_frames == NumRows());
+
+		Timer tim;
+		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+		dim3 dimGrid(n_blocks(out.NumRows(), CU2DBLOCK), n_blocks(out.NumCols(), CU2DBLOCK));
+		cuda_max_pooling_backward(dimGrid, dimBlock, data_, in.data_, out.data_, out_diff.data_, Dim(), in.Dim(), out.Dim(), out_diff.Dim(),
+				num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
+
+		CU_SAFE_CALL(cudaGetLastError());
+
+		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	}else
+#endif
+	{
+	    //Mat().ConvolutionForwardExpansionWorkspace();
+	}
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::AddMatBlocks(Real alpha, const CuMatrixBase<Real> &A, 
 		MatrixTransposeType transA) {
   if (num_rows_ == 0 || num_cols_ == 0) return;
   int32 num_row_blocks, num_col_blocks;
@@ -1910,6 +2022,29 @@ void CuMatrixBase<Real>::CopyRowsFromVec(const VectorBase<Real> &v) {
   }
 }
 
+template<typename Real>
+void CuMatrixBase<Real>::CopyRowFromVec(const CuVectorBase<Real> &v, const MatrixIndexT row) {
+	  KALDI_ASSERT(static_cast<UnsignedMatrixIndexT>(row) <
+              static_cast<UnsignedMatrixIndexT>(num_rows_));
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    Timer tim;
+    if (v.Dim() <= stride_) {
+    	const Real *v_data = v.Data();
+    	CU_SAFE_CALL(cudaMemcpy(RowData(row), v_data, sizeof(Real)*num_cols_, cudaMemcpyDeviceToDevice));
+      /*      const Real *v_data = v.Data();
+      for (MatrixIndexT r = 0; r < num_rows_; r++)
+      cudaMemcpy(RowData(r), v_data, sizeof(Real)*num_cols_, cudaMemcpyHostToDevice); */
+    } else {
+      KALDI_ERR << "Wrong sized arguments";
+    }
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+  {
+    Mat().CopyRowsFromVec(v);
+  }
+}
 
 template<typename Real>
 void CuMatrixBase<Real>::CopyColFromVec(const CuVectorBase<Real> &v,
@@ -2098,6 +2233,157 @@ void CuMatrixBase<Real>::CopyCols(const CuMatrixBase<Real> &src,
   }
 }
 
+template<typename Real>
+void CuMatrixBase<Real>::CopyColMats(const std::vector<CuSubMatrix<Real>* > &src)
+{
+	if (NumRows() == 0) return;
+
+    int32 batchCount = src.size();
+
+    if (batchCount == 0) return;
+
+    // all elements must have the same num-rows, num-cols and stride
+    for (int32 i = 0; i < batchCount-1; i++) {
+      KALDI_ASSERT(src[i]->NumRows() == src[i+1]->NumRows());
+      KALDI_ASSERT(src[i]->NumCols() == src[i+1]->NumCols());
+    }
+
+    KALDI_ASSERT(src[0]->NumRows() == NumRows());
+    KALDI_ASSERT(src[0]->NumCols()*batchCount == NumCols());
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+
+		Timer tim;
+
+	    // place all data (src[batchCount]) in memory together
+	    // in order to make only one call of cudaMemcpy
+	    Real **device_src_array = (Real**)CuDevice::Instantiate().Malloc(batchCount*sizeof(Real*));
+	    const Real **host_src_array = new const Real*[batchCount];
+
+	    for (int32 i = 0; i < batchCount; i++) {
+	      host_src_array[i] = src[i]->data_;
+	    }
+
+	    CU_SAFE_CALL(cudaMemcpy(device_src_array, host_src_array, batchCount*sizeof(Real*), cudaMemcpyHostToDevice));
+
+		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+		dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+
+		cuda_copy_col_mats(dimGrid, dimBlock, data_, device_src_array, Dim(), src[0]->Dim());
+
+		CuDevice::Instantiate().Free(device_src_array);
+		delete[] host_src_array;
+
+		CU_SAFE_CALL(cudaGetLastError());
+		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	 }else
+#endif
+  {
+    //Mat().CopyRows(src.Data());
+  }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::CopyRowMats(const std::vector<CuSubMatrix<Real>* > &src)
+{
+	if (NumRows() == 0) return;
+
+    int32 batchCount = src.size();
+
+    if (batchCount == 0) return;
+
+    // all elements must have the same num-rows, num-cols and stride
+    for (int32 i = 0; i < batchCount-1; i++) {
+      KALDI_ASSERT(src[i]->NumRows() == src[i+1]->NumRows());
+      KALDI_ASSERT(src[i]->NumCols() == src[i+1]->NumCols());
+    }
+
+    KALDI_ASSERT(src[0]->NumRows()*batchCount == NumRows());
+    KALDI_ASSERT(src[0]->NumCols() == NumCols());
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+
+		Timer tim;
+
+	    // place all data (src[batchCount]) in memory together
+	    // in order to make only one call of cudaMemcpy
+	    Real **device_src_array = (Real**)CuDevice::Instantiate().Malloc(batchCount*sizeof(Real*));
+	    const Real **host_src_array = new const Real*[batchCount];
+
+	    for (int32 i = 0; i < batchCount; i++) {
+	      host_src_array[i] = src[i]->data_;
+	    }
+
+	    CU_SAFE_CALL(cudaMemcpy(device_src_array, host_src_array, batchCount*sizeof(Real*), cudaMemcpyHostToDevice));
+
+		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+		dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+
+		cuda_copy_row_mats(dimGrid, dimBlock, data_, device_src_array, Dim(), src[0]->Dim());
+
+		CuDevice::Instantiate().Free(device_src_array);
+		delete[] host_src_array;
+
+		CU_SAFE_CALL(cudaGetLastError());
+		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	 }else
+#endif
+  {
+    //Mat().CopyRows(src.Data());
+  }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::SumMats(const std::vector<CuSubMatrix<Real>* > &src)
+{
+	int32 batchCount = src.size();
+
+	if (batchCount == 0) return;
+
+    // all elements must have the same num-rows, num-cols and stride
+    for (int32 i = 0; i < batchCount-1; i++) {
+      KALDI_ASSERT(src[i]->NumRows() == src[i+1]->NumRows());
+      KALDI_ASSERT(src[i]->NumCols() == src[i+1]->NumCols());
+    }
+
+    KALDI_ASSERT(src[0]->NumRows() == NumRows());
+    KALDI_ASSERT(src[0]->NumCols() == NumCols());
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+
+		Timer tim;
+
+	    // place all data (src[batchCount]) in memory together
+	    // in order to make only one call of cudaMemcpy
+	    Real **device_src_array = (Real**)CuDevice::Instantiate().Malloc(batchCount*sizeof(Real*));
+	    const Real **host_src_array = new const Real*[batchCount];
+
+	    for (int32 i = 0; i < batchCount; i++) {
+	      host_src_array[i] = src[i]->data_;
+	    }
+
+	    CU_SAFE_CALL(cudaMemcpy(device_src_array, host_src_array, batchCount*sizeof(Real*), cudaMemcpyHostToDevice));
+
+	       size_t dimBlock = batchCount > CU1DBLOCK*2 ? CU1DBLOCK*2 : batchCount;
+	       dim3 dimGrid(NumRows(), NumCols());
+
+		cuda_sum_mats(dimGrid, dimBlock, data_, device_src_array, Dim(), src[0]->Dim(), batchCount);
+
+		CuDevice::Instantiate().Free(device_src_array);
+		delete[] host_src_array;
+
+		CU_SAFE_CALL(cudaGetLastError());
+		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	 }else
+#endif
+  {
+    //Mat().CopyRows(src.Data());
+  }
+
+}
 
 template<typename Real>
 void CuMatrixBase<Real>::CopyRows(const CuMatrixBase<Real> &src,

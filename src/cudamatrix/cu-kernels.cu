@@ -632,7 +632,182 @@ static void _add_mat_blocks_trans(Real alpha, const Real* src, int32_cuda num_ro
 
 template<typename Real>
 __global__
-static void _add_mat_mat_div_mat(const Real* A, const Real* B, const Real* C, Real* dst, MatrixDim d, int stride_a,
+static void _convolution_forward_expand_workspace( Real *dst, const Real *src, MatrixDim dstdim, MatrixDim srcdim,
+		    int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap)
+{
+	int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+	int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+	int32_cuda batchsize = srcdim.rows;
+	int32_cuda out_fmap_index = i/batchsize;
+	int32_cuda batch_index = i%batchsize;
+	int32_cuda index = i * dstdim.stride + j;
+	
+	int32_cuda fmap_m, fmap_n, filt_i, filt_j, src_frame_index, src_index, st;
+	
+	if (i < dstdim.rows && j < dstdim.cols)
+	{
+		//fmap_m = out_fmap_index / (fmap_y_len_-filt_y_len_+1) * filt_x_step_;
+		//fmap_n = out_fmap_index % (fmap_y_len_-filt_y_len_+1) * filt_y_step_;
+		fmap_m = out_fmap_index / ((fmap_y_len_-filt_y_len_) * filt_y_step_+1) * filt_x_step_;
+		fmap_n = out_fmap_index % ((fmap_y_len_-filt_y_len_) * filt_y_step_+1) * filt_y_step_;
+		if (connect_fmap == 1) {
+      			st = (fmap_m * fmap_y_len_ + fmap_n) * num_input_fmaps;
+    		} else {
+      			st = fmap_m * fmap_y_len_ * num_input_fmaps + fmap_n;
+    		}
+		
+		filt_i = j/(filt_y_len_*num_input_fmaps);
+		filt_j = j%(filt_y_len_*num_input_fmaps);
+		
+		if (connect_fmap == 1) {
+			src_frame_index = st + filt_i*(num_input_fmaps*fmap_y_len_) + filt_j;
+        	} else {
+        		src_frame_index = st + filt_i * (num_input_fmaps * fmap_y_len_)
+                     						 + (filt_j / num_input_fmaps)
+                     						 + (filt_j % num_input_fmaps) * fmap_y_len_;
+        	}
+		
+		src_index = src_frame_index + batch_index*srcdim.stride;
+		dst[index] = src[src_index];
+	}
+}
+
+template<typename Real>
+__global__
+static void _convolution_backward_shrink_workspace(Real *dst, const Real *src,  MatrixDim dstdim, MatrixDim srcdim,
+		const Int32Pair* const* map, const int32_cuda *mapsize)
+{
+	int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+	int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+	int32_cuda batchsize = dstdim.rows;
+	
+	int32_cuda k, src_index;
+	int32_cuda index = i * dstdim.stride + j;
+	
+	if (i < dstdim.rows && j < dstdim.cols)
+	{
+		for (k = 0; k < mapsize[j]; k++)
+		{			
+			src_index = (map[j][k].first*batchsize + i) * srcdim.stride + map[j][k].second;
+			dst[index] += src[src_index];
+		}		    
+	}
+}
+
+template<typename Real>
+__global__
+static void _max_pooling_forward(Real *dst, const Real *src, MatrixDim dstdim, MatrixDim srcdim,
+		int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+	int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+	int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	int32_cuda out_fmap_index = j/num_input_fmaps;
+	int32_cuda filt_index = j%num_input_fmaps;
+	int32_cuda fmap_m, fmap_n, st, x, y, c, src_index, dst_index, col;
+	
+	dst_index = i * dstdim.stride + j;
+	
+	if (i < dstdim.rows && j < dstdim.cols)
+	{
+		//fmap_m = out_fmap_index / (fmap_y_len_-pool_y_len_+1) * pool_x_step_;
+		//fmap_n = out_fmap_index % (fmap_y_len_-pool_y_len_+1) * pool_y_step_;
+		col = (fmap_y_len_ - pool_y_len_)/pool_y_step_+1;
+		fmap_m = out_fmap_index / col * pool_x_step_;
+		fmap_n = out_fmap_index % col * pool_y_step_;
+		st = (fmap_m * fmap_y_len_ + fmap_n) * num_input_fmaps + filt_index;
+				
+		for (x = 0; x < pool_x_len_; x++)
+		{
+			for (y = 0; y < pool_y_len_; y++)
+			{
+				//c = st + x * (num_input_fmaps * fmap_y_len_) + y * num_input_fmaps;
+				c = st + (x * fmap_y_len_ + y) * num_input_fmaps;
+				src_index = i * srcdim.stride + c;
+				if (src[src_index] > dst[dst_index])
+					dst[dst_index] = src[src_index];
+			}
+		}
+	}
+}
+
+template<typename Real>
+__global__
+static void _max_pooling_backward(Real *dst, const Real *in, const Real *out, const Real *out_diff, MatrixDim dstdim, MatrixDim indim, MatrixDim outdim, MatrixDim outdiffdim,
+		int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+	int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+	int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	int32_cuda out_fmap_index = j/num_input_fmaps;
+	int32_cuda filt_index = j%num_input_fmaps;
+	int32_cuda fmap_m, fmap_n, st, x, y, c, in_index, dst_index, out_index, out_diff_index, col;
+	
+	out_index = i * outdim.stride + j;
+	out_diff_index = i * outdiffdim.stride + j;
+	
+	if (i < dstdim.rows && j < dstdim.cols)
+	{
+		col = (fmap_y_len_ - pool_y_len_)/pool_y_step_+1;
+		fmap_m = out_fmap_index / col * pool_x_step_;
+		fmap_n = out_fmap_index % col * pool_y_step_;
+		st = (fmap_m * fmap_y_len_ + fmap_n) * num_input_fmaps + filt_index;
+				
+		for (x = 0; x < pool_x_len_; x++)
+		{
+			for (y = 0; y < pool_y_len_; y++)
+			{
+				//c = st + x * (num_input_fmaps * fmap_y_len_) + y * num_input_fmaps;
+				c = st + (x * fmap_y_len_ + y) * num_input_fmaps;
+				in_index = i * indim.stride + c;
+				dst_index = i * dstdim.stride + c;
+				if (out[out_index] == in[in_index])
+					dst[dst_index] += out_diff[out_diff_index];
+			}
+		}
+	}
+}
+
+template<typename Real>
+__global__
+static void _sum_mats(Real* dst, Real **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
+{	
+	int m = blockIdx.x, n = blockIdx.y;
+  	int THREADS = blockDim.x;
+  	if (m >= dstdim.rows) return;
+
+  	__shared__ Real aux[CU1DBLOCK*2];
+  	int steps = (batchcount - 1) / THREADS + 1;
+
+  //copy input to aux
+  aux[threadIdx.x] = src_array[threadIdx.x][m*srcdim.stride+n];
+  for(int i=1; i<steps; ++i) {
+    if(threadIdx.x+i*THREADS < batchcount)
+	aux[threadIdx.x] += src_array[i*THREADS+threadIdx.x][m*srcdim.stride+n];
+  }
+  
+  int nTotalThreads = THREADS;
+  __syncthreads();
+  while(nTotalThreads > 1) {
+    int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
+    // only the first half of the threads will be active.
+    if (threadIdx.x < halfPoint)  {
+      // Get the shared value stored by another thread
+      if(threadIdx.x+halfPoint < nTotalThreads)
+        aux[threadIdx.x] += aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
+  }
+  
+  __syncthreads();
+  if (threadIdx.x == 0)
+  	dst[m*dstdim.stride+n] = aux[0];
+}
+		
+template<typename Real>
+__global__
+static void _add_mat_mat_div_mat(const Real* A, const Real* B, const Real* C, Real* dst, MatrixDim d, int stride_a, 
                                  int stride_b, int stride_c) {
   int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
   int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -1367,7 +1542,45 @@ static void _copy_cols(Real* dst, const Real *src, const MatrixIndexT_cuda* reor
     } else {
       dst[dst_index] = 0.0;
     }
-  }
+  } 
+}
+
+template<typename Real>
+__global__
+static void _copy_col_mats(Real* dst, Real **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
+
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+  	int j = blockIdx.y * blockDim.y + threadIdx.y;
+  	int index, src_index, dst_index;
+  	if (i < dst_dim.rows && j < dst_dim.cols) 
+  	{	
+  		index = j/src_dim.cols;
+  		dst_index = i * dst_dim.stride + j; 
+  		src_index = i * src_dim.stride + j%src_dim.cols;
+  		if (index >= 0) 
+  			dst[dst_index] = src_array[index][src_index];
+  		else
+  			dst[dst_index] = 0;
+  	}
+}
+
+template<typename Real>
+__global__
+static void _copy_row_mats(Real* dst, Real **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
+
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+  	int j = blockIdx.y * blockDim.y + threadIdx.y;
+  	int index, src_index, dst_index;
+  	if (i < dst_dim.rows && j < dst_dim.cols) 
+  	{	
+  		index = i/src_dim.rows;
+  		dst_index = i * dst_dim.stride + j; 
+  		src_index = (i%src_dim.rows) * src_dim.stride + j;
+  		if (index >= 0) 
+  			dst[dst_index] = src_array[index][src_index];
+  		else
+  			dst[dst_index] = 0;
+  	}
 }
 
 template<typename Real>
@@ -2239,6 +2452,14 @@ void cudaF_copy_cols(dim3 Gr, dim3 Bl, float* dst, const float* src, const Matri
   _copy_cols<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
 }
 
+void cudaF_copy_col_mats(dim3 Gr, dim3 Bl, float* dst, float **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
+	_copy_col_mats<<<Gr,Bl>>>(dst, src_array, dst_dim, src_dim);
+}
+
+void cudaF_copy_row_mats(dim3 Gr, dim3 Bl, float* dst, float **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
+	_copy_row_mats<<<Gr,Bl>>>(dst, src_array, dst_dim, src_dim);
+}
+
 void cudaF_add_cols(dim3 Gr, dim3 Bl, float* dst, const float* src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, int src_stride) {
   _add_cols<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
 }
@@ -2360,6 +2581,35 @@ void cudaF_add_mat(dim3 Gr, dim3 Bl, float alpha, const float* src, float* dst, 
   }
 }
 
+void cudaF_convolution_forward_expand_workspace(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
+		     int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap)
+{
+	_convolution_forward_expand_workspace<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len_, fmap_y_len_,filt_x_len_, filt_y_len_, filt_x_step_, filt_y_step_, connect_fmap);
+}
+	
+void cudaF_convolution_backward_shrink_workspace(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
+			const Int32Pair* const* map, const int32_cuda *mapsize)
+{
+	_convolution_backward_shrink_workspace<<<Gr,Bl>>>(dst, src, dstdim, srcdim, map, mapsize);
+}
+
+void cudaF_max_pooling_forward(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
+		int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+	_max_pooling_forward<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
+}
+
+void cudaF_max_pooling_backward(dim3 Gr, dim3 Bl, float *dst, const float *in, const float *out, const float *out_diff, MatrixDim dstdim, MatrixDim indim, MatrixDim outdim, MatrixDim outdiffdim,
+		int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+	_max_pooling_backward<<<Gr,Bl>>>(dst, in, out, out_diff, dstdim, indim, outdim, outdiffdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
+}
+		
+void cudaF_sum_mats(dim3 Gr, dim3 Bl, float* dst, float **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
+{
+	_sum_mats<<<Gr,Bl>>>(dst, src_array, dstdim, srcdim, batchcount);
+}
+    
 void cudaF_add_mat_blocks(dim3 Gr, dim3 Bl, float alpha, const float* src, int32_cuda num_row_blocks, int32_cuda num_col_blocks, float* dst, MatrixDim d, int src_stride, int A_trans) {
   if (A_trans) {
     _add_mat_blocks_trans<<<Gr,Bl>>>(alpha, src, num_row_blocks, num_col_blocks, dst, d, src_stride);
@@ -2710,6 +2960,14 @@ void cudaD_copy_cols(dim3 Gr, dim3 Bl, double* dst, const double* src, const Mat
   _copy_cols<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
 }
 
+void cudaD_copy_col_mats(dim3 Gr, dim3 Bl, double* dst, double **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
+        _copy_col_mats<<<Gr,Bl>>>(dst, src_array, dst_dim, src_dim);
+}
+
+void cudaD_copy_row_mats(dim3 Gr, dim3 Bl, double* dst, double **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
+        _copy_row_mats<<<Gr,Bl>>>(dst, src_array, dst_dim, src_dim);
+}
+
 void cudaD_add_cols(dim3 Gr, dim3 Bl, double* dst, const double* src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, int src_stride) {
   _add_cols<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
 }
@@ -2830,6 +3088,36 @@ void cudaD_add_mat(dim3 Gr, dim3 Bl, double alpha, const double* src, double* ds
     _add_mat<<<Gr,Bl>>>(alpha,src,dst,d,src_stride);
   }
 }
+
+void cudaD_convolution_forward_expand_workspace(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
+                     int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap)
+{
+        _convolution_forward_expand_workspace<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len_, fmap_y_len_,filt_x_len_, filt_y_len_, filt_x_step_, filt_y_step_, connect_fmap);
+}
+     
+void cudaD_convolution_backward_shrink_workspace(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
+			const Int32Pair* const* map, const int32_cuda *mapsize)
+{
+        _convolution_backward_shrink_workspace<<<Gr,Bl>>>(dst, src, dstdim, srcdim, map, mapsize);
+}
+
+void cudaD_max_pooling_forward(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
+                int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+        _max_pooling_forward<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
+}
+
+void cudaD_max_pooling_backward(dim3 Gr, dim3 Bl, double *dst, const double *in, const double *out, const double *out_diff, MatrixDim dstdim, MatrixDim indim, MatrixDim outdim, MatrixDim outdiffdim,
+                int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
+{
+        _max_pooling_backward<<<Gr,Bl>>>(dst, in, out, out_diff, dstdim, indim, outdim, outdiffdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
+}
+
+void cudaD_sum_mats(dim3 Gr, dim3 Bl, double* dst, double **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
+{
+        _sum_mats<<<Gr,Bl>>>(dst, src_array, dstdim, srcdim, batchcount);
+}
+
 
 void cudaD_add_mat_blocks(dim3 Gr, dim3 Bl, double alpha, const double* src, int32_cuda num_row_blocks, int32_cuda num_col_blocks, double* dst, MatrixDim d, int src_stride, int A_trans) {
   if (A_trans) {

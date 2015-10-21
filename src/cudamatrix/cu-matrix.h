@@ -99,6 +99,11 @@ class CuMatrixBase {
   void CopyCols(const CuMatrixBase<Real> &src,
                 const CuArray<MatrixIndexT> &indexes);
 
+  void CopyColMats(const std::vector<CuSubMatrix<Real>* > &src);
+
+  void CopyRowMats(const std::vector<CuSubMatrix<Real>* > &src);
+
+  void SumMats(const std::vector<CuSubMatrix<Real>* > &src);
 
   /// Add column indices[r] of src to column r.
   /// As a special case, if indexes[i] == -1, skip column i
@@ -386,6 +391,17 @@ class CuMatrixBase {
   /// *this += alpha * A
   void AddMat(Real alpha, const CuMatrixBase<Real> &A,
               MatrixTransposeType trans = kNoTrans);
+  
+  void ConvolutionForwardExpandWorkspace(const CuMatrixBase<Real> &A, int num_input_fmaps, int fmap_x_len_, int fmap_y_len_,
+  		int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap);
+
+  void ConvolutionBackwardShrinkWorkspace(const CuMatrixBase<Real> &A, const CuArray<Int32Pair* > &map, const CuArray<int32> &mapsize);
+
+  void MaxPoolingForward(const CuMatrixBase<Real> &in,
+		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_);
+
+  void MaxPoolingBackward(const CuMatrixBase<Real> &in, const CuMatrixBase<Real> &out, const CuMatrixBase<Real> &out_diff,
+		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_);
 
   /// if A.NumRows() is multiple of (*this)->NumRows and A.NumCols() is multiple of (*this)->NumCols
   /// divide A into blocks of the same size as (*this) and add them to *this (times alpha)
