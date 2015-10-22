@@ -75,6 +75,10 @@ class CuMemoryAllocator {
 
   void Free(void *ptr);
 
+  void* MallocLocal(size_t size);
+  void* MallocPitchLocal(size_t row_bytes, size_t num_rows, size_t *pitch);
+  void FreeLocal(void *ptr);
+
 
   // the maximum amount of memory that was ever allocated in the lifetime of the
   // program, in bytes.

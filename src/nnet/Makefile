@@ -10,7 +10,10 @@ LDLIBS += $(CUDA_LDLIBS)
 TESTFILES = nnet-randomizer-test nnet-component-test
 
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
-           nnet-pdf-prior.o nnet-randomizer.o
+           nnet-pdf-prior.o nnet-randomizer.o \
+	   nnet-example.o nnet-model-sync.o \
+           nnet-compute-sequential-parallel.o nnet-compute-parallel.o \
+           nnet-affine-preconditioned-transform.o nnet-model-merge-function.o
 
 LIBNAME = kaldi-nnet
 

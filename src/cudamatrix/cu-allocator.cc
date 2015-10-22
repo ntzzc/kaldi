@@ -363,6 +363,50 @@ CuMemoryAllocator::MruCache::MruCache(
 
 
 
+void* CuMemoryAllocator::MallocLocal(size_t size)
+{
+	void *ans;
+	cudaError_t e;
+	Timer tim;
+	e = cudaMalloc(&ans, size);
+	tot_time_taken_in_cuda_malloc_pitch_ += tim.Elapsed();
+
+	if (e != cudaSuccess) {
+      		PrintMemoryUsage();
+		KALDI_ERR << "Cannot allocate the requested memory ("
+                  << size << " bytes)";
+	}
+	cudaGetLastError(); 
+
+	return ans;
+}
+
+void* CuMemoryAllocator::MallocPitchLocal(size_t row_bytes, size_t num_rows, size_t *pitch)
+{
+	void *ans;
+        cudaError_t e;
+	Timer tim;
+	e = cudaMallocPitch(&ans, pitch, row_bytes, num_rows);
+	tot_time_taken_in_cuda_malloc_pitch_ += tim.Elapsed();
+
+        if (e != cudaSuccess) {
+      		PrintMemoryUsage();
+		KALDI_ERR << "Cannot allocate the requested memory ("
+                  << row_bytes << " x " << num_rows << " = "
+                  << row_bytes * num_rows << " bytes)";
+        }   
+        cudaGetLastError(); 
+
+        return ans;
+}
+
+void  CuMemoryAllocator::FreeLocal(void *ptr)
+{
+
+	CU_SAFE_CALL(cudaFree(ptr));
+	ptr = NULL;
+}
+
 
 }
 
