@@ -1,4 +1,4 @@
-// nnet/nnet-affine-transform.h
+	// nnet/nnet-affine-transform.h
 
 // Copyright 2011-2014  Brno University of Technology (author: Karel Vesely)
 
@@ -26,10 +26,14 @@
 #include "nnet/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
+
 namespace kaldi {
 namespace nnet1 {
 
 class AffineTransform : public UpdatableComponent {
+
+	friend class NnetModelSync;
+
  public:
   AffineTransform(int32 dim_in, int32 dim_out) 
     : UpdatableComponent(dim_in, dim_out), 
@@ -156,6 +160,51 @@ class AffineTransform : public UpdatableComponent {
     in_diff->AddMatMat(1.0, out_diff, kNoTrans, linearity_, kNoTrans, 0.0);
   }
 
+  void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
+  {
+	    // we use following hyperparameters from the option class
+	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+	    const BaseFloat mmt = opts_.momentum;
+	    const BaseFloat l2 = opts_.l2_penalty;
+	    const BaseFloat l1 = opts_.l1_penalty;
+	    // we will also need the number of frames in the mini-batch
+	    const int32 num_frames = input.NumRows();
+		local_lrate = -lr;
+		local_lrate_bias = -lr_bias;
+
+	    // compute gradient (incl. momentum)
+	    linearity_corr_.AddMatMat(1.0, diff, kTrans, input, kNoTrans, mmt);
+	    bias_corr_.AddRowSumMat(1.0, diff, mmt);
+	    // l2 regularization
+	    if (l2 != 0.0) {
+	      linearity_.AddMat(-lr*l2*num_frames, linearity_);
+	    }
+	    // l1 regularization
+	    if (l1 != 0.0) {
+	      cu::RegularizeL1(&linearity_, &linearity_corr_, lr*l1*num_frames, lr);
+	    }
+  }
+
+  void UpdateGradient()
+  {
+	    	// update
+	      linearity_.AddMat(local_lrate, linearity_corr_);
+	      bias_.AddVec(local_lrate_bias, bias_corr_);
+	      // max-norm
+	      if (max_norm_ > 0.0) {
+	        CuMatrix<BaseFloat> lin_sqr(linearity_);
+	        lin_sqr.MulElements(linearity_);
+	        CuVector<BaseFloat> l2(OutputDim());
+	        l2.AddColSumMat(1.0, lin_sqr, 0.0);
+	        l2.ApplyPow(0.5); // we have per-neuron L2 norms
+	        CuVector<BaseFloat> scl(l2);
+	        scl.Scale(1.0/max_norm_);
+	        scl.ApplyFloor(1.0);
+	        scl.InvertElements();
+	        linearity_.MulRowsVec(scl); // shink to sphere!
+	      }
+  }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
     // we use following hyperparameters from the option class
@@ -223,8 +272,58 @@ class AffineTransform : public UpdatableComponent {
     return linearity_corr_;
   }
 
+  /// This function is for getting a low-rank approximations of this
+   /// AffineComponent by two AffineComponents.
+  virtual void LimitRank(BaseFloat threshold, int min_rank, int max_rank,
+		  AffineTransform **a, AffineTransform **b) const {
+    int32 d = 0;
+    BaseFloat sum = 0;
 
- private:
+    // We'll limit the rank of just the linear part, keeping the bias vector full.
+    Matrix<BaseFloat> M (linearity_);
+    int32 rows = M.NumRows(), cols = M.NumCols(), rc_min = std::min(rows, cols);
+    Vector<BaseFloat> s(rc_min);
+    Matrix<BaseFloat> U(rows, rc_min), Vt(rc_min, cols);
+    // Do the destructive svd M = U diag(s) V^T.  It actually outputs the transpose of V.
+    M.DestructiveSvd(&s, &U, &Vt);
+    SortSvd(&s, &U, &Vt); // Sort the singular values from largest to smallest.
+    BaseFloat old_svd_sum = s.Sum();
+
+    for (d = 0; d < s.Dim(); d++)
+    {
+    	sum += s(d);
+    	if (sum >= old_svd_sum*threshold) break;
+    }
+
+    KALDI_ASSERT(d <= InputDim());
+    d = d < min_rank ? min_rank : d;
+    d = max_rank < d ? max_rank : d;
+
+    U.Resize(rows, d, kCopyData);
+    s.Resize(d, kCopyData);
+    Vt.Resize(d, cols, kCopyData);
+    BaseFloat new_svd_sum = s.Sum();
+    KALDI_LOG << "Reduced rank from "
+              << rc_min <<  " to " << d << ", SVD sum reduced from "
+              << old_svd_sum << " to " << new_svd_sum;
+
+    // U.MulColsVec(s); // U <-- U diag(s)
+    Vt.MulRowsVec(s); // Vt <-- diag(s) Vt.
+
+    //*a = dynamic_cast<AffineTransform*>(this->Copy());
+    //*b = dynamic_cast<AffineTransform*>(this->Copy());
+    *a = new AffineTransform(Vt.NumCols(), Vt.NumRows());
+    *b = new AffineTransform(U.NumCols(), U.NumRows());
+
+    (*a)->bias_.Resize(d, kSetZero);
+    (*a)->linearity_ = Vt;
+
+    (*b)->bias_ = this->bias_;
+    (*b)->linearity_ = U;
+  }
+
+protected:
+  friend class AffinePreconditionedOnlineTransform;
   CuMatrix<BaseFloat> linearity_;
   CuVector<BaseFloat> bias_;
 
@@ -234,6 +333,10 @@ class AffineTransform : public UpdatableComponent {
   BaseFloat learn_rate_coef_;
   BaseFloat bias_learn_rate_coef_;
   BaseFloat max_norm_;
+
+  BaseFloat local_lrate;
+  BaseFloat local_lrate_bias;
+
 };
 
 } // namespace nnet1

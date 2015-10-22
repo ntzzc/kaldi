@@ -1158,7 +1158,7 @@ void CuMatrixBase<Real>::AddMatMat(
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
     Timer tim;
-    CU_SAFE_CALL(cublas_gemm(GetCublasHandle(),
+    CU_SAFE_CALL(cublas_gemm(GetLocalCublasHandle(),
 			    (transB==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 			    (transA==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 			    m, n, k, alpha, B.data_, B.Stride(),
@@ -1189,7 +1189,7 @@ void CuMatrixBase<Real>::SymAddMat2(
     Timer tim;
     cublasOperation_t trans = (transA == kTrans ? CUBLAS_OP_N : CUBLAS_OP_T);
     MatrixIndexT A_other_dim = (transA == kNoTrans ? A.num_cols_ : A.num_rows_);
-    CU_SAFE_CALL(cublas_syrk(GetCublasHandle(), CUBLAS_FILL_MODE_UPPER, trans,
+    CU_SAFE_CALL(cublas_syrk(GetLocalCublasHandle(), CUBLAS_FILL_MODE_UPPER, trans,
 			    num_rows_, A_other_dim, alpha, A.Data(),
 			    A.Stride(), beta, this->data_, this->stride_));
 
@@ -1917,7 +1917,7 @@ void AddMatMatBatched(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 
     CU_SAFE_CALL(cudaMemcpy(device_abc_array, host_abc_array, 3*batchCount*sizeof(Real*), cudaMemcpyHostToDevice));
 
-    CU_SAFE_CALL(cublas_gemmBatched(GetCublasHandle(),
+    CU_SAFE_CALL(cublas_gemmBatched(C.GetLocalCublasHandle(), //GetCublasHandle(),
 			    (transB==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 			    (transA==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 			    m, n, k, alpha, device_b_array, B[0]->Stride(),

@@ -36,6 +36,22 @@
 
 namespace kaldi {
 
+typedef struct GpuInfo_{
+        int32 gpuid;
+        float d2h_bandwidth;
+        float h2d_bandwidth;
+        size_t mem_free;
+        size_t mem_total;
+        float  mem_ratio;
+        bool   used;
+}GpuInfo;
+
+typedef struct MPIGpuInfo_{
+	char hostname[256];
+	int gpuid;
+	int myid;
+}MPIGpuInfo;
+
 /**
  * Singleton object which represents the CUDA device
  * responsible for CUBLAS initilalisation, collects profiling info
@@ -64,7 +80,23 @@ class CuDevice {
   ///  "optional" -- Do as above, but if it fails, back off to CPU.
   ///  "no"       -- Run on CPU.
   ///  (more comments in cu-device.cc)
+
+
   void SelectGpuId(std::string use_gpu);
+
+  /// wd007
+
+  void SelectGpu(int32 gpu_idx);
+  int  SelectGpu();
+
+  void GetBandwidth(int32 gpu_idx, float &d2h, float &h2d);
+
+  bool Initialize();
+
+  int GetDeviceId();
+
+  int MPISelectGpu(MPIGpuInfo *gpuinfo, MPI_Win &win, int thread_idx, int num_threads);
+  ////
 
   /// Check if the CUDA GPU is selected for use
   bool Enabled() const {
@@ -159,6 +191,7 @@ class CuDevice {
 // in the CUBLAS v2 API, since we so frequently need to access it.
 inline cublasHandle_t GetCublasHandle() { return CuDevice::Instantiate().GetHandle(); }
 
+inline void CreateCublasHandle(cublasHandle_t *handle) { CU_SAFE_CALL(cublasCreate(handle));}
 
 }  // namespace
 

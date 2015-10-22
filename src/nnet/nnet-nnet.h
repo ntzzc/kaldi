@@ -34,6 +34,9 @@ namespace kaldi {
 namespace nnet1 {
 
 class Nnet {
+
+	friend class NnetModelSync;
+
  public:
   Nnet() {}
   Nnet(const Nnet& other);  // Copy constructor.
@@ -45,7 +48,13 @@ class Nnet {
   /// Perform forward pass through the network
   void Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
   /// Perform backward pass through the network
-  void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff);
+  ///void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff);
+  /// Perform backward pass through the network
+  void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff, bool update=true);
+  /// Perform update gradient pass through the network
+  void Update();
+  void Gradient();
+  void UpdateGradient();
   /// Perform forward pass through the network, don't keep buffers (use it when not training)
   void Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
 
@@ -75,6 +84,14 @@ class Nnet {
   /// Remove component
   void RemoveComponent(int32 c);
   void RemoveLastComponent() { RemoveComponent(NumComponents()-1); }
+
+  /// Replaces any components of type AffineComponent or derived classes, with
+  /// components of type AffineComponentPreconditionedOnline.  E.g. rank_in =
+  /// 20, rank_out = 80, num_samples_history = 2000.0, alpha = 4.0
+  void SwitchToOnlinePreconditioning(int32 rank_in, int32 rank_out,
+                                     int32 update_period,
+                                     BaseFloat num_samples_history,
+                                     BaseFloat alpha);
 
   /// Access to forward pass buffers
   const std::vector<CuMatrix<BaseFloat> >& PropagateBuffer() const {
