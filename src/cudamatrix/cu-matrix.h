@@ -38,6 +38,7 @@
 #include "cudamatrix/cu-math.h"
 #include "cudamatrix/cu-rand.h"
 #include "cudamatrix/cu-sparse-matrix.h"
+#include "cudamatrix/cu-device.h"
 
 namespace kaldi {
 
@@ -599,12 +600,26 @@ class CuMatrixBase {
     return *(reinterpret_cast<MatrixBase<Real>* >(this));
   }
 
+#if HAVE_CUDA == 1
+  inline cublasHandle_t GetLocalCublasHandle()
+  {
+	  if (handle_ == NULL)
+		  CreateCublasHandle(handle_);
+	  return handle_;
+  }
+#endif
+
  protected:
 
   // The constructors are protected to prevent the user creating an instance of
   // this class (you should create a child class CuMatrix or CuSubMatrix.
 
-  CuMatrixBase(): data_(NULL), num_cols_(0), num_rows_(0), stride_(0) { }
+  CuMatrixBase(): data_(NULL), num_cols_(0), num_rows_(0), stride_(0)
+  {
+#if HAVE_CUDA == 1
+	  handle_ = NULL;
+#endif
+  }
 
   /// This constructor takes the #rows, #cols and stride; it's called from
   /// the constructor of CuSubMatrix.
@@ -612,7 +627,12 @@ class CuMatrixBase {
                MatrixIndexT num_rows,
                MatrixIndexT num_cols,
                MatrixIndexT stride):
-  data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride) { }
+  data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride)
+  {
+#if HAVE_CUDA == 1
+	  handle_ = NULL;
+#endif
+  }
 
   Real *data_;       ///< GPU data pointer (or regular matrix data pointer,
   ///< if either CUDA was not compiled in or we could not
@@ -625,6 +645,10 @@ class CuMatrixBase {
   MatrixIndexT num_cols_;
   MatrixIndexT num_rows_;
   MatrixIndexT stride_;
+
+#if HAVE_CUDA == 1
+  cublasHandle_t handle_;
+#endif
 
  private:
   KALDI_DISALLOW_COPY_AND_ASSIGN(CuMatrixBase);

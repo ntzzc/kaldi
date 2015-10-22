@@ -210,11 +210,29 @@ class CuVectorBase {
   
   /// Default constructor: make it protected so the user cannot
   /// instantiate this class.
-  CuVectorBase<Real>(): data_(NULL), dim_(0) { }
+  CuVectorBase<Real>(): data_(NULL), dim_(0)
+  {
+#if HAVE_CUDA == 1
+	  handle_ = NULL;
+#endif
+  }
+
+#if HAVE_CUDA == 1
+  inline cublasHandle_t GetLocalCublasHandle()
+  {
+	  if (handle_ == NULL)
+		  CreateCublasHandle(handle_);
+	  return handle_;
+  }
+#endif
   
   Real *data_; ///< GPU data pointer (or regular data pointer
                ///< if CUDA is not compiled in or we have no GPU).
   MatrixIndexT dim_; ///< dimension of the vector
+
+#if HAVE_CUDA == 1
+  cublasHandle_t handle_;
+#endif
 
  private:
   KALDI_DISALLOW_COPY_AND_ASSIGN(CuVectorBase);
