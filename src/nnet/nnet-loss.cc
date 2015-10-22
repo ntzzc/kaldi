@@ -24,6 +24,7 @@
 
 #include <sstream>
 #include <iterator>
+#include <mpi.h>
 
 namespace kaldi {
 namespace nnet1 {
@@ -236,6 +237,44 @@ void Mse::Eval(const VectorBase<BaseFloat> &frame_weights,
 }
 
 
+/// Merge lost
+void Xent::Add(Xent *xent)
+{
+	  this->frames_ += xent->frames_;
+	  this->correct_ += xent->correct_;
+	  this->loss_ += xent->loss_;
+	  this->entropy_ += xent->entropy_;
+
+	  // partial results during training
+	  frames_progress_ += xent->frames_progress_;
+	  loss_progress_ += xent->loss_progress_;
+	  entropy_progress_+= xent->entropy_progress_;
+
+	  for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
+		  this->loss_vec_[i] += xent->loss_vec_[i];
+}
+
+void Xent::Merge(int myid, int root)
+{
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	void *addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->frames_));
+	MPI_Reduce(addr, (void*)(&this->frames_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->correct_));
+	MPI_Reduce(addr, (void*)(&this->correct_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->loss_));
+	MPI_Reduce(addr, (void*)(&this->loss_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->entropy_));
+	MPI_Reduce(addr, (void*)(&this->entropy_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+}
+
+
+
 void Mse::Eval(const VectorBase<BaseFloat> &frame_weights,
                const CuMatrixBase<BaseFloat>& net_out, 
                const Posterior& post, 
@@ -264,6 +303,33 @@ std::string Mse::Report() {
   std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
   oss << "]" << std::endl;
   return oss.str();
+}
+
+/// Merge lost
+void Mse::Add(Mse *mse)
+{
+	  this->frames_ += mse->frames_;
+	  this->loss_ += mse->loss_;
+
+	  // partial results during training
+	  frames_progress_ += mse->frames_progress_;
+	  loss_progress_ += mse->loss_progress_;
+
+	  for (int i = 0; i<this->loss_vec_.size() && i<mse->loss_vec_.size(); i++)
+		  this->loss_vec_[i] += mse->loss_vec_[i];
+}
+
+void Mse::Merge(int myid, int root)
+{
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	void *addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->frames_));
+	MPI_Reduce(addr, (void*)(&this->frames_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->loss_));
+	MPI_Reduce(addr, (void*)(&this->loss_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
 }
 
 

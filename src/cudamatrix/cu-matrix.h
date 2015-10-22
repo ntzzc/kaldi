@@ -604,7 +604,7 @@ class CuMatrixBase {
   inline cublasHandle_t GetLocalCublasHandle()
   {
 	  if (handle_ == NULL)
-		  CreateCublasHandle(handle_);
+		  CreateCublasHandle(&handle_);
 	  return handle_;
   }
 #endif

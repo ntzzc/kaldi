@@ -350,7 +350,7 @@ private:
 	    else
 	    	gpuid = CuDevice::Instantiate().SelectGpu();
 
-	    CuDevice::Instantiate().DisableCaching();
+	    //CuDevice::Instantiate().DisableCaching();
 	#endif
 
 	    model_sync->UnlockModel();

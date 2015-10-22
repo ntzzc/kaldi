@@ -50,7 +50,8 @@ Real VecVec(const CuVectorBase<Real> &a,
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {    
     Timer tim;
-    CU_SAFE_CALL(cublas_dot(GetLocalCublasHandle(), a.Dim(), a.Data(), 1, b.Data(),
+    CuVectorBase<Real> c;
+    CU_SAFE_CALL(cublas_dot(c.GetLocalCublasHandle(), a.Dim(), a.Data(), 1, b.Data(),
 			    1, &result));
     CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
 } else
@@ -935,6 +936,8 @@ void CuVector<Real>::Destroy() {
   if (CuDevice::Instantiate().Enabled()) { 
     if (this->data_ != NULL)
       CuDevice::Instantiate().Free(this->data_);
+    if (this->handle_ != NULL)
+      DestroyCublasHandle(this->handle_);
   } else
 #endif
   {

@@ -819,7 +819,7 @@ int CuDevice::SelectGpu()
 
 		CU_SAFE_CALL(cudaSetDevice(max_id));
 		//initialize the CUBLAS
-		CU_SAFE_CALL(cublasInit());
+		//CU_SAFE_CALL(cublasInit());
 
 		//create the context
 		cudaError_t e;
@@ -856,7 +856,7 @@ CuDevice::SelectGpu(int gpu_id)
 
 	CU_SAFE_CALL(cudaSetDevice(gpu_id));
 	//initialize the CUBLAS
-	CU_SAFE_CALL(cublasInit());
+	//CU_SAFE_CALL(cublasInit());
 
 	//create the context
 	cudaError_t e;
@@ -989,12 +989,15 @@ int CuDevice::MPISelectGpu(MPIGpuInfo *gpuinfo, MPI_Win &win, int thread_idx, in
 
 	CU_SAFE_CALL(cudaSetDevice(gpuid));
 	//initialize the CUBLAS
-	CU_SAFE_CALL(cublasInit());
+	//CU_SAFE_CALL(cublasInit());
 
 	gpuinfo_[gpuid].used = true;
 
 	return gpuinfo[id].gpuid;
 }
+
+void CuDevice::CreateHandle(cublasHandle_t *handle){ CU_SAFE_CALL(cublasCreate(handle));}
+void CuDevice::DestroyHandle(cublasHandle_t handle){ CU_SAFE_CALL(cublasDestroy(handle));}
 
 }
 

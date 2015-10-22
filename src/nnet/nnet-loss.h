@@ -82,6 +82,10 @@ class Xent : public LossItf {
     return (loss_ - entropy_) / frames_;
   }
 
+  /// Merge statistic data
+  void Add(Xent *xent);
+  void Merge(int myid, int root);
+
  private: 
   double frames_;
   double correct_;
@@ -134,6 +138,10 @@ class Mse : public LossItf {
   BaseFloat AvgLoss() {
     return loss_ / frames_;
   }
+
+  /// Merge statistic data
+  void Add(Mse *mse);
+  void Merge(int myid, int root);
 
  private:
   double frames_;

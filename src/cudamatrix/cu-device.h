@@ -34,6 +34,8 @@
 #include "base/kaldi-common.h"
 #include "cudamatrix/cu-allocator.h"
 
+#include <mpi.h>
+
 namespace kaldi {
 
 typedef struct GpuInfo_{
@@ -85,6 +87,9 @@ class CuDevice {
   void SelectGpuId(std::string use_gpu);
 
   /// wd007
+
+  void CreateHandle(cublasHandle_t *handle);
+  void DestroyHandle(cublasHandle_t handle);
 
   void SelectGpu(int32 gpu_idx);
   int  SelectGpu();
@@ -185,13 +190,16 @@ class CuDevice {
 
   CuMemoryAllocator allocator_;
 
+  std::vector<GpuInfo> gpuinfo_;
+
 }; // class CuDevice
 
 // This function is declared as a more convenient way to get the CUDA device handle for use
 // in the CUBLAS v2 API, since we so frequently need to access it.
 inline cublasHandle_t GetCublasHandle() { return CuDevice::Instantiate().GetHandle(); }
 
-inline void CreateCublasHandle(cublasHandle_t *handle) { CU_SAFE_CALL(cublasCreate(handle));}
+inline void CreateCublasHandle(cublasHandle_t *handle) { CuDevice::Instantiate().CreateHandle(handle);}
+inline void DestroyCublasHandle(cublasHandle_t handle) { CuDevice::Instantiate().DestroyHandle(handle);}
 
 }  // namespace
 

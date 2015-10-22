@@ -137,7 +137,7 @@ private:
 	    {
 	    	int32 thread_idx = model_sync->GetThreadIdx();
 	    	KALDI_LOG << "MyId: " << parallel_opts->myid << "  ThreadId: " << thread_idx;
-	    	gpuid = CuDevice::Instantiate().MPISelectGPU(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
+	    	gpuid = CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
 	    	for (int i = 0; i< this->num_threads*parallel_opts->num_procs; i++)
 	    	{
 	    		KALDI_LOG << model_sync->gpuinfo_[i].hostname << "  myid: " << model_sync->gpuinfo_[i].myid
@@ -145,7 +145,7 @@ private:
 	    	}
 	    }
 	    else
-	    	gpuid = CuDevice::Instantiate().SelectGPU();
+	    	gpuid = CuDevice::Instantiate().SelectGpu();
 
 	    //CuDevice::Instantiate().DisableCaching();
 	#endif

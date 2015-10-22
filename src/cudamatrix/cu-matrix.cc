@@ -89,6 +89,8 @@ void CuMatrix<Real>::Destroy() {
       CuDevice::Instantiate().Free(this->data_);
       CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
     }
+    if (this->handle_ != NULL)
+	DestroyCublasHandle(this->handle_);
   } else
 #endif
   {
@@ -1917,7 +1919,7 @@ void AddMatMatBatched(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 
     CU_SAFE_CALL(cudaMemcpy(device_abc_array, host_abc_array, 3*batchCount*sizeof(Real*), cudaMemcpyHostToDevice));
 
-    CU_SAFE_CALL(cublas_gemmBatched(C.GetLocalCublasHandle(), //GetCublasHandle(),
+    CU_SAFE_CALL(cublas_gemmBatched(C[0]->GetLocalCublasHandle(), //GetCublasHandle(),
 			    (transB==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 			    (transA==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 			    m, n, k, alpha, device_b_array, B[0]->Stride(),
