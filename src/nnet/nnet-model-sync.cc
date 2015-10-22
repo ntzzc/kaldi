@@ -103,6 +103,11 @@ NnetModelSync::GetDim(Nnet *nnet)
 	{
 			if (nnet->components_[n]->IsUpdatable()) {
 				switch (nnet->components_[n]->GetType()) {
+				case Component::kConvolutional2DComponentFast:
+					Convolutional2DComponentFast *conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
+					dim += conv->filters_.SizeInBytes()/sizeof(BaseFloat);
+					dim += conv->bias_.Dim();
+					break;
 				case Component::kBatchNormTransform:
 					norm_t = (BatchNormTransform*)(nnet->components_[n]);
 					dim += norm_t->scale_.Dim();
@@ -144,6 +149,24 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
+			case Component::kConvolutional2DComponentFast:
+				Convolutional2DComponentFast *conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
+
+				dim = conv->filters_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch,
+														conv->filters_.Data(), src_pitch, width, dim.rows,
+														cudaMemcpyDeviceToHost));
+				pos += conv->filters_.SizeInBytes();
+				size = conv->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, conv->bias_.Data(), size, cudaMemcpyDeviceToHost));
+
+				pos += size;
+				break;
+
 			case Component::kBatchNormTransform:
 				norm_t = (BatchNormTransform*)(nnet->components_[n]);
 				{
@@ -206,6 +229,26 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
+			case Component::kConvolutional2DComponentFast:
+				Convolutional2DComponentFast *conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
+
+				dim = conv->filters_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(conv->filters_.Data(), dst_pitch,
+														host_data_+pos, src_pitch, width, dim.rows,
+														cudaMemcpyHostToDevice));
+
+				pos += conv->filters_.SizeInBytes();
+
+				size = conv->bias_.Dim()*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy(conv->filters_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+
+				pos += size;
+				break;
 			case Component::kBatchNormTransform:
 					norm_t = (BatchNormTransform*)(nnet->components_[n]);
 					{
