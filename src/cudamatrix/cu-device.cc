@@ -554,12 +554,12 @@ void* CuDevice::Malloc(size_t size) {
 }
 */
 
-CuDevice::CuDevice(): active_gpu_id_(-1), verbose_(true),
+CuDevice::CuDevice(): active_gpu_id_(-1), verbose_(true), handle_(NULL),
                       allocator_(CuAllocatorOptions()) { }
 
 
 CuDevice::~CuDevice() {
-  if (Enabled()) {
+  if (Enabled() && handle_ != NULL) {
     cublasDestroy(handle_);
   }
 }
