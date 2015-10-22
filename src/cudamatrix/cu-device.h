@@ -52,12 +52,12 @@ class CuDevice {
   // cudaMallocPitch and cudaFree.  Their function is to cache the results of
   // previous allocations to avoid the very large overhead that CUDA's
   // allocation seems to give for some setups.
-  inline void* Malloc(size_t size) { return allocator_.Malloc(size); }
+  inline void* Malloc(size_t size) { return allocator_.MallocLocal(size); }
 
   inline void* MallocPitch(size_t row_bytes, size_t num_rows, size_t *pitch) {
-    return allocator_.MallocPitch(row_bytes, num_rows, pitch);
+    return allocator_.MallocPitchLocal(row_bytes, num_rows, pitch);
   }
-  inline void Free(void *ptr) { allocator_.Free(ptr); }
+  inline void Free(void *ptr) { allocator_.FreeLocal(ptr); }
 
   /// Select a GPU for computation, the 'use_gpu' modes are:
   ///  "yes"      -- Select GPU automatically and die if this fails.
