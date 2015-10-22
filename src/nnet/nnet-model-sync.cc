@@ -20,6 +20,7 @@
 #include "nnet/nnet-affine-transform.h"
 #include "nnet/nnet-affine-preconditioned-transform.h"
 #include "nnet/nnet-batchnorm-transform.h"
+#include "nnet/nnet-convolutional-2d-component-fast.h"
 
 #include "nnet/nnet-model-sync.h"
 #include "nnet-model-merge-function.h"
@@ -98,15 +99,16 @@ NnetModelSync::GetDim(Nnet *nnet)
 	int32 dim = 0;
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
+	Convolutional2DComponentFast *conv_t;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++)
 	{
 			if (nnet->components_[n]->IsUpdatable()) {
 				switch (nnet->components_[n]->GetType()) {
 				case Component::kConvolutional2DComponentFast:
-					Convolutional2DComponentFast *conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
-					dim += conv->filters_.SizeInBytes()/sizeof(BaseFloat);
-					dim += conv->bias_.Dim();
+					conv_t = (Convolutional2DComponentFast*)(nnet->components_[n]);
+					dim += conv_t->filters_.SizeInBytes()/sizeof(BaseFloat);
+					dim += conv_t->bias_.Dim();
 					break;
 				case Component::kBatchNormTransform:
 					norm_t = (BatchNormTransform*)(nnet->components_[n]);
@@ -118,10 +120,10 @@ NnetModelSync::GetDim(Nnet *nnet)
 				case Component::kAffinePreconditionedOnlineTransform:
 									// get the component
 					aff_t = (AffineTransform*)(nnet->components_[n]);
-				{
+				
 					dim += aff_t->linearity_.SizeInBytes()/sizeof(BaseFloat);
 					dim += aff_t->bias_.Dim();
-				}break;
+					break;
 				default:
 						KALDI_ERR<< "Unimplemented access to parameters "
 						<< "of updatable component "
@@ -146,11 +148,12 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	MatrixDim dim;
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
+	Convolutional2DComponentFast *conv;
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
 			case Component::kConvolutional2DComponentFast:
-				Convolutional2DComponentFast *conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
+				conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
 
 				dim = conv->filters_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
@@ -158,8 +161,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 				width = dim.cols*sizeof(BaseFloat);
 
 				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch,
-														conv->filters_.Data(), src_pitch, width, dim.rows,
-														cudaMemcpyDeviceToHost));
+						conv->filters_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
 				pos += conv->filters_.SizeInBytes();
 				size = conv->bias_.Dim()*sizeof(BaseFloat);
 				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, conv->bias_.Data(), size, cudaMemcpyDeviceToHost));
@@ -225,12 +227,13 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	MatrixDim dim;
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
+	Convolutional2DComponentFast *conv;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
 			case Component::kConvolutional2DComponentFast:
-				Convolutional2DComponentFast *conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
+				conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
 
 				dim = conv->filters_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
@@ -238,8 +241,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 				width = dim.cols*sizeof(BaseFloat);
 
 				CU_SAFE_CALL(cudaMemcpy2D(conv->filters_.Data(), dst_pitch,
-														host_data_+pos, src_pitch, width, dim.rows,
-														cudaMemcpyHostToDevice));
+							host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
 
 				pos += conv->filters_.SizeInBytes();
 

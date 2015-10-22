@@ -68,6 +68,7 @@ namespace nnet1 {
  *
  */
 class Convolutional2DComponentFast : public UpdatableComponent {
+	friend class NnetModelSync;
  public:
 	Convolutional2DComponentFast(int32 dim_in, int32 dim_out)
     : UpdatableComponent(dim_in, dim_out),
