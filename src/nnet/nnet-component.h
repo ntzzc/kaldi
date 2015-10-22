@@ -50,6 +50,8 @@ class Component {
      
     kUpdatableComponent = 0x0100, 
     kAffineTransform,
+	kBatchNormTransform,
+	kAffinePreconditionedOnlineTransform,
     kLinearTransform,
     kConvolutionalComponent,
     kConvolutional2DComponent,
@@ -201,6 +203,13 @@ class UpdatableComponent : public Component {
   /// Compute gradient and update parameters
   virtual void Update(const CuMatrixBase<BaseFloat> &input,
                       const CuMatrixBase<BaseFloat> &diff) = 0;
+
+  /// Compute gradient 
+  virtual void Gradient(const CuMatrixBase<BaseFloat> &input,
+                      const CuMatrixBase<BaseFloat> &diff) {};
+
+  /// Update parameters
+  virtual void UpdateGradient() {};
 
   /// Sets the training options to the component
   virtual void SetTrainOptions(const NnetTrainOptions &opts) {

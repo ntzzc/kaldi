@@ -26,6 +26,8 @@
 #include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 
+#include "nnet/nnet-affine-preconditioned-transform.h"
+
 namespace kaldi {
 namespace nnet1 {
 
@@ -85,7 +87,7 @@ void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out
   (*out) = propagate_buf_[components_.size()];
 }
 
-
+/*
 void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff) {
 
   //////////////////////////////////////
@@ -116,7 +118,79 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseF
   // End of Backpropagation
   //////////////////////////////////////
 }
+*/
+void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff, bool update) {
 
+  //////////////////////////////////////
+  // Backpropagation
+  //
+
+  // 0 layers
+  if (NumComponents() == 0) { (*in_diff) = out_diff; return; }
+
+  KALDI_ASSERT((int32)propagate_buf_.size() == NumComponents()+1);
+  KALDI_ASSERT((int32)backpropagate_buf_.size() == NumComponents()+1);
+
+  // copy out_diff to last buffer
+  backpropagate_buf_[NumComponents()] = out_diff;
+  // backpropagate using buffers
+  for (int32 i = NumComponents()-1; i >= 0; i--) {
+    components_[i]->Backpropagate(propagate_buf_[i], propagate_buf_[i+1],
+                            backpropagate_buf_[i+1], &backpropagate_buf_[i]);
+    if (components_[i]->IsUpdatable() && update) {
+      UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+      uc->Update(propagate_buf_[i], backpropagate_buf_[i+1]);
+    }
+  }
+  // eventually export the derivative
+  if (NULL != in_diff) (*in_diff) = backpropagate_buf_[0];
+
+  //
+  // End of Backpropagation
+  //////////////////////////////////////
+}
+
+void Nnet::Gradient()
+{
+
+	for (int32 i = NumComponents()-1; i >= 0; i--) {
+		    if (components_[i]->IsUpdatable()) {
+		      UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+		      uc->Gradient(propagate_buf_[i], backpropagate_buf_[i+1]);
+		    }
+		  }
+}
+
+void Nnet::UpdateGradient()
+{
+	for (int32 i = NumComponents()-1; i >= 0; i--) {
+		    if (components_[i]->IsUpdatable()) {
+		      UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+		      uc->UpdateGradient();
+		    }
+		  }
+}
+
+/// Perform update gradient pass through the network
+void Nnet::Update()
+{
+
+	  //////////////////////////////////////
+	  // Update gradient
+	  //
+
+	  // update using buffers
+	  for (int32 i = NumComponents()-1; i >= 0; i--) {
+	    if (components_[i]->IsUpdatable()) {
+	      UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+	      uc->Update(propagate_buf_[i], backpropagate_buf_[i+1]);
+	    }
+	  }
+
+	  //
+	  // End of Update
+	  //////////////////////////////////////
+}
 
 void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
   KALDI_ASSERT(NULL != out);
@@ -551,6 +625,30 @@ void Nnet::SetTrainOptions(const NnetTrainOptions& opts) {
       dynamic_cast<UpdatableComponent&>(GetComponent(l)).SetTrainOptions(opts_);
     }
   }
+}
+
+void Nnet::SwitchToOnlinePreconditioning(int32 rank_in, int32 rank_out,
+                                         int32 update_period,
+                                         BaseFloat num_samples_history,
+                                         BaseFloat alpha) {
+  int32 switched = 0;
+  for (size_t i = 0; i < components_.size(); i++) {
+    if (dynamic_cast<AffineTransform*>(components_[i]) != NULL) {
+    	AffinePreconditionedOnlineTransform *ac =
+          new AffinePreconditionedOnlineTransform(
+              *(dynamic_cast<AffineTransform*>(components_[i])),
+              rank_in, rank_out, update_period, num_samples_history, alpha);
+      delete components_[i];
+      components_[i] = ac;
+      switched++;
+    }
+  }
+  KALDI_LOG << "Switched " << switched << " components to use online "
+            << "preconditioning, with (input, output) rank = "
+            << rank_in << ", " << rank_out << " and num_samples_history = "
+            << num_samples_history;
+  //SetIndexes();
+  Check();
 }
 
  
