@@ -310,15 +310,15 @@ class AffineTransform : public UpdatableComponent {
     Vt.Resize(d, cols, kCopyData);
     BaseFloat new_svd_sum = s.Sum();
     KALDI_LOG << "Reduced rank from "
-              << transed?cols:rows << "x" << transed?rows:cols <<  " to "
-              << transed?cols:rows << "x" << d << " and " << d << "x" << transed?rows:cols
+              << rows << "x" << cols <<  " to "
+              << rows << "x" << d << " and " << d << "x" << cols
 	          << ", SVD sum reduced from " << old_svd_sum << " to " << new_svd_sum;
 
     if (transed)
     {
-    	Matrix<BaseFloat> tmp = U.Transpose();
-    	U = Vt.Transpose();
-    	Vt = tmp;
+	U.Transpose();
+	Vt.Transpose();
+	U.Swap(&Vt);
     }
     // U.MulColsVec(s); // U <-- U diag(s)
     Vt.MulRowsVec(s); // Vt <-- diag(s) Vt.
