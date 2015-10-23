@@ -90,7 +90,10 @@ void CuMatrix<Real>::Destroy() {
       CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
     }
     if (this->handle_ != NULL)
+    {
 	DestroyCublasHandle(this->handle_);
+	this->handle_ = NULL;
+    }
   } else
 #endif
   {

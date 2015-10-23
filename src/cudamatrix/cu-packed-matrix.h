@@ -57,11 +57,32 @@ class CuPackedMatrix {
   friend class CuSubMatrix<Real>;
   friend class CuRand<Real>;
   
-  CuPackedMatrix() : data_(NULL), num_rows_(0) {}
+  CuPackedMatrix() : data_(NULL), num_rows_(0) 
+  {
+#if HAVE_CUDA == 1
+	handle_ = NULL;
+#endif
+  }
 
   explicit CuPackedMatrix(MatrixIndexT r,
                           MatrixResizeType resize_type = kSetZero):
-      data_(NULL), num_rows_(0) {  Resize(r, resize_type);  }
+      data_(NULL), num_rows_(0) 
+{  
+	Resize(r, resize_type);  
+#if HAVE_CUDA == 1
+        handle_ = NULL;
+#endif
+}
+
+#if HAVE_CUDA == 1
+  inline cublasHandle_t GetLocalCublasHandle()
+  {
+	  if (handle_ == NULL)
+		  CreateCublasHandle(&handle_);
+	  return handle_;
+  }
+#endif
+
   
   explicit CuPackedMatrix(const PackedMatrix<Real> &orig) : data_(NULL), num_rows_(0) {
     Resize(orig.num_rows_, kUndefined);
@@ -157,6 +178,9 @@ class CuPackedMatrix {
 
   Real *data_;
   MatrixIndexT num_rows_;
+#if HAVE_CUDA == 1
+  cublasHandle_t handle_;
+#endif
   void AddPacked(const Real alpha, const CuPackedMatrix<Real> &M);
 
  private:

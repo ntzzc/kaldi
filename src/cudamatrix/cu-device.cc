@@ -709,6 +709,7 @@ bool CuDevice::Initialize()
 {
 	 // Check that we have at least one gpu
 	  int32 n_gpu = 0;
+	  cudaError_t e;
 	  cudaGetDeviceCount(&n_gpu);
 	  if(n_gpu == 0) {
 	    KALDI_WARN << "No CUDA devices found";
@@ -724,7 +725,12 @@ bool CuDevice::Initialize()
 	    switch(ret) {
 	      case cudaSuccess : {
 	        //create the CUDA context for the thread
-	        cudaThreadSynchronize(); //deprecated, but for legacy not cudaDeviceSynchronize
+		e = cudaThreadSynchronize(); // deprecated, but for legacy not cudaDeviceSynchronize
+      		if (e != cudaSuccess) {
+        		KALDI_WARN << "Cannot select this device: return code " << e 
+          		<< ", Error message: \"" << cudaGetErrorString(e) << "\"";
+      		}    
+
 	        //get GPU name
 	        char name[128];
 	        DeviceGetName(name,128,n);

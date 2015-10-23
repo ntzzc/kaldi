@@ -937,7 +937,10 @@ void CuVector<Real>::Destroy() {
     if (this->data_ != NULL)
       CuDevice::Instantiate().Free(this->data_);
     if (this->handle_ != NULL)
+    {
       DestroyCublasHandle(this->handle_);
+      this->handle_ = NULL;
+    }
   } else
 #endif
   {

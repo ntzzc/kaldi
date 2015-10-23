@@ -88,6 +88,11 @@ void CuPackedMatrix<Real>::Destroy() {
     if (this->data_ != NULL) {
       CuDevice::Instantiate().Free(this->data_);
     }
+    if (this->handle_ != NULL)
+    {    
+        DestroyCublasHandle(this->handle_);
+        this->handle_ = NULL;
+    }    
   } else
 #endif
   {
@@ -297,7 +302,7 @@ void CuPackedMatrix<Real>::Scale(Real alpha) {
     Timer tim;
     size_t nr = static_cast<size_t>(num_rows_),
         num_elements = ((nr * (nr+1)) / 2);
-    CU_SAFE_CALL(cublas_scal(GetCublasHandle(), num_elements, alpha, data_, 1));
+    CU_SAFE_CALL(cublas_scal(GetLocalCublasHandle(), num_elements, alpha, data_, 1));
     
     CuDevice::Instantiate().AccuProfile("CuPackedMatrix::Scale", tim.Elapsed());
   } else
@@ -333,7 +338,7 @@ void CuPackedMatrix<Real>::AddPacked(const Real alpha, const CuPackedMatrix<Real
     Timer tim;
     size_t nr = num_rows_,
         sz = (nr * (nr + 1)) / 2;
-    cublas_axpy(GetCublasHandle(), sz, alpha, M.Data(), 1, data_, 1);
+    cublas_axpy(GetLocalCublasHandle(), sz, alpha, M.Data(), 1, data_, 1);
     CuDevice::Instantiate().AccuProfile("CuPackedMatrix::AddPacked", tim.Elapsed());
   } else
 #endif
