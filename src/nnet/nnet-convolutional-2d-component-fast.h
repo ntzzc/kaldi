@@ -180,6 +180,7 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     ExpectToken(is, binary, "<Bias>");
     bias_.Read(is, binary);
 
+
     //
     // Sanity checks:
     //
@@ -196,6 +197,13 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
     // output sanity checks
     KALDI_ASSERT(output_dim_ % (out_fmap_x_len * out_fmap_y_len)  == 0);
+
+
+    // init grad size
+    int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+    filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero);
+    bias_grad_.Resize(filters_.NumRows(), kSetZero);
+    filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
   }
 
   void WriteData(std::ostream &os, bool binary) const {
@@ -372,17 +380,17 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     }
 
     // we will need the buffers
-       if (vectorized_diff_pathes_.size() == 0) {
+       if (vectorized_diff_patches_.size() == 0) {
     	   diff_output_.Resize(num_frames*out_fmap_size, num_filters, kUndefined);
 	   diff_patches_.Resize(num_frames*out_fmap_size, filters_.NumCols());
     	   for (int32 p = 0; p < out_fmap_size; p++)
     	   {
     	       	CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(out_diff.ColRange(p*num_filters, num_filters));
-    	       	vectorized_diff_pathes_.push_back(tgt);
+    	       	vectorized_diff_patches_.push_back(tgt);
     	   }
        }
 
-       diff_output_.CopyRowMats(vectorized_diff_pathes_);
+       diff_output_.CopyRowMats(vectorized_diff_patches_);
 
        diff_patches_.AddMatMat(1.0, diff_output_, kNoTrans, filters_, kNoTrans, 0.0);
 
@@ -405,19 +413,19 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
     // we use following hyperparameters from the option class
     const BaseFloat lr = opts_.learn_rate;
-    /* NOT NOW:
     const BaseFloat mmt = opts_.momentum;
     const BaseFloat l2 = opts_.l2_penalty;
     const BaseFloat l1 = opts_.l1_penalty;
+    /* NOT NOW:
     */
 
 
     //
     // calculate the gradient
     //
-    filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero);
-    bias_grad_.Resize(filters_.NumRows(), kSetZero);
-    filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
+    //filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero);
+    //bias_grad_.Resize(filters_.NumRows(), kSetZero);
+    //filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
 
 
     if (vectorized_input_patches_.size() == 0) {
@@ -434,14 +442,26 @@ class Convolutional2DComponentFast : public UpdatableComponent {
         }
     }
 
-    AddMatMatBatched(static_cast<BaseFloat>(1.0f), vectorized_grad_patches_, vectorized_diff_pathes_, kTrans, vectorized_input_patches_, kNoTrans, static_cast<BaseFloat>(0.0f));
+    // compute gradient (incl. momentum)
+    AddMatMatBatched(static_cast<BaseFloat>(1.0f), vectorized_grad_patches_, vectorized_diff_patches_, kTrans, vectorized_input_patches_, kNoTrans, 
+	static_cast<BaseFloat>(0.0f));
     filters_grad_.SumMats(vectorized_grad_patches_);
     bias_grad_.AddRowSumMat(1.0, diff_output_, 0.0);
 
     // scale
     filters_grad_.Scale(1.0/out_fmap_size);
     bias_grad_.Scale(1.0/out_fmap_size);
-                             
+
+    /* NOT NOW:
+    // l2 regularization
+    if (l2 != 0.0) {
+      filters_.AddMat(-lr*l2*num_frames, filters_);
+    }
+    // l1 regularization
+    if (l1 != 0.0) {
+      cu::RegularizeL1(&filters_, &filters_grad_, lr*l1*num_frames, lr);
+    }
+    */
  }
 
  void UpdateGradient(){
@@ -469,18 +489,18 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     // we use following hyperparameters from the option class
     const BaseFloat lr = opts_.learn_rate;
     const BaseFloat mmt = opts_.momentum;
-    /* NOT NOW:
     const BaseFloat l2 = opts_.l2_penalty;
     const BaseFloat l1 = opts_.l1_penalty;
+    /* NOT NOW:
     */
 
 
     //
     // calculate the gradient
     //
-    filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero);
-    bias_grad_.Resize(filters_.NumRows(), kSetZero);
-    filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
+    //filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero);
+    //bias_grad_.Resize(filters_.NumRows(), kSetZero);
+    //filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
 
 
     if (vectorized_input_patches_.size() == 0) {
@@ -497,13 +517,26 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     	}
     }
 
-    AddMatMatBatched(static_cast<BaseFloat>(1.0f), vectorized_grad_patches_, vectorized_diff_pathes_, kTrans, vectorized_input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
+    // compute gradient (incl. momentum)
+    AddMatMatBatched(static_cast<BaseFloat>(1.0f), vectorized_grad_patches_, vectorized_diff_patches_, kTrans, vectorized_input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
     filters_grad_.SumMats(vectorized_grad_patches_);
-    bias_grad_.AddRowSumMat(1.0, diff_output_, 0.0);
+    bias_grad_.AddRowSumMat(1.0, diff_output_, mmt);
 
     // scale
     filters_grad_.Scale(1.0/out_fmap_size);
     bias_grad_.Scale(1.0/out_fmap_size);
+
+
+    /* NOT NOW:
+    // l2 regularization
+    if (l2 != 0.0) {
+      filters_.AddMat(-lr*l2*num_frames, filters_);
+    }
+    // l1 regularization
+    if (l1 != 0.0) {
+      cu::RegularizeL1(&filters_, &filters_grad_, lr*l1*num_frames, lr);
+    }
+    */
 
     //
     // update
@@ -546,7 +579,7 @@ class Convolutional2DComponentFast : public UpdatableComponent {
    *  1col = dim over speech frames,
    *  std::vector-dim = patch-position
    */
-  std::vector<CuSubMatrix<BaseFloat>* > vectorized_diff_pathes_;
+  std::vector<CuSubMatrix<BaseFloat>* > vectorized_diff_patches_;
   CuMatrix<BaseFloat> diff_patches_;
   CuMatrix<BaseFloat> diff_output_;
 

@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     	do{
         	sscanf(ss, "%f", &ranks[i]);
         	i++;
-    	}while ((ss = strstr(ss, ":")) != NULL && ss++);
+    	}while ((ss = strstr(ss, ":")) != NULL && ss++ && i < num_affine);
 
 	for (; i < num_affine; i++)
 		ranks[i] = svd_threshold;

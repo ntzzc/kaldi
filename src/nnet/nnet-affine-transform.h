@@ -304,8 +304,8 @@ class AffineTransform : public UpdatableComponent {
     Vt.Resize(d, cols, kCopyData);
     BaseFloat new_svd_sum = s.Sum();
     KALDI_LOG << "Reduced rank from "
-              << rc_min <<  " to " << d << ", SVD sum reduced from "
-              << old_svd_sum << " to " << new_svd_sum;
+              << rows << "x" << cols <<  " to " << rows << "x" << d << " and " << d << "x" << cols 
+	      << ", SVD sum reduced from " << old_svd_sum << " to " << new_svd_sum;
 
     // U.MulColsVec(s); // U <-- U diag(s)
     Vt.MulRowsVec(s); // Vt <-- diag(s) Vt.
