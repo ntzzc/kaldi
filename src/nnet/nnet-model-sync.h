@@ -37,6 +37,7 @@ struct NnetParallelOptions{
 	int num_procs;
 	int myid;
 	int thread_level;
+	bool asgd_lock;
 	std::string merge_func;
 	std::string log_file;
 
@@ -48,12 +49,14 @@ struct NnetParallelOptions{
 									 num_procs(-1),
 									 myid(0),
 									 thread_level(0),
+									 asgd_lock(true),
 									 merge_func("globalada"),
 									 log_file("")
 									 { }
 
 	  void Register(OptionsItf *po) {
 		  po->Register("num-threads", &num_threads, "Number of threads(GPUs) to use");
+		  po->Register("asgd-lock", &asgd_lock, "Apply lock on asgd training.");
 
 	      if (this->num_procs >= 1)
 	      {
