@@ -295,13 +295,13 @@ private:
 						//t2 = time.Elapsed();
 						//time.Reset();
 
-						model_sync->LockModel();
+						//model_sync->LockModel();
 
 						model_sync->SetWeight(&nnet);
 						nnet.UpdateGradient();
 						model_sync->GetWeight(&nnet);
 
-						model_sync->UnlockModel();
+						//model_sync->UnlockModel();
 
 						update_frames = 0;
 
