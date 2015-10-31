@@ -113,7 +113,9 @@ int main(int argc, char *argv[]) {
 
     //Select the GPU
 #if HAVE_CUDA==1
-    CuDevice::Instantiate().SelectGpuId(use_gpu);
+    //CuDevice::Instantiate().SelectGpuId(use_gpu);
+		CuDevice::Instantiate().Initialize();
+		CuDevice::Instantiate().SelectGpu();
 #endif
 
     Nnet nnet_transf;
@@ -304,7 +306,7 @@ int main(int argc, char *argv[]) {
             
 #if HAVE_CUDA==1
             // check the GPU is not overheated
-            CuDevice::Instantiate().CheckGpuHealth();
+             CuDevice::Instantiate().CheckGpuHealth();
 #endif
         }
 

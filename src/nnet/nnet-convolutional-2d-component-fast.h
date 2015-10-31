@@ -413,7 +413,8 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
     // we use following hyperparameters from the option class
     const BaseFloat lr = opts_.learn_rate;
-    const BaseFloat mmt = opts_.momentum;
+    //const BaseFloat mmt = opts_.momentum;
+    const BaseFloat mmt = 0.0;
     const BaseFloat l2 = opts_.l2_penalty;
     const BaseFloat l1 = opts_.l1_penalty;
     /* NOT NOW:
@@ -488,7 +489,8 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
     // we use following hyperparameters from the option class
     const BaseFloat lr = opts_.learn_rate;
-    const BaseFloat mmt = opts_.momentum;
+    //const BaseFloat mmt = opts_.momentum;
+    const BaseFloat mmt = 0.0;
     const BaseFloat l2 = opts_.l2_penalty;
     const BaseFloat l1 = opts_.l1_penalty;
     /* NOT NOW:
