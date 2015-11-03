@@ -131,6 +131,8 @@ class VectorBase {
   /// Apply exponential to each value in vector.
   void ApplyExp();
 
+  void ApplySqrt();
+
   /// Take absolute value of each of the elements
   void ApplyAbs();
 

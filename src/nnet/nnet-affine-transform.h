@@ -320,7 +320,8 @@ class AffineTransform : public UpdatableComponent {
 	Vt.Transpose();
 	U.Swap(&Vt);
     }
-    // U.MulColsVec(s); // U <-- U diag(s)
+    s.ApplySqrt();
+    U.MulColsVec(s); // U <-- U diag(s)
     Vt.MulRowsVec(s); // Vt <-- diag(s) Vt.
 
     //*a = dynamic_cast<AffineTransform*>(this->Copy());
