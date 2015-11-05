@@ -159,7 +159,11 @@ bool SequentialNnetExample::PrepareData()
 		      return true;
 }
 
+bool LstmNnetExample::PrepareData()
+{
 
+	return true;
+}
 
 void ExamplesRepository::AcceptExample(
 		NnetExample *example) {

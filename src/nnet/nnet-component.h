@@ -57,6 +57,7 @@ class Component {
     kConvolutional2DComponent,
     kConvolutional2DComponentFast,
     kLstmProjectedStreams,
+	kLstmProjectedStreamsFast,
     kBLstmProjectedStreams,
 
     kActivationFunction = 0x0200, 
