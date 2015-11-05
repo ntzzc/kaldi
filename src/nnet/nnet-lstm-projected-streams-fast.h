@@ -1,4 +1,4 @@
-// nnet/nnet-lstm-projected-streams.h
+// nnet/nnet-lstm-projected-streams-fast.h
 
 // Copyright 2014  Jiayu DU (Jerry), Wei Li
 // Copyright 2015  Shanghai Jiao Tong University (author: Wei Deng)
@@ -44,6 +44,7 @@ namespace kaldi {
 namespace nnet1 {
 
 class LstmProjectedStreamsFast : public UpdatableComponent {
+	friend class NnetModelSync;
  public:
   LstmProjectedStreamsFast(int32 input_dim, int32 output_dim) :
     UpdatableComponent(input_dim, output_dim),

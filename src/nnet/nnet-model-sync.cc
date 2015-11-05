@@ -21,6 +21,7 @@
 #include "nnet/nnet-affine-preconditioned-transform.h"
 #include "nnet/nnet-batchnorm-transform.h"
 #include "nnet/nnet-convolutional-2d-component-fast.h"
+#include "nnet/nnet-lstm-projected-streams-fast.h"
 
 #include "nnet/nnet-model-sync.h"
 #include "nnet-model-merge-function.h"
@@ -100,11 +101,22 @@ NnetModelSync::GetDim(Nnet *nnet)
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
+	LstmProjectedStreamsFast *lstm_t;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++)
 	{
 			if (nnet->components_[n]->IsUpdatable()) {
 				switch (nnet->components_[n]->GetType()) {
+				case Component::kLstmProjectedStreamsFast:
+					lstm_t = (LstmProjectedStreamsFast*)(nnet->components_[n]);
+					dim += lstm_t->w_gifo_x_.SizeInBytes()/sizeof(BaseFloat);
+					dim += lstm_t->w_gifo_r_.SizeInBytes()/sizeof(BaseFloat);
+					dim += lstm_t->bias_.Dim();
+					dim += lstm_t->peephole_i_c_.Dim();
+					dim += lstm_t->peephole_f_c_.Dim();
+					dim += lstm_t->peephole_o_c_.Dim();
+					dim += lstm_t->w_r_m_.SizeInBytes()/sizeof(BaseFloat);
+					break;
 				case Component::kConvolutional2DComponentFast:
 					conv_t = (Convolutional2DComponentFast*)(nnet->components_[n]);
 					dim += conv_t->filters_.SizeInBytes()/sizeof(BaseFloat);
@@ -148,23 +160,64 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	MatrixDim dim;
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
-	Convolutional2DComponentFast *conv;
+	Convolutional2DComponentFast *conv_t;
+	LstmProjectedStreamsFast *lstm_t;
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
-			case Component::kConvolutional2DComponentFast:
-				conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
+			case Component::kLstmProjectedStreamsFast:
 
-				dim = conv->filters_.Dim();
+				dim = lstm_t->w_gifo_x_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, lstm_t->w_gifo_x_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += lstm_t->w_gifo_x_.SizeInBytes();
+
+				dim = lstm_t->w_gifo_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, lstm_t->w_gifo_r_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += lstm_t->w_gifo_r_.SizeInBytes();
+
+				size = lstm_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->bias_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				size = lstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_i_c_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				size = lstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_f_c_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				size = lstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_o_c_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				dim = lstm_t->w_r_m_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, lstm_t->w_r_m_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += lstm_t->w_r_m_.SizeInBytes();
+
+				break;
+			case Component::kConvolutional2DComponentFast:
+				conv_t = (Convolutional2DComponentFast*)(nnet->components_[n]);
+
+				dim = conv_t->filters_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 
 				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch,
-						conv->filters_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
-				pos += conv->filters_.SizeInBytes();
-				size = conv->bias_.Dim()*sizeof(BaseFloat);
-				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, conv->bias_.Data(), size, cudaMemcpyDeviceToHost));
+						conv_t->filters_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += conv_t->filters_.SizeInBytes();
+				size = conv_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, conv_t->bias_.Data(), size, cudaMemcpyDeviceToHost));
 
 				pos += size;
 				break;
@@ -228,10 +281,52 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv;
+	LstmProjectedStreamsFast *lstm_t;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
+			case Component::kLstmProjectedStreamsFast:
+				lstm_t = (LstmProjectedStreamsFast*)(nnet->components_[n]);
+
+				dim = lstm_t->w_gifo_x_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(lstm_t->w_gifo_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += lstm_t->w_gifo_x_.SizeInBytes();
+
+				dim = lstm_t->w_gifo_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(lstm_t->w_gifo_r_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += lstm_t->w_gifo_r_.SizeInBytes();
+
+				size = lstm_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(lstm_t->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				size = lstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(lstm_t->peephole_i_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				size = lstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(lstm_t->peephole_f_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				size = lstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(lstm_t->peephole_o_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				dim = lstm_t->w_r_m_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(lstm_t->w_r_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += lstm_t->w_r_m_.SizeInBytes();
+				break;
+
 			case Component::kConvolutional2DComponentFast:
 				conv = (Convolutional2DComponentFast*)(nnet->components_[n]);
 
@@ -247,7 +342,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 
 				size = conv->bias_.Dim()*sizeof(BaseFloat);
 
-				CU_SAFE_CALL(cudaMemcpy(conv->filters_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				CU_SAFE_CALL(cudaMemcpy(conv->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
 
 				pos += size;
 				break;
