@@ -54,9 +54,6 @@ int main(int argc, char *argv[]) {
     NnetLstmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
     opts.Register(&po);
 
-    NnetUpdateOptions dnn_opts(&trn_opts, &rnd_opts, &parallel_opts);
-    dnn_opts.Register(&po);
-
     po.Read(argc, argv);
 
     if (po.NumArgs() != 4-(opts.crossvalidate?1:0)) {
@@ -92,7 +89,7 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "TRAINING STARTED";
 
 
-    NnetLstmUpdateParallel(&opts, &dnn_opts,
+    NnetLstmUpdateParallel(&opts,
 					model_filename,
 					feature_rspecifier,
 					targets_rspecifier,
@@ -107,7 +104,7 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "TRAINING FINISHED; ";
     time_now = time.Elapsed();
 
-    stats.Print(&dnn_opts, time_now);
+    stats.Print(&opts, time_now);
 
 #if HAVE_CUDA==1
     CuDevice::Instantiate().PrintProfile();

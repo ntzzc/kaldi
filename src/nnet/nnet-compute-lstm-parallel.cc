@@ -496,7 +496,7 @@ public:
 	}
 };
 
-void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts, const NnetUpdateOptions *dnn_opts,
+void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,
@@ -529,7 +529,7 @@ void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts, const NnetUpdateO
 
 	    NnetExample *example;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, dnn_opts);
+	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
 	    	if (example->PrepareData())
 	    		repository.AcceptExample(example);
 	    	else
