@@ -345,16 +345,16 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
         for (int t = 0; t <= T+1; t++)
         {
         	// multistream buffers for current time-step
-        	y_g[t] = new CuSubMatrix<BaseFloat>(YG.RowRange(t*S,S));
-        	y_i[t] = new CuSubMatrix<BaseFloat>(YI.RowRange(t*S,S));
-        	y_f[t] = new CuSubMatrix<BaseFloat>(YF.RowRange(t*S,S));
-        	y_o[t] = new CuSubMatrix<BaseFloat>(YO.RowRange(t*S,S));
-        	y_c[t] = new CuSubMatrix<BaseFloat>(YC.RowRange(t*S,S));
-        	y_h[t] = new CuSubMatrix<BaseFloat>(YH.RowRange(t*S,S));
-        	y_m[t] = new CuSubMatrix<BaseFloat>(YM.RowRange(t*S,S));
-        	y_r[t] = new CuSubMatrix<BaseFloat>(YR.RowRange(t*S,S));
+        	y_g[t] = new CuSubMatrix<BaseFloat>(YG->RowRange(t*S,S));
+        	y_i[t] = new CuSubMatrix<BaseFloat>(YI->RowRange(t*S,S));
+        	y_f[t] = new CuSubMatrix<BaseFloat>(YF->RowRange(t*S,S));
+        	y_o[t] = new CuSubMatrix<BaseFloat>(YO->RowRange(t*S,S));
+        	y_c[t] = new CuSubMatrix<BaseFloat>(YC->RowRange(t*S,S));
+        	y_h[t] = new CuSubMatrix<BaseFloat>(YH->RowRange(t*S,S));
+        	y_m[t] = new CuSubMatrix<BaseFloat>(YM->RowRange(t*S,S));
+        	y_r[t] = new CuSubMatrix<BaseFloat>(YR->RowRange(t*S,S));
 
-        	y_gifo[t] = new CuSubMatrix<BaseFloat>(YGIFO.RowRange(t*S,S));
+        	y_gifo[t] = new CuSubMatrix<BaseFloat>(YGIFO->RowRange(t*S,S));
 
         }
     }
@@ -432,7 +432,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     }
 
     // recurrent projection layer is also feed-forward as LSTM output
-    out->CopyFromMat(YR.RowRange(1*S,T*S));
+    out->CopyFromMat(YR->RowRange(1*S,T*S));
 
     // now the last frame state becomes previous network state for next batch
     prev_nnet_state_.CopyFromMat(propagate_buf_.RowRange(T*S,S));
@@ -476,22 +476,22 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
         for (int t = T+1; t >= 0; t--)
         {
         	// multistream buffers for current time-step
-        	d_g[t] = new CuSubMatrix<BaseFloat>(DG.RowRange(t*S,S));
-        	d_i[t] = new CuSubMatrix<BaseFloat>(DI.RowRange(t*S,S));
-        	d_f[t] = new CuSubMatrix<BaseFloat>(DF.RowRange(t*S,S));
-        	d_o[t] = new CuSubMatrix<BaseFloat>(DO.RowRange(t*S,S));
-        	d_c[t] = new CuSubMatrix<BaseFloat>(DC.RowRange(t*S,S));
-        	d_h[t] = new CuSubMatrix<BaseFloat>(DH.RowRange(t*S,S));
-        	d_m[t] = new CuSubMatrix<BaseFloat>(DM.RowRange(t*S,S));
-        	d_r[t] = new CuSubMatrix<BaseFloat>(DR.RowRange(t*S,S));
+        	d_g[t] = new CuSubMatrix<BaseFloat>(DG->RowRange(t*S,S));
+        	d_i[t] = new CuSubMatrix<BaseFloat>(DI->RowRange(t*S,S));
+        	d_f[t] = new CuSubMatrix<BaseFloat>(DF->RowRange(t*S,S));
+        	d_o[t] = new CuSubMatrix<BaseFloat>(DO->RowRange(t*S,S));
+        	d_c[t] = new CuSubMatrix<BaseFloat>(DC->RowRange(t*S,S));
+        	d_h[t] = new CuSubMatrix<BaseFloat>(DH->RowRange(t*S,S));
+        	d_m[t] = new CuSubMatrix<BaseFloat>(DM->RowRange(t*S,S));
+        	d_r[t] = new CuSubMatrix<BaseFloat>(DR->RowRange(t*S,S));
 
-        	d_gifo[t] = new CuSubMatrix<BaseFloat>(DGIFO.RowRange(t*S,S));
+        	d_gifo[t] = new CuSubMatrix<BaseFloat>(DGIFO->RowRange(t*S,S));
 
         }
     }
 
     // projection layer to LSTM output is not recurrent, so backprop it all in once
-    DR.RowRange(1*S,T*S).CopyFromMat(out_diff);
+    DR->RowRange(1*S,T*S).CopyFromMat(out_diff);
 
     for (int t = T; t >= 1; t--) {
 
@@ -531,7 +531,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       // 4. diff from f(t+1) (via peephole)
       // 5. diff from o(t)   (via peephole, not recurrent)
       d_c[t]->AddMat(1.0, *d_h[t]);
-      d_c[t]->AddMatMatElements(1.0, *d_c[t+1], y_f[t+1], 1.0);
+      d_c[t]->AddMatMatElements(1.0, *d_c[t+1], *y_f[t+1], 1.0);
       d_c[t]->AddMatDiagVec(1.0, *d_i[t+1], kNoTrans, peephole_i_c_, 1.0);
       d_c[t]->AddMatDiagVec(1.0, *d_f[t+1], kNoTrans, peephole_f_c_, 1.0);
       d_c[t]->AddMatDiagVec(1.0, *d_o[t]  , kNoTrans, peephole_o_c_, 1.0);
@@ -563,7 +563,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     }
 
     // g,i,f,o -> x, do it all in once
-    in_diff->AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kNoTrans, w_gifo_x_, kNoTrans, 0.0);
+    in_diff->AddMatMat(1.0, DGIFO->RowRange(1*S,T*S), kNoTrans, w_gifo_x_, kNoTrans, 0.0);
 
   }
 
@@ -584,26 +584,26 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	    const BaseFloat mmt = opts_.momentum;
 
 	    // weight x -> g, i, f, o
-	    w_gifo_x_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
+	    w_gifo_x_corr_.AddMatMat(1.0, DGIFO->RowRange(1*S,T*S), kTrans,
 	                                  input                  , kNoTrans, mmt);
 	    // recurrent weight r -> g, i, f, o
-	    w_gifo_r_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
-	                                  YR.RowRange(0*S,T*S)   , kNoTrans, mmt);
+	    w_gifo_r_corr_.AddMatMat(1.0, DGIFO->RowRange(1*S,T*S), kTrans,
+	                                  YR->RowRange(0*S,T*S)   , kNoTrans, mmt);
 	    // bias of g, i, f, o
-	    bias_corr_.AddRowSumMat(1.0, DGIFO.RowRange(1*S,T*S), mmt);
+	    bias_corr_.AddRowSumMat(1.0, DGIFO->RowRange(1*S,T*S), mmt);
 
 	    // recurrent peephole c -> i
-	    peephole_i_c_corr_.AddDiagMatMat(1.0, DI.RowRange(1*S,T*S), kTrans,
-	                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
+	    peephole_i_c_corr_.AddDiagMatMat(1.0, DI->RowRange(1*S,T*S), kTrans,
+	                                          YC->RowRange(0*S,T*S), kNoTrans, mmt);
 	    // recurrent peephole c -> f
-	    peephole_f_c_corr_.AddDiagMatMat(1.0, DF.RowRange(1*S,T*S), kTrans,
-	                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
+	    peephole_f_c_corr_.AddDiagMatMat(1.0, DF->RowRange(1*S,T*S), kTrans,
+	                                          YC->RowRange(0*S,T*S), kNoTrans, mmt);
 	    // peephole c -> o
-	    peephole_o_c_corr_.AddDiagMatMat(1.0, DO.RowRange(1*S,T*S), kTrans,
-	                                          YC.RowRange(1*S,T*S), kNoTrans, mmt);
+	    peephole_o_c_corr_.AddDiagMatMat(1.0, DO->RowRange(1*S,T*S), kTrans,
+	                                          YC->RowRange(1*S,T*S), kNoTrans, mmt);
 
-	    w_r_m_corr_.AddMatMat(1.0, DR.RowRange(1*S,T*S), kTrans,
-	                               YM.RowRange(1*S,T*S), kNoTrans, mmt);
+	    w_r_m_corr_.AddMatMat(1.0, DR->RowRange(1*S,T*S), kTrans,
+	                               YM->RowRange(1*S,T*S), kNoTrans, mmt);
 
 	    if (clip_gradient_ > 0.0) {
 	      w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
@@ -666,26 +666,26 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     const BaseFloat mmt = opts_.momentum;
 
     // weight x -> g, i, f, o
-    w_gifo_x_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
+    w_gifo_x_corr_.AddMatMat(1.0, DGIFO->RowRange(1*S,T*S), kTrans,
                                   input                     , kNoTrans, mmt);
     // recurrent weight r -> g, i, f, o
-    w_gifo_r_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
-                                  YR.RowRange(0*S,T*S)   , kNoTrans, mmt);
+    w_gifo_r_corr_.AddMatMat(1.0, DGIFO->RowRange(1*S,T*S), kTrans,
+                                  YR->RowRange(0*S,T*S)   , kNoTrans, mmt);
     // bias of g, i, f, o
-    bias_corr_.AddRowSumMat(1.0, DGIFO.RowRange(1*S,T*S), mmt);
+    bias_corr_.AddRowSumMat(1.0, DGIFO->RowRange(1*S,T*S), mmt);
 
     // recurrent peephole c -> i
-    peephole_i_c_corr_.AddDiagMatMat(1.0, DI.RowRange(1*S,T*S), kTrans,
-                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
+    peephole_i_c_corr_.AddDiagMatMat(1.0, DI->RowRange(1*S,T*S), kTrans,
+                                          YC->RowRange(0*S,T*S), kNoTrans, mmt);
     // recurrent peephole c -> f
-    peephole_f_c_corr_.AddDiagMatMat(1.0, DF.RowRange(1*S,T*S), kTrans,
-                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
+    peephole_f_c_corr_.AddDiagMatMat(1.0, DF->RowRange(1*S,T*S), kTrans,
+                                          YC->RowRange(0*S,T*S), kNoTrans, mmt);
     // peephole c -> o
-    peephole_o_c_corr_.AddDiagMatMat(1.0, DO.RowRange(1*S,T*S), kTrans,
-                                          YC.RowRange(1*S,T*S), kNoTrans, mmt);
+    peephole_o_c_corr_.AddDiagMatMat(1.0, DO->RowRange(1*S,T*S), kTrans,
+                                          YC->RowRange(1*S,T*S), kNoTrans, mmt);
 
-    w_r_m_corr_.AddMatMat(1.0, DR.RowRange(1*S,T*S), kTrans,
-                               YM.RowRange(1*S,T*S), kNoTrans, mmt);
+    w_r_m_corr_.AddMatMat(1.0, DR->RowRange(1*S,T*S), kTrans,
+                               YM->RowRange(1*S,T*S), kNoTrans, mmt);
 
     if (clip_gradient_ > 0.0) {
       w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
@@ -790,8 +790,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 
   void Destroy()
   {
-	  delete YG, YI, YF, YO, YC, YH, YM, YR, YGIFO;
-	  delete DG, DI, DF, DO, DC, DH, DM, DR, DGIFO;
+	  delete YG; delete YI; delete YF; delete YO; delete YC; delete YH; delete YM; delete YR; delete YGIFO;
+	  delete DG, delete DI; delete DF; delete DO; delete DC; delete DH; delete DM; delete DR; delete DGIFO;
 
 	  //delete[] y_g.front();
 
@@ -859,7 +859,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   CuSubMatrix<BaseFloat> *YG, *YI, *YF, *YO,
   	  	  	  	  	  	  	  	  	  	  *YC, *YH, *YM, *YR, *YGIFO;
 
-  std::vector<CuSubMatrix<BaseFloat>* > *DG, *DI, *DF, *DO,
+  CuSubMatrix<BaseFloat> *DG, *DI, *DF, *DO,
    	  	  	  	  	  	  	  	  	  	  *DC, *DH, *DM, *DR, *DGIFO;
 
 

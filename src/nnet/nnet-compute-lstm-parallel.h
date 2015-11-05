@@ -35,6 +35,8 @@
 
 #include "cudamatrix/cu-device.h"
 
+#include "nnet/nnet-compute-parallel.h"
+
 namespace kaldi {
 namespace nnet1 {
 
@@ -59,9 +61,9 @@ struct NnetLstmUpdateOptions {
 
     //lstm
     int32 targets_delay;
-    int32 batch_size=20;
-    int32 num_stream=4;
-    int32 dump_interval=0;
+    int32 batch_size;
+    int32 num_stream;
+    int32 dump_interval;
     //lstm
 
     double dropout_retention;
@@ -105,11 +107,11 @@ struct NnetLstmUpdateOptions {
 	      //<jiayu>
 	      po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
 
-	      po.Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
+	      po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
 
-	      po.Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
+	      po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
 
-	      po.Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
+	      po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
 	      //</jiayu>
 
   	  }
@@ -175,7 +177,7 @@ struct NnetLstmStats {
 };
 
 
-void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
+void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts, const NnetUpdateOptions *dnn_opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,

@@ -13,7 +13,8 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-pdf-prior.o nnet-randomizer.o \
 	   nnet-example.o nnet-model-sync.o \
            nnet-compute-sequential-parallel.o nnet-compute-parallel.o \
-           nnet-affine-preconditioned-transform.o nnet-model-merge-function.o
+           nnet-affine-preconditioned-transform.o nnet-model-merge-function.o \
+	   nnet-compute-lstm-parallel.o
 
 LIBNAME = kaldi-nnet
 

@@ -44,7 +44,7 @@ namespace nnet1 {
 class TrainLstmParallelClass: public MultiThreadable {
 
 private:
-    const NnetUpdateOptions *opts;
+    const NnetLstmUpdateOptions *opts;
     NnetModelSync *model_sync;
 
 	std::string feature_transform,
@@ -71,7 +71,7 @@ private:
  public:
   // This constructor is only called for a temporary object
   // that we pass to the RunMultiThreaded function.
-    TrainLstmParallelClass(const NnetUpdateOptions *opts,
+    TrainLstmParallelClass(const NnetLstmUpdateOptions *opts,
 			NnetModelSync *model_sync,
 			std::string	model_filename,
 			std::string targets_rspecifier,
@@ -127,7 +127,8 @@ private:
 	void operator ()()
 	{
 
-		int gpuid, thread_idx;
+		int gpuid;
+		int thread_idx = this->thread_id_;
 
 		model_sync->LockModel();
 
@@ -135,7 +136,7 @@ private:
 	#if HAVE_CUDA == 1
 	    if (parallel_opts->num_procs > 1)
 	    {
-	    	thread_idx = model_sync->GetThreadIdx();
+	    	//thread_idx = model_sync->GetThreadIdx();
 	    	KALDI_LOG << "MyId: " << parallel_opts->myid << "  ThreadId: " << thread_idx;
 	    	gpuid = CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
 	    	for (int i = 0; i< this->num_threads*parallel_opts->num_procs; i++)
@@ -152,7 +153,7 @@ private:
 
 	    model_sync->UnlockModel();
 
-		ExamplesRepository *repository_ = batch_repo_[thread_idx];
+	    ExamplesRepository *repository_ = &batch_repo_[thread_idx];
 
 		Nnet nnet_transf;
 	    if (feature_transform != "") {
@@ -361,7 +362,6 @@ private:
 	ExamplesRepository *repository_;
 	ExamplesRepository *batch_repo_;
 
-    int32 thread_id_;
 
     std::string use_gpu;
 
@@ -386,10 +386,10 @@ public:
 	void operator ()()
 	{
 		model_sync->LockModel();
-		thread_id_ = model_sync->GetDataThreadIdx();
+		//thread_id_ = model_sync->GetDataThreadIdx();
 		model_sync->UnlockModel();
 
-		ExamplesRepository &repo = batch_repo_[thread_id_];
+		ExamplesRepository &repo = batch_repo_[this->thread_id_];
 
 		int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
@@ -496,7 +496,7 @@ public:
 	}
 };
 
-void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
+void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts, const NnetUpdateOptions *dnn_opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,
@@ -525,11 +525,11 @@ void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainLstmParallelClass> mc(opts->parallel_opts->num_threads, c);
-	    MultiThreader<TrainLstmParallelClass> md(opts->parallel_opts->num_threads, d);
+	    MultiThreader<DataLstmParallelClass>  md(opts->parallel_opts->num_threads, d);
 
 	    NnetExample *example;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
+	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, dnn_opts);
 	    	if (example->PrepareData())
 	    		repository.AcceptExample(example);
 	    	else
