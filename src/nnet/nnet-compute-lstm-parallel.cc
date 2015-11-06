@@ -221,8 +221,18 @@ private:
 		    Posterior &target = example->target;
 		    Matrix<BaseFloat> &feat = example->feat;
 		    std::vector<int> &new_utt_flags = example->new_utt_flags;
+		    num_frames = feat.NumRows();
 			//t1 = time.Elapsed();
 			//time.Reset();
+
+		        // report the speed
+        	   if ((total_frames/1000000) != ((total_frames+num_frames)/1000000)) {
+            	   	double time_now = time.Elapsed();
+            		KALDI_VLOG(1) << "After " << total_frames << " frames: time elapsed = "
+                        << time_now/60 << " min; processed " << total_frames/time_now
+                        << " frames per second.";
+        	    }   
+
 
 	        // apply optional feature transform
 	        nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);

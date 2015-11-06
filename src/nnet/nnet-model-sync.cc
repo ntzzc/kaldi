@@ -166,6 +166,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
 			case Component::kLstmProjectedStreamsFast:
+				lstm_t = (LstmProjectedStreamsFast*)(nnet->components_[n]);
 
 				dim = lstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
