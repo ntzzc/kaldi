@@ -225,15 +225,6 @@ private:
 			//t1 = time.Elapsed();
 			//time.Reset();
 
-		        // report the speed
-        	   if ((total_frames/1000000) != ((total_frames+num_frames)/1000000)) {
-            	   	double time_now = time.Elapsed();
-            		KALDI_VLOG(1) << "After " << total_frames << " frames: time elapsed = "
-                        << time_now/60 << " min; processed " << total_frames/time_now
-                        << " frames per second.";
-        	    }   
-
-
 	        // apply optional feature transform
 	        nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
 
@@ -374,6 +365,7 @@ private:
 
 
     std::string use_gpu;
+    NnetStats *stats_;
 
 
 
@@ -383,11 +375,13 @@ public:
     DataLstmParallelClass(const NnetLstmUpdateOptions *opts,
 			NnetModelSync *model_sync,
 			ExamplesRepository *repository,
-			ExamplesRepository *batch_repo):
+			ExamplesRepository *batch_repo,
+			NnetStats *stats):
 				opts(opts),
 				model_sync(model_sync),
 				repository_(repository),
-				batch_repo_(batch_repo)
+				batch_repo_(batch_repo),
+				stats_(stats)
 	 		{
 				use_gpu = opts->use_gpu;
 				feature_transform = opts->feature_transform;
@@ -395,9 +389,9 @@ public:
 	  // This does the main function of the class.
 	void operator ()()
 	{
-		model_sync->LockModel();
+		//model_sync->LockModel();
 		//thread_id_ = model_sync->GetDataThreadIdx();
-		model_sync->UnlockModel();
+		//model_sync->UnlockModel();
 
 		ExamplesRepository &repo = batch_repo_[this->thread_id_];
 
@@ -421,8 +415,11 @@ public:
 	    CuMatrix<BaseFloat> feat_transf, nnet_out, obj_diff;
 	    Matrix<BaseFloat> feat;
 
+	    int32 num_done = 0;
+	    kaldi::int64 total_frames = 0;
 	    DNNNnetExample *example;
 	    LstmNnetExample *lstm_example;
+	    Timer time;
 
 	    while (1) {
 	        // loop over all streams, check if any stream reaches the end of its utterance,
@@ -444,6 +441,16 @@ public:
 
 	                // get the labels,
 	                const Posterior& target = example->targets;
+
+	                num_done++;
+	                total_frames += mat.NumRows();
+	                // report the speed
+	                if (num_done % 5000 == 0) {
+	                  double time_now = time.Elapsed();
+	                  KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
+	                                << time_now/60 << " min; processed " << total_frames/time_now
+	                                << " frames per second.";
+	                }
 
 	                // checks ok, put the data in the buffers,
 	                keys[s] = key;
@@ -468,6 +475,10 @@ public:
 	        if (done)
 	        {
 	        	repo.ExamplesDone();
+	    		model_sync->LockStates();
+	    		stats_->num_done += num_done;
+	    		model_sync->UnlockStates();
+
 	        	break;
 	        }
 
@@ -520,7 +531,7 @@ void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		TrainLstmParallelClass c(opts, &model_sync,
 								model_filename, targets_rspecifier,
 								batch_repo, nnet, stats);
-		DataLstmParallelClass  d(opts, &model_sync, &repository, batch_repo);
+		DataLstmParallelClass  d(opts, &model_sync, &repository, batch_repo, stats);
 
 
 	  {
