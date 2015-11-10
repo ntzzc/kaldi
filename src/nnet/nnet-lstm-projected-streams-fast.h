@@ -792,16 +792,24 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   void Destroy()
   {
 	  delete YG; delete YI; delete YF; delete YO; delete YC; delete YH; delete YM; delete YR; delete YGIFO;
-	  delete DG, delete DI; delete DF; delete DO; delete DC; delete DH; delete DM; delete DR; delete DGIFO;
+	  //delete DG, delete DI; delete DF; delete DO; delete DC; delete DH; delete DM; delete DR; delete DGIFO;
 
 	  //delete[] y_g.front();
 
 	  for (int t = 0; t< y_g.size(); t++)
 	  {
+		  delete y_g[t]; delete y_i[t]; delete y_f[t]; delete y_o[t];
+	  	  delete y_c[t]; delete y_h[t]; delete y_m[t]; delete y_r[t]; delete y_gifo[t];
+		  /*
+		  delete d_g[t]; delete d_i[t]; delete d_f[t]; delete d_o[t];
+		  delete d_c[t]; delete d_h[t]; delete d_m[t]; delete d_r[t]; delete d_gifo[t];
+		  */
+		/*
 		  delete y_g[t], y_i[t], y_f[t], y_o[t],
 	  	  	  	  	  y_c[t], y_h[t], y_m[t], y_r[t], y_gifo[t];
 		  delete d_g[t], d_i[t], d_f[t], d_o[t],
 		  	  	  	  d_c[t], d_h[t], d_m[t], d_r[t], d_gifo[t];
+		*/
 	  }
   }
 
