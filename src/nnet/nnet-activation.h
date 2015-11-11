@@ -245,6 +245,7 @@ class Dropout : public Component {
       /**/ if (token == "<DropoutRetention>") ReadBasicType(is, false, &dropout_retention_);
       else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
                      << " (DropoutRetention)";
+      is >> std::ws; // eat-up whitespace
     }
     KALDI_ASSERT(dropout_retention_ > 0.0 && dropout_retention_ <= 1.0);
   }
