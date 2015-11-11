@@ -18,7 +18,7 @@ BINFILES = nnet-train-frmshuff \
         nnet-kl-hmm-acc nnet-kl-hmm-mat-to-component \
 	feat-to-post paste-post train-transitions \
 	cuda-gpu-available \
-	nnet-svd \
+	nnet-svd nnet-forward-evaluate \
 	nnet-train-sequential-parallel nnet-train-sequential-parallel-mpi \
         nnet-train-frmshuff-parallel nnet-train-frmshuff-parallel-mpi \
         nnet-train-lstm-mpe-sequential nnet-train-lstm-mmi-sequential \
