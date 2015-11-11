@@ -76,7 +76,8 @@ class ModelMergeFunction;
 class NnetModelSync{
 public:
 	NnetModelSync(Nnet *nnet, const NnetParallelOptions *opts=NULL):
-		initialized_(false),data_(NULL),free_data_(NULL),dim_(0),nnet(nnet),thread_idx_(0),opts_(opts),p_merge_func_(NULL)
+		initialized_(false),data_(NULL),free_data_(NULL),dim_(0),nnet(nnet),
+		thread_idx_(0),data_thread_idx_(0),opts_(opts),p_merge_func_(NULL)
 	{
 		//Init(nnet);
 		MultiMachineInit();
@@ -116,6 +117,11 @@ public:
 		return thread_idx_++;
 	}
 
+	int32 GetDataThreadIdx()
+	{
+		return data_thread_idx_++;
+	}
+
 	ModelMergeFunction *GetModelMergeFunction()
 	{
 		return p_merge_func_;
@@ -153,6 +159,7 @@ private:
 	int32 dim_;
 	Nnet *nnet;
 	int32 thread_idx_;
+	int32 data_thread_idx_;
 	const NnetParallelOptions *opts_;
 	ModelMergeFunction *p_merge_func_;
 

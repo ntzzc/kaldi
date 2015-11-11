@@ -110,7 +110,22 @@ struct SequentialNnetExample: NnetExample
 };
 
 
+struct LstmNnetExample: NnetExample
+{
+    Vector<BaseFloat> frame_mask;
+    Posterior target;
+    Matrix<BaseFloat> feat;
+    std::vector<int> new_utt_flags;
 
+    LstmNnetExample(Vector<BaseFloat> &mask, Posterior &tgt, Matrix<BaseFloat> &ft, std::vector<int> &flags)
+    {
+    	frame_mask = mask;
+    	target = tgt;
+    	feat = ft;
+    	new_utt_flags = flags;
+    }
+    bool PrepareData();
+};
 
 /** This struct stores neural net training examples to be used in
     multi-threaded training.  */

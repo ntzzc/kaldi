@@ -96,6 +96,10 @@ inline float Exp(float x) { return expf(x); }
 inline double Log(double x) { return log(x); }
 inline float Log(float x) { return logf(x); }
 
+inline double Sqrt(double x) { return sqrt(x); }
+inline float Sqrt(float x) { return sqrtf(x); }
+
+
 #if !defined(_MSC_VER) || (_MSC_VER >= 1700)
 inline double Log1p(double x) {  return log1p(x); }
 inline float Log1p(float x) {  return log1pf(x); }

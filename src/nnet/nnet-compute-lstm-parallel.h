@@ -17,8 +17,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef KALDI_NNET_NNET_COMPUTE_H_
-#define KALDI_NNET_NNET_COMPUTE_H_
+#ifndef KALDI_NNET_NNET_COMPUTE_LSTM_H_
+#define KALDI_NNET_NNET_COMPUTE_LSTM_H_
 
 #include "nnet2/am-nnet.h"
 #include "hmm/transition-model.h"
@@ -35,70 +35,42 @@
 
 #include "cudamatrix/cu-device.h"
 
+#include "nnet/nnet-compute-parallel.h"
+
 namespace kaldi {
 namespace nnet1 {
 
-struct NnetUpdateOptions {
-    bool binary,
-         crossvalidate,
-         randomize;
+struct NnetLstmUpdateOptions : public NnetUpdateOptions {
 
-    bool use_psgd;
+    //lstm
+    int32 targets_delay;
+    int32 batch_size;
+    int32 num_stream;
+    int32 dump_interval;
+    //lstm
 
-    BaseFloat kld_scale;
-
-    std::string feature_transform;
-    std::string objective_function;
-    std::string frame_weights;
-    std::string use_gpu;
-    std::string si_model_filename;
-
-
-    int32 length_tolerance;
-    int32 update_frames;
-    double dropout_retention;
-
-    const NnetTrainOptions *trn_opts;
-    const NnetDataRandomizerOptions *rnd_opts;
-    const NnetParallelOptions *parallel_opts;
-
-    NnetUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: binary(true),crossvalidate(false),randomize(true),use_psgd(false),kld_scale(-1.0),
-		  objective_function("xent"),frame_weights(""),use_gpu("yes"),
-		  length_tolerance(5),update_frames(-1),dropout_retention(0.0),
-		  trn_opts(trn_opts),rnd_opts(rnd_opts),parallel_opts(parallel_opts){ }
+    NnetLstmUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
+    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), targets_delay(5), batch_size(20), num_stream(4), dump_interval(0) { }
 
   	  void Register(OptionsItf *po)
   	  {
+  		  NnetUpdateOptions::Register(po);
 
-  		  po->Register("binary", &binary, "Write output in binary mode");
-  		  po->Register("cross-validate", &crossvalidate, "Perform cross-validation (don't backpropagate)");
-	      po->Register("randomize", &randomize, "Perform the frame-level shuffling within the Cache::");
+	      //<jiayu>
+	      po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
 
+	      po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
 
-	      po->Register("feature-transform", &feature_transform, "Feature transform in Nnet format");
+	      po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
 
-	      po->Register("objective-function", &objective_function, "Objective function : xent|mse");
-
-	      po->Register("length-tolerance", &length_tolerance, "Allowed length difference of features/targets (frames)");
-
-	      po->Register("frame-weights", &frame_weights, "Per-frame weights to scale gradients (frame selection/weighting).");
-
-	      po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
-
-	      po->Register("dropout-retention", &dropout_retention, "number between 0..1, saying how many neurons to preserve (0.0 will keep original value");
-
-	      po->Register("si-model",&si_model_filename, "kld speaker independent model filename");
-
-	      po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
-
-	      po->Register("use-psgd",&use_psgd, "use preconditional sgd instead of sgd, it always true while training with multi-machine");
+	      po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
+	      //</jiayu>
 
   	  }
 };
 
 
-struct NnetStats {
+struct NnetLstmStats {
 
     int32 num_done, num_no_tgt_mat, num_other_error;
 
@@ -106,9 +78,9 @@ struct NnetStats {
     Xent xent;
     Mse mse;
 
-    NnetStats() { std::memset(this, 0, sizeof(*this)); }
+    NnetLstmStats() { std::memset(this, 0, sizeof(*this)); }
 
-    void MergeStats(NnetUpdateOptions *opts, int root)
+    void MergeStats(NnetLstmUpdateOptions *opts, int root)
     {
     	int myid = opts->parallel_opts->myid;
     	MPI_Barrier(MPI_COMM_WORLD);
@@ -135,7 +107,7 @@ struct NnetStats {
 
     }
 
-    void Print(NnetUpdateOptions *opts, double time_now)
+    void Print(NnetLstmUpdateOptions *opts, double time_now)
     {
         KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
                   << " with no tgt_mats, " << num_other_error
@@ -157,7 +129,7 @@ struct NnetStats {
 };
 
 
-void NnetUpdateParallel(const NnetUpdateOptions *opts,
+void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,
@@ -168,4 +140,4 @@ void NnetUpdateParallel(const NnetUpdateOptions *opts,
 } // namespace nnet1
 } // namespace kaldi
 
-#endif // KALDI_NNET_NNET_COMPUTE_H_
+#endif // KALDI_NNET_NNET_COMPUTE_LSTM_H_
