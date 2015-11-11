@@ -51,7 +51,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     ncell_(0),
     nrecur_(output_dim),
     nstream_(0),
-    clip_gradient_(0.0)
+    clip_gradient_(0.0),
+	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
     //, dropout_rate_(0.0)
   { }
 
@@ -90,6 +91,9 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       //  ReadBasicType(is, false, &dropout_rate_);
       else if (token == "<ParamScale>")
         ReadBasicType(is, false, &param_scale);
+      else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef_);
+      else if (token == "<BiasLearnRateCoef>") ReadBasicType(is, false, &bias_learn_rate_coef_);
+      else if (token == "<MaxNorm>") ReadBasicType(is, false, &max_norm_);
       else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
                << " (CellDim|ClipGradient|ParamScale)";
                //<< " (CellDim|ClipGradient|DropoutRate|ParamScale)";
@@ -130,6 +134,18 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   }
 
   void ReadData(std::istream &is, bool binary) {
+    // optional learning-rate coefs
+    if ('<' == Peek(is, binary)) {
+      ExpectToken(is, binary, "<LearnRateCoef>");
+      ReadBasicType(is, binary, &learn_rate_coef_);
+      ExpectToken(is, binary, "<BiasLearnRateCoef>");
+      ReadBasicType(is, binary, &bias_learn_rate_coef_);
+    }
+    if ('<' == Peek(is, binary)) {
+      ExpectToken(is, binary, "<MaxNorm>");
+      ReadBasicType(is, binary, &max_norm_);
+    }
+
     ExpectToken(is, binary, "<CellDim>");
     ReadBasicType(is, binary, &ncell_);
     ExpectToken(is, binary, "<ClipGradient>");
@@ -160,6 +176,13 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   }
 
   void WriteData(std::ostream &os, bool binary) const {
+    WriteToken(os, binary, "<LearnRateCoef>");
+    WriteBasicType(os, binary, learn_rate_coef_);
+    WriteToken(os, binary, "<BiasLearnRateCoef>");
+    WriteBasicType(os, binary, bias_learn_rate_coef_);
+    WriteToken(os, binary, "<MaxNorm>");
+    WriteBasicType(os, binary, max_norm_);
+
     WriteToken(os, binary, "<CellDim>");
     WriteBasicType(os, binary, ncell_);
     WriteToken(os, binary, "<ClipGradient>");
@@ -571,6 +594,15 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
   {
 
+	    // we use following hyperparameters from the option class
+	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+	    const BaseFloat mmt = opts_.momentum;
+	    const BaseFloat l2 = opts_.l2_penalty;
+	    const BaseFloat l1 = opts_.l1_penalty;
+	    // we will also need the number of frames in the mini-batch
+	    const int32 num_frames = input.NumRows();
+
 	    int DEBUG = 0;
 
 	    int32 T = input.NumRows() / nstream_;
@@ -633,6 +665,19 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	      std::cerr << "peephole_f_c_corr_ " << peephole_f_c_corr_;
 	      std::cerr << "peephole_o_c_corr_ " << peephole_o_c_corr_;
 	    }
+
+	    // l2 regularization
+	    if (l2 != 0.0) {
+	    	w_gifo_x_.AddMat(-lr*l2*num_frames, w_gifo_x_);
+	    	w_gifo_r_.AddMat(-lr*l2*num_frames, w_gifo_r_);
+
+	    	peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
+	    	peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);
+	    	peephole_o_c_.AddVec(-lr*l2*num_frames, peephole_o_c_);
+
+	    	w_r_m_.AddMat(-lr*l2*num_frames, w_r_m_);
+	    }
+
   }
 
   void UpdateGradient()
@@ -871,6 +916,9 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   CuSubMatrix<BaseFloat> *DG, *DI, *DF, *DO,
    	  	  	  	  	  	  	  	  	  	  *DC, *DH, *DM, *DR, *DGIFO;
 
+  BaseFloat learn_rate_coef_;
+  BaseFloat bias_learn_rate_coef_;
+  BaseFloat max_norm_;
 
 };
 } // namespace nnet1
