@@ -196,17 +196,13 @@ private:
 	    Xent xent;
 	    Mse mse;
 
-
-	    Timer time;
-	    double time_now = 0;
-
-		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff,
-							si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
+		CuMatrix<BaseFloat> feats_transf, nnet_out, nnet_diff;
+		//CuMatrix<BaseFloat> si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
 
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
 
-		double t1, t2, t3, t4;
+		//double t1, t2, t3, t4;
 		int32 update_frames = 0, num_frames = 0, num_done = 0;
 		kaldi::int64 total_frames = 0;
 
@@ -227,12 +223,11 @@ private:
 	    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
 	    //Matrix<BaseFloat> feat(batch_size * num_stream, feat_dim, kSetZero);
 	    Posterior target(batch_size * num_stream);
-	    CuMatrix<BaseFloat> feat_transf, nnet_out, obj_diff;
 	    Matrix<BaseFloat> feat;
 
-	    int32 num_done = 0;
 	    DNNNnetExample *example;
 	    Timer time;
+	    double time_now = 0;
 
 	    while (1) {
 	        // loop over all streams, check if any stream reaches the end of its utterance,
@@ -256,14 +251,6 @@ private:
 	                const Posterior& target = example->targets;
 
 	                num_done++;
-	                total_frames += mat.NumRows();
-	                // report the speed
-	                if (num_done % 5000 == 0) {
-	                  double time_now = time.Elapsed();
-	                  KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
-	                                << time_now/60 << " min; processed " << total_frames/time_now
-	                                << " frames per second.";
-	                }
 
 	                // checks ok, put the data in the buffers,
 	                keys[s] = key;
@@ -315,6 +302,15 @@ private:
 	                curt[s]++;
 	            }
 	        }
+
+	                num_frames = feat.NumRows();
+	                // report the speed
+	                if (num_done % 5000 == 0) {
+	                  time_now = time.Elapsed();
+	                  KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
+	                                << time_now/60 << " min; processed " << total_frames/time_now
+	                                << " frames per second.";
+	                }
 
 	        // apply optional feature transform
 	        nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);

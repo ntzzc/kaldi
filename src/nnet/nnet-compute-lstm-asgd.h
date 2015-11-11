@@ -129,7 +129,7 @@ struct NnetLstmStats {
 };
 
 
-void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
+void NnetLstmUpdateAsgd(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,
