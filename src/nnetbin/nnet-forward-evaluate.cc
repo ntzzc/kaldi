@@ -1,4 +1,4 @@
-// nnetbin/nnet-forward.cc
+// nnetbin/nnet-forward-evaluate.cc
 
 // Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
 
@@ -34,9 +34,9 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform forward pass through Neural Network.\n"
         "\n"
-        "Usage:  nnet-forward [options] <model-in> \n"
+        "Usage:  nnet-forward-evaluate [options] <model-in> \n"
         "e.g.: \n"
-        " nnet-forward --batch-size=16 --num-iteration=1000 --frame_dim=120 \n";
+        " nnet-forward-evaluate --batch-size=16 --num-iteration=1000 nnet\n";
 
     ParseOptions po(usage);
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 3) {
+    if (po.NumArgs() != 1) {
       po.PrintUsage();
       exit(1);
     }
@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
     Nnet nnet_transf;
     if (feature_transform != "") {
       nnet_transf.Read(feature_transform);
+      frame_dim = nnet_transf.InputDim();
     }
 
     Nnet nnet;
@@ -150,7 +151,7 @@ int main(int argc, char *argv[]) {
       // convert posteriors to log-posteriors,
       if (apply_log) {
         if (!(nnet_out.Min() >= 0.0 && nnet_out.Max() <= 1.0)) {
-          KALDI_WARN << utt << " "
+          KALDI_WARN << num_done << " "
                      << "Applying 'log' to data which don't seem to be probabilities "
                      << "(is there a softmax somwhere?)";
         }
@@ -161,7 +162,7 @@ int main(int argc, char *argv[]) {
       // subtract log-priors from log-posteriors or pre-softmax,
       if (prior_opts.class_frame_counts != "") {
         if (nnet_out.Min() >= 0.0 && nnet_out.Max() <= 1.0) {
-          KALDI_WARN << utt << " " 
+          KALDI_WARN << num_done << " " 
                      << "Subtracting log-prior on 'probability-like' data in range [0..1] " 
                      << "(Did you forget --no-softmax=true or --apply-log=true ?)";
         }
