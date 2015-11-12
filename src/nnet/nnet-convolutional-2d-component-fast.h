@@ -283,7 +283,7 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     forward_output_.AddVecToRows(1.0, bias_, 1.0);
 
     // we will need the buffers
-    if (vectorized_forward_patches_.size() == 0) {
+    if (vectorized_forward_patches_.size() != out_fmap_size) {
 	vectorized_forward_patches_.resize(out_fmap_size);
     }
 
@@ -379,16 +379,19 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     		in_diff_summands_.InvertElements();
     }
 
+
     // we will need the buffers
-       if (vectorized_diff_patches_.size() == 0) {
-    	   diff_output_.Resize(num_frames*out_fmap_size, num_filters, kUndefined);
-	   diff_patches_.Resize(num_frames*out_fmap_size, filters_.NumCols());
+       if (vectorized_diff_patches_.size() != out_fmap_size) 
+		vectorized_diff_patches_.resize(out_fmap_size);
+
     	   for (int32 p = 0; p < out_fmap_size; p++)
     	   {
     	       	CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(out_diff.ColRange(p*num_filters, num_filters));
-    	       	vectorized_diff_patches_.push_back(tgt);
+    	       	vectorized_diff_patches_[p] = tgt;
     	   }
-       }
+
+       diff_output_.Resize(num_frames*out_fmap_size, num_filters, kUndefined);
+       diff_patches_.Resize(num_frames*out_fmap_size, filters_.NumCols(), kUndefined);
 
        diff_output_.CopyRowMats(vectorized_diff_patches_);
 
@@ -429,18 +432,20 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     //filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
 
 
-    if (vectorized_input_patches_.size() == 0) {
-        for (int32 p = 0; p < out_fmap_size; p++) {
-                CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(input_patches_.RowRange(p*num_frames, num_frames));
-                vectorized_input_patches_.push_back(tgt);
-        }   
+    if (vectorized_input_patches_.size() != out_fmap_size)
+	vectorized_input_patches_.resize(out_fmap_size);
+
+    for (int32 p = 0; p < out_fmap_size; p++) {
+             CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(input_patches_.RowRange(p*num_frames, num_frames));
+             vectorized_input_patches_[p] = tgt;
     }   
 
-    if (vectorized_grad_patches_.size() == 0) {
-        for (int32 p = 0; p < out_fmap_size; p++) {
-                CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(filters_grad_patches_.RowRange(p*num_filters, num_filters));
-                vectorized_grad_patches_.push_back(tgt);
-        }
+    if (vectorized_grad_patches_.size() != out_fmap_size)
+	vectorized_grad_patches_.resize(out_fmap_size);
+
+    for (int32 p = 0; p < out_fmap_size; p++) {
+   		CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(filters_grad_patches_.RowRange(p*num_filters, num_filters));
+    		vectorized_grad_patches_[p] = tgt;
     }
 
     // compute gradient (incl. momentum)
@@ -463,6 +468,12 @@ class Convolutional2DComponentFast : public UpdatableComponent {
       cu::RegularizeL1(&filters_, &filters_grad_, lr*l1*num_frames, lr);
     }
     */
+    for (int32 p = 0; p < out_fmap_size; p++)
+    {
+	delete vectorized_input_patches_[p];
+	delete vectorized_grad_patches_[p];
+	delete vectorized_diff_patches_[p];
+    }
  }
 
  void UpdateGradient(){
@@ -505,18 +516,20 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     //filters_grad_patches_.Resize(out_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
 
 
-    if (vectorized_input_patches_.size() == 0) {
-    	for (int32 p = 0; p < out_fmap_size; p++) {
-    		CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(input_patches_.RowRange(p*num_frames, num_frames));
-    		vectorized_input_patches_.push_back(tgt);
-    	}
-    }
+    if (vectorized_input_patches_.size() != out_fmap_size)
+	vectorized_input_patches_.resize(out_fmap_size);
 
-    if (vectorized_grad_patches_.size() == 0) {
-    	for (int32 p = 0; p < out_fmap_size; p++) {
-    		CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(filters_grad_patches_.RowRange(p*num_filters, num_filters));
-    		vectorized_grad_patches_.push_back(tgt);
-    	}
+    for (int32 p = 0; p < out_fmap_size; p++) {
+             CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(input_patches_.RowRange(p*num_frames, num_frames));
+             vectorized_input_patches_[p] = tgt;
+    }   
+
+    if (vectorized_grad_patches_.size() != out_fmap_size)
+	vectorized_grad_patches_.resize(out_fmap_size);
+
+    for (int32 p = 0; p < out_fmap_size; p++) {
+   		CuSubMatrix<BaseFloat> *tgt = new CuSubMatrix<BaseFloat>(filters_grad_patches_.RowRange(p*num_filters, num_filters));
+    		vectorized_grad_patches_[p] = tgt;
     }
 
     // compute gradient (incl. momentum)
@@ -546,6 +559,15 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     filters_.AddMat(-lr*learn_rate_coef_, filters_grad_);
     bias_.AddVec(-lr*bias_learn_rate_coef_, bias_grad_);
     //
+
+    //delete[] &vectorized_input_patches_.front();
+
+    for (int32 p = 0; p < out_fmap_size; p++)
+    {
+	delete vectorized_input_patches_[p];
+	delete vectorized_grad_patches_[p];
+	delete vectorized_diff_patches_[p];
+    }
   }
 
  private:
