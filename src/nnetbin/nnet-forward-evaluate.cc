@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
         "\n"
         "Usage:  nnet-forward [options] <model-in> \n"
         "e.g.: \n"
-        " nnet-forward --batch-size=16 --num-iteration=1000 --frame_dim=120 nnet\n";
+        " nnet-forward --batch-size=16 --num-iteration=1000 --frame_dim=120 \n";
 
     ParseOptions po(usage);
 
