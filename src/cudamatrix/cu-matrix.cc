@@ -921,7 +921,8 @@ void CuMatrixBase<Real>::ConvolutionForwardExpandWorkspace(const CuMatrixBase<Re
 	} else
 #endif
 	{
-	    //Mat().ConvolutionForwardExpansionWorkspace();
+	    Mat().ConvolutionForwardExpansionWorkspace(A.Mat(), num_input_fmaps, fmap_x_len_, fmap_y_len_,
+	    		filt_x_len_, filt_y_len_, filt_x_step_, filt_y_step_, connect_fmap);
 	}
 }
 

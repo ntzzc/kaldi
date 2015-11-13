@@ -394,6 +394,45 @@ void MatrixBase<Real>::AddMat(const Real alpha, const MatrixBase<Real>& A,
 }
 
 template<typename Real>
+void MatrixBase<Real>::ConvolutionForwardExpandWorkspace(const MatrixBase<Real> &A, int num_input_fmaps_, int fmap_x_len_, int fmap_y_len_,
+		int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap_)
+{
+			int st = 0;
+			int c = 0;
+			int num_output_cnt = 0;
+			for(int i = 0; i < fmap_x_len_ - filt_x_len_ + 1; i = i + filt_x_step_){
+				for(int j = 0; j < fmap_y_len_ - filt_y_len_ + 1; j = j + filt_y_step_){
+
+					std::vector<int32> column_mask;
+				    if (connect_fmap_ == 1) {
+				    	st = (i * fmap_y_len_ + j) * num_input_fmaps_ ;
+				    } else {
+
+				    	st = i * fmap_y_len_ * num_input_fmaps_ + j;
+				    }
+
+					for(int m = 0; m < filt_x_len_ ; m ++)
+						for(int n = 0; n < filt_y_len_ * num_input_fmaps_ ; n++){
+
+					        if (connect_fmap_ == 1) {
+					          c = st + m * (num_input_fmaps_*fmap_y_len_) + n;
+					        } else {
+					          c = st + m * (num_input_fmaps_ * fmap_y_len_)
+					                     + (n / num_input_fmaps_)
+					                     + (n % num_input_fmaps_) * fmap_y_len_;
+					        }
+
+					        //column_mask.push_back(c) ;
+					        for (int k = 0; k < A.num_rows_; k++)
+					        	data_[num_output_cnt * (this->stride_*A.num_rows_) + k*this->stride_ + c] = A(k, c) ;
+						}
+					num_output_cnt ++ ;
+				}
+			}
+
+}
+
+template<typename Real>
 template<typename OtherReal>
 void MatrixBase<Real>::AddSp(const Real alpha, const SpMatrix<OtherReal> &S) {
   KALDI_ASSERT(S.NumRows() == NumRows() && S.NumRows() == NumCols());

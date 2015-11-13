@@ -537,6 +537,9 @@ class MatrixBase {
   void AddMat(const Real alpha, const MatrixBase<Real> &M,
               MatrixTransposeType transA = kNoTrans);
 
+  void ConvolutionForwardExpandWorkspace(const MatrixBase<Real> &A, int num_input_fmaps, int fmap_x_len_, int fmap_y_len_,
+  		int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap);
+
   /// *this = beta * *this + alpha * M M^T, for symmetric matrices.  It only
   /// updates the lower triangle of *this.  It will leave the matrix asymmetric;
   /// if you need it symmetric as a regular matrix, do CopyLowerToUpper().
