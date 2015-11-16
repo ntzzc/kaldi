@@ -54,6 +54,13 @@ struct NnetSequentialUpdateOptions {
   std::string si_model_filename;
   bool use_psgd;
 
+  //lstm
+  int32 targets_delay;
+  int32 batch_size;
+  int32 num_stream;
+  int32 dump_interval;
+  //lstm
+
   const NnetTrainOptions *trn_opts;
   const PdfPriorOptions *prior_opts;
   const NnetParallelOptions *parallel_opts;
@@ -67,6 +74,7 @@ struct NnetSequentialUpdateOptions {
   	  	  	  	  	  	  	  	 use_gpu("yes"),
 								 si_model_filename(""),
 								 use_psgd(false),
+								 targets_delay(0), batch_size(20), num_stream(0), dump_interval(0),
 								 trn_opts(trn_opts),
 								 prior_opts(prior_opts),
 								 parallel_opts(parallel_opts){ }
@@ -96,6 +104,16 @@ struct NnetSequentialUpdateOptions {
       po->Register("use-psgd",&use_psgd, "use preconditional sgd instead of sgd, it always true while training with multi-machine");
 
       po->Register("si-model",&si_model_filename, "kld speaker independent model filename");
+
+      //<jiayu>
+      po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
+
+      po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
+
+      po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
+
+      po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
+      //</jiayu>
 
   }
 };

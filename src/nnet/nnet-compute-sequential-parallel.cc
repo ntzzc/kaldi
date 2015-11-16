@@ -72,6 +72,7 @@ private:
     bool drop_frames;
     std::string use_gpu;
     int32 num_threads;
+    int32 time_shift;
 
 
  public:
@@ -112,6 +113,7 @@ private:
 				si_model_filename = opts->si_model_filename;
 
 				num_threads = parallel_opts->num_threads;
+				time_shift = opts->targets_delay;
  	 		}
 
 
@@ -427,7 +429,7 @@ private:
 		{
 			//time.Reset();
 			std::string utt = example->utt;
-			const Matrix<BaseFloat> &mat = example->input_frames;
+			Matrix<BaseFloat> &mat = example->input_frames;
 			//t1 = time.Elapsed();
 			//time.Reset();
 
@@ -437,18 +439,37 @@ private:
 					  num_pdfs = nnet.OutputDim();
 
 		      // 3) propagate the feature to get the log-posteriors (nnet w/o sofrmax)
+		      //lstm  time-shift, copy the last frame of LSTM input N-times,
+		      if (time_shift > 0) {
+		        int32 last_row = mat.NumRows() - 1; // last row,
+		        mat.Resize(mat.NumRows() + time_shift, mat.NumCols(), kCopyData);
+		        for (int32 r = last_row+1; r<mat.NumRows(); r++) {
+		          mat.CopyRowFromVec(mat.Row(last_row), r); // copy last row,
+		        }
+		      }
 		      // push features to GPU
-		      feats.Resize(num_frames, num_fea, kUndefined);
-		      feats.CopyFromMat(mat);
+		      feats = mat;
 		      // possibly apply transform
 		      nnet_transf.Feedforward(feats, &feats_transf);
 		      // propagate through the nnet (assuming w/o softmax)
 		      nnet.Propagate(feats_transf, &nnet_out);
 
+		      // time-shift, remove N first frames of LSTM output,
+		      if (time_shift > 0) {
+		    	  CuMatrix<BaseFloat> tmp(nnet_out);
+		    	  nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
+		      }
+
 		      if (this->kld_scale > 0)
 		      {	
-		      	si_nnet.Propagate(feats_transf, &si_nnet_out);
-		      	p_si_nnet_out = &si_nnet_out;
+		    	  si_nnet.Propagate(feats_transf, &si_nnet_out);
+
+			      // time-shift, remove N first frames of LSTM output,
+			      if (time_shift > 0) {
+			    	  CuMatrix<BaseFloat> tmp(si_nnet_out);
+			    	  si_nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
+			      }
+			      p_si_nnet_out = &si_nnet_out;
 		      }
 
 		      if (this->kld_scale > 0 || frame_smooth > 0)
@@ -458,8 +479,9 @@ private:
 		      }
 
 		      // subtract the log_prior
-		      if(prior_opts->class_frame_counts != "") {
-		        log_prior.SubtractOnLogpost(&nnet_out);
+		      if(prior_opts->class_frame_counts != "")
+		      {
+		    	  log_prior.SubtractOnLogpost(&nnet_out);
 		      }
 
 
@@ -553,8 +575,9 @@ private:
 		 	 	 #endif
 
 		       }
+
 		       fflush(stderr); 
-                       fsync(fileno(stderr));
+               fsync(fileno(stderr));
 	  }
 
 		model_sync->LockStates();
