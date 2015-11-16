@@ -199,15 +199,15 @@ private:
 	    Timer time;
 	    double time_now = 0;
 
-		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff,
-							si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
+		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff;
+		CuMatrix<BaseFloat> si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
 
 		DNNNnetExample *example;
 
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
 
-		double t1, t2, t3, t4;
+		//double t1, t2, t3, t4;
 		int32 update_frames = 0, num_frames = 0, num_done = 0;
 		kaldi::int64 total_frames = 0;
 

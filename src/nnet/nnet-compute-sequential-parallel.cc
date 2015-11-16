@@ -371,8 +371,6 @@ private:
 	    BaseFloat alpha = 4.0;
 
 	    kaldi::int64 total_frames = 0;
-	    double lat_like; // total likelihood of the lattice
-	    double lat_ac_like; // acoustic likelihood weighted by posterior.
 	    double total_mmi_obj = 0.0, mmi_obj = 0.0;
 	    double total_post_on_ali = 0.0, post_on_ali = 0.0;
 
@@ -422,7 +420,7 @@ private:
 
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
 
-		double t1, t2, t3, t4;
+		//double t1, t2, t3, t4;
 		int32 update_frames = 0;
 
 		while ((example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample())) != NULL)

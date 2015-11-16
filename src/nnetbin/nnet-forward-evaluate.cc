@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
         "\n"
         "Usage:  nnet-forward-evaluate [options] <model-in> \n"
         "e.g.: \n"
-        " nnet-forward-evaluate --batch-size=16 --num-iteration=1000 nnet\n";
+        " nnet-forward-evaluate --batch-size=16 --num-iteration=500 nnet\n";
 
     ParseOptions po(usage);
 
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     int32 batch_size = 16;
     po.Register("batch-size", &batch_size, "nnet forward batch size");
 
-    int32 num_iteration = 1000;
+    int32 num_iteration = 500;
     po.Register("num-iteration", &num_iteration, "times of nnet forward");
 
 
