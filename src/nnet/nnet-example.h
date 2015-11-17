@@ -127,6 +127,22 @@ struct LstmNnetExample: NnetExample
     bool PrepareData();
 };
 
+struct FeatureExample: NnetExample
+{
+	Matrix<BaseFloat> feat;
+	std::string utt;
+	SequentialBaseFloatMatrixReader *feature_reader;
+	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader):feature_reader(feature_reader){}
+
+	bool PrepareData()
+	{
+		utt = feature_reader->Key();
+		feat = feature_reader->Value();
+		return true;
+	}
+
+};
+
 /** This struct stores neural net training examples to be used in
     multi-threaded training.  */
 class ExamplesRepository {
