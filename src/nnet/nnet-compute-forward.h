@@ -31,14 +31,18 @@ struct NnetForwardOptions {
     bool no_softmax;
     bool apply_log;
     std::string use_gpu;
-    int32 time_shift;
-
     int32 num_threads;
+
+    int32 time_shift;
+    int32 batch_size;
+    int32 num_stream;
+    int32 dump_interval;
 
     const PdfPriorOptions *prior_opts;
 
     NnetForwardOptions(const PdfPriorOptions *prior_opts)
-    	:feature_transform(""),no_softmax(false),apply_log(false),use_gpu("no"),time_shift(0),num_threads(1),prior_opts(prior_opts)
+    	:feature_transform(""),no_softmax(false),apply_log(false),use_gpu("no"),num_threads(1),
+		 	 	 	 	 	 	 time_shift(5),batch_size(20),num_stream(40),dump_interval(0),prior_opts(prior_opts)
     {
 
     }
@@ -49,9 +53,17 @@ struct NnetForwardOptions {
     	po->Register("no-softmax", &no_softmax, "No softmax on MLP output (or remove it if found), the pre-softmax activations will be used as log-likelihoods, log-priors will be subtracted");
     	po->Register("apply-log", &apply_log, "Transform MLP output to logscale");
     	po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
-    	po->Register("time-shift", &time_shift, "LSTM : repeat last input frame N-times, discrad N initial output frames.");
+
 
     	po->Register("num-threads", &num_threads, "Number of threads(GPUs) to use");
+
+
+        //<jiayu>
+    	po->Register("time-shift", &time_shift, "LSTM : repeat last input frame N-times, discrad N initial output frames.");
+        po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
+        po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
+        po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
+        //</jiayu>
 
     }
 

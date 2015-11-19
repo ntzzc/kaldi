@@ -65,7 +65,8 @@ public:
 		bool apply_log = opts->apply_log;
 		int32 time_shift = opts->time_shift;
 		PdfPriorOptions *prior_opts	= opts->prior_opts;
-		int32 num_frames;
+		int32 num_stream = opts->num_stream;
+		int32 batch_size = opts->batch_size;
 
 
 		Nnet nnet_transf;
@@ -103,12 +104,42 @@ public:
 	    CuMatrix<BaseFloat> feats, feats_transf, nnet_out;
 	    Matrix<BaseFloat> nnet_out_host;
 
+	    std::vector<std::string> keys(num_stream);
+	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
+	    std::vector<Posterior> targets(num_stream);
+	    std::vector<int> curt(num_stream, 0);
+	    std::vector<int> lent(num_stream, 0);
+	    std::vector<int> new_utt_flags(num_stream, 0);
+
+	    // bptt batch buffer
+	    int32 feat_dim = nnet.InputDim();
+	    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
+	    Matrix<BaseFloat> feat(batch_size * num_stream, feat_dim, kSetZero);
+
+
 	    kaldi::int64 tot_t = 0;
-	    int32 num_done = 0;
+	    int32 num_done = 0, num_frames;
 	    Timer time;
 	    double time_now = 0;
 
+
 	    FeatureExample *example;
+
+	    while (1)
+	    {
+	    	 // loop over all streams, check if any stream reaches the end of its utterance,
+	    	        // if any, feed the exhausted stream with a new utterance, update book-keeping infos
+	    	for (int s = 0; s < num_stream; s++) {
+	    		// this stream still has valid frames
+	    		if (curt[s] < lent[s]) {
+	    			new_utt_flags[s] = 0;
+	    		    continue;
+	    		}
+
+	    	}
+	    }
+
+
 	    while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
 	    {
 	    	std::string utt = example->utt;
