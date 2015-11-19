@@ -107,23 +107,28 @@ public:
 	    nnet_transf.SetDropoutRetention(1.0);
 	    nnet.SetDropoutRetention(1.0);
 
-	    CuMatrix<BaseFloat> feats, feats_transf, nnet_out;
-	    Matrix<BaseFloat> nnet_out_host;
+	    CuMatrix<BaseFloat>  feats_transf, nnet_out;
 
 	    std::vector<std::string> keys(num_stream);
-	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
+	    std::vector<Matrix<BaseFloat> > feats(num_stream);
 	    std::vector<Posterior> targets(num_stream);
 	    std::vector<int> curt(num_stream, 0);
 	    std::vector<int> lent(num_stream, 0);
 	    std::vector<int> new_utt_flags(num_stream, 0);
 
+	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
+	    std::vector<int> utt_curt(num_stream, 0);
+	    std::vector<bool> utt_copied(num_stream, 0);
+
 	    // bptt batch buffer
 	    int32 feat_dim = nnet.InputDim();
+	    int32 out_dim = nnet.OutputDim();
 	    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
 	    Matrix<BaseFloat> feat(batch_size * num_stream, feat_dim, kSetZero);
+	    Matrix<BaseFloat> nnet_out_host(batch_size * num_stream, out_dim, kSetZero);
 
 
-	    kaldi::int64 tot_t = 0;
+	    kaldi::int64 total_frames = 0;
 	    int32 num_done = 0, num_frames;
 	    Timer time;
 	    double time_now = 0;
@@ -131,21 +136,112 @@ public:
 
 	    FeatureExample *example;
 
+	    //for lstm
+	    if (num_stream > 1)
 	    while (1)
 	    {
 	    	 // loop over all streams, check if any stream reaches the end of its utterance,
-	    	        // if any, feed the exhausted stream with a new utterance, update book-keeping infos
-	    	for (int s = 0; s < num_stream; s++) {
+	    	 // if any, feed the exhausted stream with a new utterance, update book-keeping infos
+	    	for (int s = 0; s < num_stream; s++)
+	    	{
 	    		// this stream still has valid frames
 	    		if (curt[s] < lent[s]) {
 	    			new_utt_flags[s] = 0;
 	    		    continue;
 	    		}
 
+	    		if (utt_curt[s] > 0 && !utt_copied[s])
+	    		{
+	    			examples_mutex->Lock();
+	    			feature_writer->Write(keys[s], utt_feats[s]);
+	    			examples_mutex->Unlock();
+	    			utt_copied[s] = true;
+	    		}
+
+	    		while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
+	    		{
+	    	    	std::string key = example->utt;
+	    	    	Matrix<BaseFloat> &mat = example->feat;
+
+	    	    	num_done++;
+
+	                // checks ok, put the data in the buffers,
+	                keys[s] = key;
+	                //feats[s].Resize(feat_transf.NumRows(), feat_transf.NumCols());
+	                //feat_transf.CopyToMat(&feats[s]);
+	                feats[s] = mat;
+	                curt[s] = 0;
+	                lent[s] = feats[s].NumRows();
+	                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
+
+	                utt_feats[s].Resize(lent[s], out_dim, kUndefined);
+	                utt_copied[s] = false;
+
+	                delete example;
+	                break;
+	    		}
 	    	}
+
+		        // we are done if all streams are exhausted
+		        int done = 1;
+		        for (int s = 0; s < num_stream; s++) {
+		            if (curt[s] < lent[s]) done = 0;  // this stream still contains valid data, not exhausted
+		        }
+
+		        if (done) break;
+
+		        // fill a multi-stream bptt batch
+		        // * frame_mask: 0 indicates padded frames, 1 indicates valid frames
+		        // * target: padded to batch_size
+		        // * feat: first shifted to achieve targets delay; then padded to batch_size
+		        for (int t = 0; t < batch_size; t++) {
+		           for (int s = 0; s < num_stream; s++) {
+		               // feat shifting & padding
+		               if (curt[s] + time_shift < lent[s]) {
+		                   feat.Row(t * num_stream + s).CopyFromVec(utt_feats[s].Row(curt[s]+time_shift));
+		               } else {
+		                   feat.Row(t * num_stream + s).CopyFromVec(utt_feats[s].Row(lent[s]-1));
+		               }
+
+		               curt[s]++;
+		           }
+		       }
+
+		        num_frames = feat.NumRows();
+			    // report the speed
+			    if (num_done % 5000 == 0) {
+			      time_now = time.Elapsed();
+			      KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
+			                    << time_now/60 << " min; processed " << total_frames/time_now
+								<< " frames per second.";
+			    }
+
+			    // apply optional feature transform
+			   nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
+
+			   // for streams with new utterance, history states need to be reset
+			   nnet.ResetLstmStreams(new_utt_flags);
+
+			   // forward pass
+			   nnet.Propagate(feats_transf, &nnet_out);
+
+			   nnet_out.CopyToMat(&nnet_out_host);
+
+		       for (int t = 0; t < batch_size; t++) {
+		           for (int s = 0; s < num_stream; s++) {
+		               // feat shifting & padding
+		               if (utt_curt[s] < lent[s]) {
+		            	   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
+		            	   utt_curt[s]++;
+		               }
+		           }
+		       }
+
+		       total_frames += num_frames;
 	    }
 
-
+	    // for dnn cnn
+	    if (num_stream <= 1)
 	    while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
 	    {
 	    	std::string utt = example->utt;
@@ -219,11 +315,11 @@ public:
 	    	if (num_done % 100 == 0) {
 	    	  time_now = time.Elapsed();
 	    	  KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
-	    	                << time_now/60 << " min; processed " << tot_t/time_now
+	    	                << time_now/60 << " min; processed " << total_frames/time_now
 	    	                << " frames per second.";
 	    	}
 	    	num_done++;
-	    	tot_t += example->feat.NumRows();
+	    	total_frames += example->feat.NumRows();
 
 	        // release the buffers we don't need anymore
 	       	delete example;
@@ -231,7 +327,7 @@ public:
 
 	    examples_mutex->Lock();
 	    stats->num_done += num_done;
-	    stats->total_frames += tot_t;
+	    stats->total_frames += total_frames;
 	    examples_mutex->Unlock();
 
 	}

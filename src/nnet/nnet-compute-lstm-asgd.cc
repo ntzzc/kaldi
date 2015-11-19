@@ -229,7 +229,7 @@ private:
 	    Timer time;
 	    double time_now = 0;
 
-	    while (1) {
+	    while (num_stream) {
 	        // loop over all streams, check if any stream reaches the end of its utterance,
 	        // if any, feed the exhausted stream with a new utterance, update book-keeping infos
 	        for (int s = 0; s < num_stream; s++) {
