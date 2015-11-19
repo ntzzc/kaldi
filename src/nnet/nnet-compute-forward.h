@@ -21,6 +21,9 @@
 #define NNET_NNET_COMPUTE_FORWARD_H_
 
 #include "nnet-trnopts.h"
+#include "nnet/nnet-pdf-prior.h"
+#include "nnet/nnet-nnet.h"
+#include "base/timer.h"
 
 
 namespace kaldi {

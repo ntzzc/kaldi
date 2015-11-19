@@ -17,6 +17,12 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
+#include "lat/lattice-functions.h"
+#include "thread/kaldi-semaphore.h"
+#include "thread/kaldi-mutex.h"
+#include "thread/kaldi-thread.h"
+
+#include "nnet/nnet-example.h"
 #include "nnet/nnet-compute-forward.h"
 
 namespace kaldi {
@@ -64,7 +70,7 @@ public:
 		std::string feature_transform = opts->feature_transform;
 		bool apply_log = opts->apply_log;
 		int32 time_shift = opts->time_shift;
-		PdfPriorOptions *prior_opts	= opts->prior_opts;
+		const PdfPriorOptions *prior_opts = opts->prior_opts;
 		int32 num_frames;
 
 
@@ -94,7 +100,7 @@ public:
 	    }
 
 	    // we will subtract log-priors later,
-	    PdfPrior pdf_prior(opts->prior_opts);
+	    PdfPrior pdf_prior(*opts->prior_opts);
 
 	    // disable dropout,
 	    nnet_transf.SetDropoutRetention(1.0);
@@ -112,7 +118,7 @@ public:
 	    while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
 	    {
 	    	std::string utt = example->utt;
-	    	const Matrix<BaseFloat> &mat = example->feat;
+	    	Matrix<BaseFloat> &mat = example->feat;
 
 	    	/*
 	        if (!KALDI_ISFINITE(mat.Sum())) { // check there's no nan/inf,
@@ -209,7 +215,7 @@ void NnetForwardParallel(const NnetForwardOptions *opts,
 						std::string feature_wspecifier,
 						NnetForwardStats *stats)
 {
-	ExamplesRepository repository;
+    ExamplesRepository repository;
     SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
     BaseFloatMatrixWriter feature_writer(feature_wspecifier);
     Mutex examples_mutex;
