@@ -176,7 +176,7 @@ public:
 
 	                utt_feats[s].Resize(lent[s], out_dim, kUndefined);
 	                utt_copied[s] = false;
-			utt_curt[s] = 0;
+	                utt_curt[s] = 0;
 
 	                delete example;
 	                break;

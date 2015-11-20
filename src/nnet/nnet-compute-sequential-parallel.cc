@@ -153,30 +153,31 @@ private:
 	  }
 	}
 
-	void inline MMIObj(CuMatrix<BaseFloat> &nnet_out, CuMatrix<BaseFloat> &nnet_diff,
+	void inline MMIObj(Matrix<BaseFloat> &nnet_out_h, Matrix<BaseFloat> &nnet_diff_h,
 				TransitionModel &trans_model, SequentialNnetExample *example,
 				double &total_mmi_obj, double &total_post_on_ali, int32 &num_frm_drop, int32 num_done,
 				CuMatrix<BaseFloat> *soft_nnet_out, CuMatrix<BaseFloat> *si_nnet_out=NULL)
 	{
 		std::string utt = example->utt;
-		const Matrix<BaseFloat> &mat = example->input_frames;
+		//const Matrix<BaseFloat> &mat = example->input_frames;
 		const std::vector<int32> &num_ali = example->num_ali;
 		Lattice &den_lat = example->den_lat;
 		std::vector<int32> &state_times = example->state_times;
 
-		Matrix<BaseFloat> nnet_out_h,  nnet_diff_h, si_nnet_out_h, soft_nnet_out_h;
+		Matrix<BaseFloat>  si_nnet_out_h, soft_nnet_out_h;
+		//Matrix<BaseFloat>  nnet_out_h, nnet_diff_h;
 		int num_frames, num_pdfs;
 	    double lat_like; // total likelihood of the lattice
 	    double lat_ac_like; // acoustic likelihood weighted by posterior.
 	    double mmi_obj = 0.0, post_on_ali = 0.0;
 
 
-		num_frames = nnet_out.NumRows();
-		num_pdfs = nnet_out.NumCols();
+		num_frames = nnet_out_h.NumRows();
+		num_pdfs = nnet_out_h.NumCols();
 
 	    // transfer it back to the host
-		nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-		nnet_out.CopyToMat(&nnet_out_h);
+		//nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
+		//nnet_out.CopyToMat(&nnet_out_h);
 
 
 		if (this->kld_scale > 0 || this->frame_smooth > 0)
@@ -206,7 +207,7 @@ private:
 
 		double tmp = 0.0;
 	       // 6) convert the Posterior to a matrix
-	       nnet_diff_h.Resize(num_frames, num_pdfs, kSetZero);
+	       //nnet_diff_h.Resize(num_frames, num_pdfs, kSetZero);
 	       for (int32 t = 0; t < post.size(); t++) {
 	         for (int32 arc = 0; arc < post[t].size(); arc++) {
 	           int32 pdf = trans_model.TransitionIdToPdf(post[t][arc].first);
@@ -321,8 +322,8 @@ private:
 	       }
 
 	       // 10) backpropagate through the nnet
-	       nnet_diff.Resize(num_frames, num_pdfs, kUndefined);
-	       nnet_diff.CopyFromMat(nnet_diff_h);
+	       //nnet_diff.Resize(num_frames, num_pdfs, kUndefined);
+	       //nnet_diff.CopyFromMat(nnet_diff_h);
 
 			       total_mmi_obj += mmi_obj;
 	       total_post_on_ali += post_on_ali;
@@ -363,6 +364,11 @@ private:
 	    // Read transition model
 	    TransitionModel trans_model;
 	    ReadKaldiObject(transition_model_filename, &trans_model);
+
+		int32 time_shift = opts->targets_delay;
+		const PdfPriorOptions *prior_opts = opts->prior_opts;
+		int32 num_stream = opts->num_stream;
+		int32 batch_size = opts->batch_size;
 
 
 	    int32 num_done = 0, num_no_num_ali = 0, num_no_den_lat = 0,
@@ -414,84 +420,203 @@ private:
 	    Timer time;
 	    double time_now = 0;
 
-		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff,
+		CuMatrix<BaseFloat> cu_feats, feats_transf, nnet_out, nnet_diff,
 							si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
-		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
+		Matrix<BaseFloat> nnet_out_h, nnet_diff_h, *p_nnet_diff_h;
 
 		SequentialNnetExample *example;
 
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
 
+	    std::vector<std::string> keys(num_stream);
+	    std::vector<Matrix<BaseFloat> > feats(num_stream);
+	    std::vector<Posterior> targets(num_stream);
+	    std::vector<int> curt(num_stream, 0);
+	    std::vector<int> lent(num_stream, 0);
+	    std::vector<int> new_utt_flags;
+
+	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
+	    std::vector<int> utt_curt(num_stream, 0);
+	    std::vector<bool> utt_copied(num_stream, 0);
+	    std::vector<SequentialNnetExample *> utt_examples(num_stream, 0);
+
+
+	    // bptt batch buffer
+	    int32 feat_dim = nnet.InputDim();
+	    int32 out_dim = nnet.OutputDim();
+	    Matrix<BaseFloat> feat;
+	    Matrix<BaseFloat> nnet_out_host;
+
+	    Matrix<BaseFloat> diff_feat;
+
 		//double t1, t2, t3, t4;
 		int32 update_frames = 0;
+		int32 num_frames = 0;
+		int32 cur_stream_num = 0;
 
-		while ((example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample())) != NULL)
+		while (1)
 		{
-			//time.Reset();
-			std::string utt = example->utt;
-			Matrix<BaseFloat> &mat = example->input_frames;
-			//t1 = time.Elapsed();
-			//time.Reset();
+				if (num_stream > 1)
+				{
+					int32 s = 0, max_frame_num = 0;
+					cur_stream_num = 0;
+					p_nnet_diff_h = &diff_feat;
 
-		      // get actual dims for this utt and nnet
-		      int32	num_frames = mat.NumRows(),
-		    		  num_fea = mat.NumCols(),
-					  num_pdfs = nnet.OutputDim();
+					while (s < num_stream && (example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample())) != NULL)
+					{
 
-		      // 3) propagate the feature to get the log-posteriors (nnet w/o sofrmax)
-		      //lstm  time-shift, copy the last frame of LSTM input N-times,
-		      if (time_shift > 0) {
-		        int32 last_row = mat.NumRows() - 1; // last row,
-		        mat.Resize(mat.NumRows() + time_shift, mat.NumCols(), kCopyData);
-		        for (int32 r = last_row+1; r<mat.NumRows(); r++) {
-		          mat.CopyRowFromVec(mat.Row(last_row), r); // copy last row,
-		        }
-		      }
-		      // push features to GPU
-		      feats = mat;
-		      // possibly apply transform
-		      nnet_transf.Feedforward(feats, &feats_transf);
-		      // propagate through the nnet (assuming w/o softmax)
-		      nnet.Propagate(feats_transf, &nnet_out);
+						std::string key = example->utt;
+						Matrix<BaseFloat> &mat = example->input_frames;
 
-		      // time-shift, remove N first frames of LSTM output,
-		      if (time_shift > 0) {
-		    	  CuMatrix<BaseFloat> tmp(nnet_out);
-		    	  nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
-		      }
+						if (max_frame_num < mat.NumRows()) max_frame_num = mat.NumRows();
 
-		      if (this->kld_scale > 0)
-		      {	
-		    	  si_nnet.Propagate(feats_transf, &si_nnet_out);
+						keys[s] = key;
+						feats[s] = mat;
+						curt[s] = 0;
+						lent[s] = feats[s].NumRows();
 
-			      // time-shift, remove N first frames of LSTM output,
-			      if (time_shift > 0) {
-			    	  CuMatrix<BaseFloat> tmp(si_nnet_out);
-			    	  si_nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
-			      }
-			      p_si_nnet_out = &si_nnet_out;
-		      }
+						utt_feats[s].Resize(lent[s], out_dim, kUndefined);
+						utt_copied[s] = false;
+						utt_curt[s] = 0;
+						utt_examples[s] = example;
+						s++;
 
-		      if (this->kld_scale > 0 || frame_smooth > 0)
-		      {
-		    	  softmax.Propagate(nnet_out, &soft_nnet_out);
-		    	  p_soft_nnet_out = &soft_nnet_out;
-		      }
+					}
 
-		      // subtract the log_prior
-		      if(prior_opts->class_frame_counts != "")
-		      {
-		    	  log_prior.SubtractOnLogpost(&nnet_out);
-		      }
+					cur_stream_num = s;
+					new_utt_flags.resize(cur_stream_num, 1);
+
+					// we are done if all streams are exhausted
+					if (cur_stream_num == 0) break;
+
+					feat.Resize(max_frame_num * cur_stream_num, feat_dim, kSetZero);
+					nnet_out_host.Resize(max_frame_num * cur_stream_num, out_dim, kUndefined);
+					diff_feat.Resize(max_frame_num * cur_stream_num, out_dim, kSetZero);
+
+					// fill a multi-stream bptt batch
+					 // * feat: first shifted to achieve targets delay; then padded to batch_size
+					 for (int t = 0; t < max_frame_num; t++) {
+						for (int s = 0; s < cur_stream_num; s++) {
+							// feat shifting & padding
+							if (curt[s] + time_shift < lent[s]) {
+								feat.Row(t * cur_stream_num + s).CopyFromVec(feats[s].Row(curt[s]+time_shift));
+							} else {
+								feat.Row(t * cur_stream_num + s).CopyFromVec(feats[s].Row(lent[s]-1));
+							}
+							curt[s]++;
+						}
+					}
+
+					 // apply optional feature transform
+					nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
+
+					// for streams with new utterance, history states need to be reset
+					nnet.ResetLstmStreams(new_utt_flags);
+
+					// forward pass
+					nnet.Propagate(feats_transf, &nnet_out);
+					nnet_out.CopyToMat(&nnet_out_host);
+
+					for (int t = 0; t < max_frame_num; t++) {
+						   for (int s = 0; s < cur_stream_num; s++) {
+							   // feat shifting & padding
+							   if (utt_curt[s] < lent[s]) {
+								   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
+								   utt_curt[s]++;
+							   }
+						   }
+					}
+
+					for (int s = 0; s < cur_stream_num; s++)
+					{
+						SubMatrix<BaseFloat> obj_feats(diff_feat.RowRange(s*max_frame_num, lent[s]));
+						MMIObj(utt_feats[s], obj_feats,
+					      				trans_model, utt_examples[s],
+					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
+										p_soft_nnet_out, p_si_nnet_out);
+						delete utt_examples[s];
+					}
 
 
-
-		      MMIObj(nnet_out, nnet_diff,
-		      				trans_model, example,
-		      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
-							p_soft_nnet_out, p_si_nnet_out);
+				}
 
 
+				if (num_stream <= 1 && ((example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample())) != NULL))
+				{
+						//time.Reset();
+						std::string utt = example->utt;
+						Matrix<BaseFloat> &mat = example->input_frames;
+						//t1 = time.Elapsed();
+						//time.Reset();
+
+						  // get actual dims for this utt and nnet
+						  int32	num_frames = mat.NumRows(),
+								  num_fea = mat.NumCols(),
+								  num_pdfs = nnet.OutputDim();
+
+						  // 3) propagate the feature to get the log-posteriors (nnet w/o sofrmax)
+						  //lstm  time-shift, copy the last frame of LSTM input N-times,
+						  if (time_shift > 0) {
+							int32 last_row = mat.NumRows() - 1; // last row,
+							mat.Resize(mat.NumRows() + time_shift, mat.NumCols(), kCopyData);
+							for (int32 r = last_row+1; r<mat.NumRows(); r++) {
+							  mat.CopyRowFromVec(mat.Row(last_row), r); // copy last row,
+							}
+						  }
+						  // push features to GPU
+						  cu_feats = mat;
+						  // possibly apply transform
+						  nnet_transf.Feedforward(cu_feats, &feats_transf);
+						  // propagate through the nnet (assuming w/o softmax)
+						  nnet.Propagate(feats_transf, &nnet_out);
+
+						  // time-shift, remove N first frames of LSTM output,
+						  if (time_shift > 0) {
+							  CuMatrix<BaseFloat> tmp(nnet_out);
+							  nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
+						  }
+
+						  if (this->kld_scale > 0)
+						  {
+							  si_nnet.Propagate(feats_transf, &si_nnet_out);
+
+							  // time-shift, remove N first frames of LSTM output,
+							  if (time_shift > 0) {
+								  CuMatrix<BaseFloat> tmp(si_nnet_out);
+								  si_nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
+							  }
+							  p_si_nnet_out = &si_nnet_out;
+						  }
+
+						  if (this->kld_scale > 0 || frame_smooth > 0)
+						  {
+							  softmax.Propagate(nnet_out, &soft_nnet_out);
+							  p_soft_nnet_out = &soft_nnet_out;
+						  }
+
+						  // subtract the log_prior
+						  if(prior_opts->class_frame_counts != "")
+						  {
+							  log_prior.SubtractOnLogpost(&nnet_out);
+						  }
+
+						  nnet_out_h.Resize(nnet_out.NumRows(), nnet_out.NumCols(), kUndefined);
+						  nnet_out.CopyToMat(&nnet_out_h);
+
+						  nnet_diff_h.Resize(nnet_out_h.NumRows(), nnet.OutputDim(), kSetZero);
+
+					      MMIObj(nnet_out_h, nnet_diff_h,
+					      				trans_model, example,
+					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
+										p_soft_nnet_out, p_si_nnet_out);
+					      p_nnet_diff_h = &nnet_diff_h;
+					      delete example;
+			}
+
+				if (example == NULL && cur_stream_num == 0) break;
+
+				// push to gpu
+				nnet_diff = *p_nnet_diff_h;
 
 		       if (parallel_opts->num_threads > 1 && update_frames >= opts->update_frames)
 		       {
@@ -550,12 +675,11 @@ private:
 		       }
 
 			   // release the buffers we don't need anymore
-			   feats.Resize(0,0);
-			   feats_transf.Resize(0,0);
-			   nnet_out.Resize(0,0);
-			   si_nnet_out.Resize(0,0);
-		       nnet_diff.Resize(0,0);
-		       delete example;
+			   //feats.Resize(0,0);
+			   //feats_transf.Resize(0,0);
+			   //nnet_out.Resize(0,0);
+			   //si_nnet_out.Resize(0,0);
+		       //nnet_diff.Resize(0,0);
 
 		       // increase time counter
 		       total_frames += num_frames;
