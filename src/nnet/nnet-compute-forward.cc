@@ -107,7 +107,7 @@ public:
 	    nnet_transf.SetDropoutRetention(1.0);
 	    nnet.SetDropoutRetention(1.0);
 
-	    CuMatrix<BaseFloat>  feats_transf, nnet_out;
+	    CuMatrix<BaseFloat>  cufeat, feats_transf, nnet_out;
 
 	    std::vector<std::string> keys(num_stream);
 	    std::vector<Matrix<BaseFloat> > feats(num_stream);
@@ -176,6 +176,7 @@ public:
 
 	                utt_feats[s].Resize(lent[s], out_dim, kUndefined);
 	                utt_copied[s] = false;
+			utt_curt[s] = 0;
 
 	                delete example;
 	                break;
@@ -198,9 +199,9 @@ public:
 		           for (int s = 0; s < num_stream; s++) {
 		               // feat shifting & padding
 		               if (curt[s] + time_shift < lent[s]) {
-		                   feat.Row(t * num_stream + s).CopyFromVec(utt_feats[s].Row(curt[s]+time_shift));
+		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]+time_shift));
 		               } else {
-		                   feat.Row(t * num_stream + s).CopyFromVec(utt_feats[s].Row(lent[s]-1));
+		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(lent[s]-1));
 		               }
 
 		               curt[s]++;
@@ -224,6 +225,17 @@ public:
 
 			   // forward pass
 			   nnet.Propagate(feats_transf, &nnet_out);
+
+		    	// convert posteriors to log-posteriors,
+		    	if (apply_log) {
+		    	  nnet_out.Add(1e-20); // avoid log(0),
+		    	  nnet_out.ApplyLog();
+		    	}
+        
+		    	// subtract log-priors from log-posteriors or pre-softmax,
+		    	if (prior_opts->class_frame_counts != "") {
+		    	  pdf_prior.SubtractOnLogpost(&nnet_out);
+		    	}
 
 			   nnet_out.CopyToMat(&nnet_out_host);
 
@@ -263,9 +275,9 @@ public:
 	    	}
 
 	    	// push it to gpu,
-	    	feats = mat;
+	    	cufeat = mat;
 	        // fwd-pass, feature transform,
-	        nnet_transf.Feedforward(feats, &feats_transf);
+	        nnet_transf.Feedforward(cufeat, &feats_transf);
 
 	        // fwd-pass, nnet,
 	        nnet.Feedforward(feats_transf, &nnet_out);
