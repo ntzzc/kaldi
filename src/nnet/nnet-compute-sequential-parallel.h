@@ -59,6 +59,7 @@ struct NnetSequentialUpdateOptions {
   int32 batch_size;
   int32 num_stream;
   int32 dump_interval;
+  int32 frame_limit;
   //lstm
 
   const NnetTrainOptions *trn_opts;
@@ -70,11 +71,11 @@ struct NnetSequentialUpdateOptions {
 		  	  	  	  	  	  	 acoustic_scale(0.1), lm_scale(0.1), old_acoustic_scale(0.0), kld_scale(-1.0), frame_smooth(-1.0),
 		  	  	  	  	  	  	 drop_frames(true),
 								 update_frames(-1),
-				                 max_frames(6000),
+				                 		 max_frames(6000),
   	  	  	  	  	  	  	  	 use_gpu("yes"),
 								 si_model_filename(""),
 								 use_psgd(false),
-								 targets_delay(0), batch_size(20), num_stream(0), dump_interval(0),
+								 targets_delay(0), batch_size(20), num_stream(0), dump_interval(0),frame_limit(10000),
 								 trn_opts(trn_opts),
 								 prior_opts(prior_opts),
 								 parallel_opts(parallel_opts){ }
@@ -113,6 +114,8 @@ struct NnetSequentialUpdateOptions {
       po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
 
       po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
+      
+      po->Register("frame-limit", &frame_limit, "Max number of frames to be processed in lstm");
       //</jiayu>
 
   }
