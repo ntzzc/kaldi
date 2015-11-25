@@ -425,50 +425,58 @@ private:
 							si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h, *p_nnet_diff_h;
 
-		SequentialNnetExample *example;
 
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
 
 	    std::vector<std::string> keys(num_stream);
 	    std::vector<Matrix<BaseFloat> > feats(num_stream);
-	    std::vector<Posterior> targets(num_stream);
 	    std::vector<int> curt(num_stream, 0);
 	    std::vector<int> lent(num_stream, 0);
 	    std::vector<int> new_utt_flags;
 
 	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
 	    std::vector<int> utt_curt(num_stream, 0);
-	    std::vector<bool> utt_copied(num_stream, 0);
 	    std::vector<SequentialNnetExample *> utt_examples(num_stream);
+	    std::vector<bool> utt_copied(num_stream, 0);
 
+	    std::vector<Matrix<BaseFloat> > diff_utt_feats(num_stream);
+	    std::vector<int> diff_curt(num_stream, 0);
 
 	    // bptt batch buffer
 	    int32 feat_dim = nnet.InputDim();
 	    int32 out_dim = nnet.OutputDim();
+
 	    Matrix<BaseFloat> feat;
+	    Matrix<BaseFloat> diff_feat;
 	    Matrix<BaseFloat> nnet_out_host;
 
-	    Matrix<BaseFloat> diff_feat;
 
 		//double t1, t2, t3, t4;
 		int32 update_frames = 0;
 		int32 num_frames = 0;
 		int32 cur_stream_num = 0;
+		SequentialNnetExample *example = NULL;
 
 		while (1)
 		{
 				if (num_stream >= 1)
 				{
 					int32 s = 0, max_frame_num = 0, cur_frames = 0;
-					cur_stream_num = 0;
+					cur_stream_num = 0; num_frames = 0;
 					p_nnet_diff_h = &diff_feat;
+					
+					if (NULL == example)
+						example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample());
 
-					while (s < num_stream && cur_frames < frame_limit 
-							&& (example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample())) != NULL)
+					while (s < num_stream && cur_frames < frame_limit && NULL != example)
 					{
 
 						std::string key = example->utt;
 						Matrix<BaseFloat> &mat = example->input_frames;
+
+						num_frames += lent[s];
+
+						if ((s+1)*mat.NumRows() > frame_limit || (s+1)*max_frame_num > frame_limit) break;
 
 						if (max_frame_num < mat.NumRows()) max_frame_num = mat.NumRows();
 
@@ -478,12 +486,16 @@ private:
 						lent[s] = feats[s].NumRows();
 
 						utt_feats[s].Resize(lent[s], out_dim, kUndefined);
+						diff_utt_feats[s].Resize(lent[s], out_dim, kSetZero);
 						utt_copied[s] = false;
 						utt_curt[s] = 0;
+						diff_curt[s] = 0;
 						utt_examples[s] = example;
+
 						s++;
 						cur_frames = max_frame_num * s;
 
+						example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample());
 					}
 
 					cur_stream_num = s;
@@ -518,12 +530,18 @@ private:
 
 					// forward pass
 					nnet.Propagate(feats_transf, &nnet_out);
+					/*
+						      if (!KALDI_ISFINITE(nnet_out.Sum())) { // check there's no nan/inf,
+        						KALDI_ERR << "NaN or inf found in final output nnet-output for " << utt_examples[0]->utt ;
+      							}   
+					*/
 
 					// subtract the log_prior
                                      	if(prior_opts->class_frame_counts != "") 
                                         {   
                                         	log_prior.SubtractOnLogpost(&nnet_out);
                                         }   
+
 
 					nnet_out.CopyToMat(&nnet_out_host);
 
@@ -539,13 +557,33 @@ private:
 
 					for (int s = 0; s < cur_stream_num; s++)
 					{
-						SubMatrix<BaseFloat> obj_feats(diff_feat.RowRange(s*max_frame_num, lent[s]));
-						MMIObj(utt_feats[s], obj_feats,
+						//SubMatrix<BaseFloat> obj_feats(diff_feat.RowRange(s*max_frame_num, lent[s]));
+						/*
+						      if (!KALDI_ISFINITE(utt_feats[s].Sum())) { // check there's no nan/inf,
+        						KALDI_ERR << "NaN or inf found in final output nnet-host-output for " << utt_examples[s]->utt << " s: " << s;
+      							}*/   
+
+						MMIObj(utt_feats[s], diff_utt_feats[s],
 					      				trans_model, utt_examples[s],
 					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
 										p_soft_nnet_out, p_si_nnet_out);
+						num_done++;
+
 						delete utt_examples[s];
 					}
+
+					 for (int t = 0; t < max_frame_num; t++) {
+						for (int s = 0; s < cur_stream_num; s++) {
+							// feat shifting & padding
+							if (diff_curt[s] + time_shift < lent[s]) {
+								diff_feat.Row(t * cur_stream_num + s).CopyFromVec(diff_utt_feats[s].Row(diff_curt[s]+time_shift));
+							} else {
+								//diff_feat.Row(t * cur_stream_num + s).SetZero();
+							}
+							diff_curt[s]++;
+						}
+					}
+
 
 
 				}
@@ -560,9 +598,9 @@ private:
 						//time.Reset();
 
 						  // get actual dims for this utt and nnet
-						  int32	num_frames = mat.NumRows(),
-								  num_fea = mat.NumCols(),
-								  num_pdfs = nnet.OutputDim();
+						  num_frames = mat.NumRows();
+						  int32 num_fea = mat.NumCols(),
+						  num_pdfs = nnet.OutputDim();
 
 						  // 3) propagate the feature to get the log-posteriors (nnet w/o sofrmax)
 						  //lstm  time-shift, copy the last frame of LSTM input N-times,
@@ -619,6 +657,7 @@ private:
 					      				trans_model, example,
 					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
 										p_soft_nnet_out, p_si_nnet_out);
+					      num_done++;
 					      p_nnet_diff_h = &nnet_diff_h;
 					      delete example;
 			}
@@ -693,7 +732,6 @@ private:
 
 		       // increase time counter
 		       total_frames += num_frames;
-		       num_done++;
 		       update_frames += num_frames;
 
 		       if (num_done % 100 == 0)
@@ -711,7 +749,7 @@ private:
 		       }
 
 		       fflush(stderr); 
-               fsync(fileno(stderr));
+               	       fsync(fileno(stderr));
 	  }
 
 		model_sync->LockStates();

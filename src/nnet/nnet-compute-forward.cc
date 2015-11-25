@@ -136,8 +136,8 @@ public:
 
 	    FeatureExample *example;
 
-	    //for lstm
-	    if (num_stream > 1)
+	    //num_stream=1 for lstm debug
+	    if (num_stream >= 1)
 	    while (1)
 	    {
 	    	 // loop over all streams, check if any stream reaches the end of its utterance,
@@ -253,7 +253,7 @@ public:
 	    }
 
 	    // for dnn cnn
-	    if (num_stream <= 1)
+	    if (num_stream < 1)
 	    while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
 	    {
 	    	std::string utt = example->utt;

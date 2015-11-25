@@ -45,7 +45,7 @@ struct NnetForwardOptions {
 
     NnetForwardOptions(const PdfPriorOptions *prior_opts)
     	:feature_transform(""),no_softmax(false),apply_log(false),use_gpu("no"),num_threads(1),
-		 	 	 	 	 	 	 time_shift(5),batch_size(20),num_stream(0),dump_interval(0),prior_opts(prior_opts)
+		 	 	 	 	 	 	 time_shift(0),batch_size(20),num_stream(0),dump_interval(0),prior_opts(prior_opts)
     {
 
     }
