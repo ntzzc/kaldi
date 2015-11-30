@@ -48,6 +48,12 @@ struct NnetSequentialUpdateOptions {
   	  	  	  frame_smooth;
 
   bool drop_frames;
+  bool one_silence_class;  // Affects MPE/SMBR>
+  BaseFloat boost; // for MMI, boosting factor (would be Boosted MMI)... e.g. 0.1.
+
+  std::string silence_phones_str; // colon-separated list of integer ids of silence phones,
+                                  // for MPE/SMBR only.
+
   int32 update_frames;
   kaldi::int32 max_frames; // Allow segments maximum of one minute by default
   std::string use_gpu;
@@ -69,9 +75,9 @@ struct NnetSequentialUpdateOptions {
 
   NnetSequentialUpdateOptions(const NnetTrainOptions *trn_opts, const PdfPriorOptions *prior_opts, const NnetParallelOptions *parallel_opts): criterion("mmi"),
 		  	  	  	  	  	  	 acoustic_scale(0.1), lm_scale(0.1), old_acoustic_scale(0.0), kld_scale(-1.0), frame_smooth(-1.0),
-		  	  	  	  	  	  	 drop_frames(true),
+		  	  	  	  	  	  	 drop_frames(true), one_silence_class(false), boost(0.0),
 								 update_frames(-1),
-				                 		 max_frames(6000),
+				                 max_frames(6000),
   	  	  	  	  	  	  	  	 use_gpu("yes"),
 								 si_model_filename(""),
 								 use_psgd(false),
@@ -81,6 +87,10 @@ struct NnetSequentialUpdateOptions {
 								 parallel_opts(parallel_opts){ }
 
   void Register(OptionsItf *po) {
+
+	  po->Register("criterion", &criterion, "Criterion, 'mmi'|'mpfe'|'smbr', "
+	                   "determines the objective function to use.  Should match "
+	                   "option used when we created the examples.");
 
       po->Register("acoustic-scale", &acoustic_scale,
                   "Scaling factor for acoustic likelihoods");
@@ -99,6 +109,13 @@ struct NnetSequentialUpdateOptions {
       po->Register("drop-frames", &drop_frames,
                         "Drop frames, where is zero den-posterior under numerator path "
                         "(ie. path not in lattice)");
+      po->Register("boost", &boost, "Boosting factor for boosted MMI (e.g. 0.1)");
+      po->Register("one-silence-class", &one_silence_class, "If true, newer "
+                     "behavior which will tend to reduce insertions.");
+      po->Register("silence-phones", &silence_phones_str,
+                     "For MPFE or SMBR, colon-separated list of integer ids of "
+                     "silence phones, e.g. 1:2:3");
+
       po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
       po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
 
@@ -132,6 +149,7 @@ struct NnetSequentialStats {
     double lat_ac_like; // acoustic likelihood weighted by posterior.
     double total_mmi_obj, mmi_obj;
     double total_post_on_ali, post_on_ali;
+    double total_frame_acc;
 
 
     void MergeStats(NnetSequentialUpdateOptions *opts, int root)
@@ -159,6 +177,9 @@ struct NnetSequentialStats {
 
     		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&total_mmi_obj));
     		MPI_Reduce(addr, (void*)(&total_mmi_obj), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+    		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&total_frame_acc));
+    		MPI_Reduce(addr, (void*)(&total_frame_acc), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
     }
 
   NnetSequentialStats() { std::memset(this, 0, sizeof(*this)); }
@@ -173,12 +194,16 @@ struct NnetSequentialStats {
 	                << num_no_den_lat << " with no denominator lattices, "
 	                << num_other_error << " with other errors.";
 
+	      if (criterion == "mmi")
 	      KALDI_LOG << "Overall MMI-objective/frame is "
 	                << std::setprecision(8) << (total_mmi_obj/total_frames)
 	                << " over " << total_frames << " frames."
 	                << " (average den-posterior on ali " << (total_post_on_ali/total_frames) << ","
 	                << " dropped " << num_frm_drop << " frames with num/den mismatch)";
-
+	      else
+	      KALDI_LOG << "Overall average frame-accuracy is "
+	                << (total_frame_acc/total_frames) << " over " << total_frames
+	                << " frames.";
   }
   //void Add(const NnetSequentialStats &other);
 };

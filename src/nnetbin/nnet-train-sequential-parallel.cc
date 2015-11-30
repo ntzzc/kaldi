@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
 
     KALDI_LOG << "TRAINING FINISHED; ";
     time_now = time.Elapsed();
-    stats.Print("mmi", time_now);
+    stats.Print(opts.criterion, time_now);
 
 #if HAVE_CUDA == 1
     CuDevice::Instantiate().PrintProfile();

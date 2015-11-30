@@ -201,6 +201,30 @@ void PosteriorToMatrixMapped(const Posterior &post, const TransitionModel &model
   (*mat) = m; 
 }
 
+/**
+ * Convert Posterior to Matrix, while mapping to PDFs.
+ * The Posterior outer-dim defines number of matrix-rows,
+ * number of matrix-colmuns is set by 'TransitionModel::NumPdfs'.
+ */
+template <typename Real>
+void PosteriorToMatrixMapped(const Posterior &post, const TransitionModel &model, Matrix<Real> &mat) {
+  // Make a host-matrix,
+  int32 num_rows = post.size(),
+        num_cols = model.NumPdfs();
+  mat.Resize(num_rows, num_cols, kSetZero); // zero-filled
+  // Fill from Posterior,
+  for (int32 t = 0; t < post.size(); t++) {
+    for (int32 i = 0; i < post[t].size(); i++) {
+      int32 col = model.TransitionIdToPdf(post[t][i].first);
+      if (col >= num_cols) {
+        KALDI_ERR << "Out-of-bound Posterior element with index " << col
+                  << ", higher than number of columns " << num_cols;
+      }
+      mat(t, col) += post[t][i].second; // sum,
+    }
+  }
+}
+
 
 } // namespace nnet1
 } // namespace kaldi

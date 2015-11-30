@@ -25,6 +25,8 @@
 #include "thread/kaldi-thread.h"
 
 #include "lat/kaldi-lattice.h"
+#include "lat/lattice-functions.h"
+#include "nnet/nnet-utils.h"
 
 #include "cudamatrix/cu-device.h"
 #include "base/kaldi-types.h"
@@ -74,6 +76,11 @@ private:
     int32 num_threads;
     int32 time_shift;
 
+	bool one_silence_class;
+	BaseFloat boost;
+	std::string silence_phones_str;
+	std::string criterion;
+
 
  public:
   // This constructor is only called for a temporary object
@@ -114,6 +121,13 @@ private:
 
 				num_threads = parallel_opts->num_threads;
 				time_shift = opts->targets_delay;
+
+				one_silence_class = opts->one_silence_class;  // Affects MPE/SMBR>
+				boost = opts->boost; // for MMI, boosting factor (would be Boosted MMI)... e.g. 0.1.
+				silence_phones_str= opts->silence_phones_str; // colon-separated list of integer ids of silence phones,
+				                                  // for MPE/SMBR only.
+				criterion = opts->criterion;
+
  	 		}
 
 
@@ -152,6 +166,108 @@ private:
 	    }
 	  }
 	}
+
+	void inline MPEObj(Matrix<BaseFloat> &nnet_out_h, MatrixBase<BaseFloat> &nnet_diff_h,
+				TransitionModel &trans_model, SequentialNnetExample *example,
+				std::vector<int32> &silence_phones, double &total_frame_acc, int32 num_done,
+				CuMatrix<BaseFloat> *soft_nnet_out, CuMatrix<BaseFloat> *si_nnet_out=NULL)
+	{
+		std::string utt = example->utt;
+		//const Matrix<BaseFloat> &mat = example->input_frames;
+		const std::vector<int32> &num_ali = example->num_ali;
+		Lattice &den_lat = example->den_lat;
+		std::vector<int32> &state_times = example->state_times;
+
+		Matrix<BaseFloat>  si_nnet_out_h, soft_nnet_out_h;
+		//Matrix<BaseFloat>  nnet_out_h, nnet_diff_h;
+		CuMatrix<BaseFloat> nnet_diff;
+		int num_frames, num_pdfs;
+	    double lat_like; // total likelihood of the lattice
+	    double lat_ac_like; // acoustic likelihood weighted by posterior.
+	    double utt_frame_acc;
+
+
+		num_frames = nnet_out_h.NumRows();
+		num_pdfs = nnet_out_h.NumCols();
+
+	    // transfer it back to the host
+		//nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
+		//nnet_out.CopyToMat(&nnet_out_h);
+
+
+		if (this->kld_scale > 0 || this->frame_smooth > 0)
+		{
+			soft_nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
+			soft_nnet_out->CopyToMat(&soft_nnet_out_h);
+		}
+
+		if (this->kld_scale > 0)
+		{
+			si_nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
+			si_nnet_out->CopyToMat(&si_nnet_out_h);
+
+			//soft_nnet_out_h.AddMat(-1.0, si_nnet_out_h);
+			si_nnet_out_h.AddMat(-1.0, soft_nnet_out_h);
+		}
+
+		// 4) rescore the latice
+		LatticeAcousticRescore(nnet_out_h, trans_model, state_times, &den_lat);
+		if (acoustic_scale != 1.0 || lm_scale != 1.0)
+			fst::ScaleLattice(fst::LatticeScale(lm_scale, acoustic_scale), &den_lat);
+
+	      kaldi::Posterior post;
+
+	      if (this->criterion == "smbr") {  // use state-level accuracies, i.e. sMBR estimation
+	        utt_frame_acc = LatticeForwardBackwardMpeVariants(
+	            trans_model, silence_phones, den_lat, num_ali, "smbr",
+	            one_silence_class, &post);
+	      } else {  // use phone-level accuracies, i.e. MPFE (minimum phone frame error)
+	        utt_frame_acc = LatticeForwardBackwardMpeVariants(
+	            trans_model, silence_phones, den_lat, num_ali, "mpfe",
+	            one_silence_class, &post);
+	      }
+
+	      // 6) convert the Posterior to a matrix,
+	      PosteriorToMatrixMapped(post, trans_model, &nnet_diff);
+	      nnet_diff.Scale(-1.0); // need to flip the sign of derivative,
+
+	      nnet_diff_h = nnet_diff;
+
+	       // 8) subtract the pdf-Viterbi-path
+	      if (this->frame_smooth > 0)
+	      {
+	    	  for(int32 t=0; t<nnet_diff_h.NumRows(); t++) {
+	    		  int32 pdf = trans_model.TransitionIdToPdf(num_ali[t]);
+	    	  	  soft_nnet_out_h(t, pdf) -= 1.0;
+	    	  }
+
+	    	   nnet_diff_h.Scale(1-frame_smooth);
+	    	   nnet_diff_h.AddMat(frame_smooth*0.1, soft_nnet_out_h);
+	       }
+
+			if (this->kld_scale > 0)
+	        {
+	        	nnet_diff_h.Scale(1.0-kld_scale);
+	        	//-kld_scale means gradient descent direction.
+				nnet_diff_h.AddMat(-kld_scale, si_nnet_out_h);
+	        }
+
+
+
+	      KALDI_VLOG(1) << "Lattice #" << num_done + 1 << " processed"
+	                    << " (" << utt << "): found " << den_lat.NumStates()
+	                    << " states and " << fst::NumArcs(den_lat) << " arcs.";
+
+	      KALDI_VLOG(1) << "Utterance " << utt << ": Average frame accuracy = "
+	                    << (utt_frame_acc/num_frames) << " over " << num_frames
+	                    << " frames,"
+	                    << " diff-range(" << nnet_diff.Min() << "," << nnet_diff.Max() << ")";
+
+	      // increase time counter
+	      total_frame_acc += utt_frame_acc;
+	}
+
+
 
 	void inline MMIObj(Matrix<BaseFloat> &nnet_out_h, MatrixBase<BaseFloat> &nnet_diff_h,
 				TransitionModel &trans_model, SequentialNnetExample *example,
@@ -382,6 +498,7 @@ private:
 	    kaldi::int64 total_frames = 0;
 	    double total_mmi_obj = 0.0, mmi_obj = 0.0;
 	    double total_post_on_ali = 0.0, post_on_ali = 0.0;
+	    double total_frame_acc = 0.0;
 
 		Nnet nnet_transf;
 	    if (feature_transform != "") {
@@ -415,6 +532,16 @@ private:
 	    	KALDI_LOG << "KLD model Appending the softmax ...";
 	    	softmax.AppendComponent(new Softmax(nnet.OutputDim(),nnet.OutputDim()));
         }
+
+	    std::vector<int32> silence_phones;
+	    if (this->criterion != "mmi")
+	    {
+		    if (!kaldi::SplitStringToIntegers(silence_phones_str, ":", false, &silence_phones))
+		      KALDI_ERR << "Invalid silence-phones string " << silence_phones_str;
+		    kaldi::SortAndUniq(&silence_phones);
+		    if (silence_phones.empty())
+		      KALDI_LOG << "No silence phones specified.";
+	    }
 
 	    model_sync->Initialize(&nnet);
 
@@ -563,10 +690,17 @@ private:
         						KALDI_ERR << "NaN or inf found in final output nnet-host-output for " << utt_examples[s]->utt << " s: " << s;
       							}*/   
 
-						MMIObj(utt_feats[s], diff_utt_feats[s],
+						if (this->criterion == "mmi")
+							MMIObj(utt_feats[s], diff_utt_feats[s],
 					      				trans_model, utt_examples[s],
 					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
 										p_soft_nnet_out, p_si_nnet_out);
+						else
+							MPEObj(utt_feats[s], diff_utt_feats[s],
+				      				trans_model, utt_examples[s],
+									silence_phones, total_frame_acc, num_done,
+									p_soft_nnet_out, p_si_nnet_out);
+
 						num_done++;
 
 						delete utt_examples[s];
@@ -653,10 +787,17 @@ private:
 
 						  nnet_diff_h.Resize(nnet_out_h.NumRows(), nnet.OutputDim(), kSetZero);
 
-					      MMIObj(nnet_out_h, nnet_diff_h,
+						  if (this->criterion == "mmi")
+							  MMIObj(nnet_out_h, nnet_diff_h,
 					      				trans_model, example,
 					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
 										p_soft_nnet_out, p_si_nnet_out);
+						  else
+							  MPEObj(nnet_out_h, nnet_diff_h,
+					      				trans_model, example,
+										silence_phones, total_frame_acc, num_done,
+										p_soft_nnet_out, p_si_nnet_out);
+
 					      num_done++;
 					      p_nnet_diff_h = &nnet_diff_h;
 					      delete example;
