@@ -231,7 +231,7 @@ private:
 	      PosteriorToMatrixMapped(post, trans_model, &nnet_diff);
 	      nnet_diff.Scale(-1.0); // need to flip the sign of derivative,
 
-	      nnet_diff_h = nnet_diff;
+	      nnet_diff.CopyToMat(&nnet_diff_h);
 
 	       // 8) subtract the pdf-Viterbi-path
 	      if (this->frame_smooth > 0)
