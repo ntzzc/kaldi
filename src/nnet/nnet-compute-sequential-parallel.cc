@@ -896,6 +896,7 @@ private:
 		model_sync->LockStates();
 		stats_->total_mmi_obj += total_mmi_obj;
 		stats_->total_post_on_ali += total_post_on_ali;
+		stats_->total_frame_acc += total_frame_acc;
 
 		stats_->total_frames += total_frames;
 		stats_->num_frm_drop += num_frm_drop;
