@@ -90,6 +90,9 @@ struct NnetUpdateOptions {
 
 	      po->Register("si-model",&si_model_filename, "kld speaker independent model filename");
 
+	      po->Register("kld-scale", &kld_scale,
+	                  "KLD regularization weight to the original training criterion");
+
 	      po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
 
 	      po->Register("use-psgd",&use_psgd, "use preconditional sgd instead of sgd, it always true while training with multi-machine");

@@ -35,6 +35,7 @@
 #include "nnet/nnet-model-merge-function.h"
 #include "nnet/nnet-activation.h"
 #include "nnet/nnet-example.h"
+#include "nnet/nnet-utils.h"
 
 #include "nnet/nnet-compute-parallel.h"
 
@@ -266,21 +267,31 @@ private:
 				// forward pass
 				nnet.Propagate(nnet_in, &nnet_out);
 
+				CuMatrix<BaseFloat> tgt_mat;
 			    if (this->kld_scale > 0)
 			    {
 			      	si_nnet.Propagate(nnet_in, &si_nnet_out);
 			      	p_si_nnet_out = &si_nnet_out;
+						  // convert posterior to matrix,
+					PosteriorToMatrix(nnet_tgt, nnet.OutputDim(), &tgt_mat);
+					tgt_mat.Scale(1-this->kld_scale);
+					tgt_mat.AddMat(this->kld_scale, si_nnet_out);
 			    }
-
 
 
 				// evaluate objective function we've chosen
 				if (objective_function == "xent") {
 					// gradients re-scaled by weights in Eval,
-					xent.Eval(frm_weights, nnet_out, nnet_tgt, &nnet_diff);
+					if (this->kld_scale > 0)
+						xent.Eval(frm_weights, nnet_out, tgt_mat, &nnet_diff);
+					else
+						xent.Eval(frm_weights, nnet_out, nnet_tgt, &nnet_diff);
 				} else if (objective_function == "mse") {
 					// gradients re-scaled by weights in Eval,
-					mse.Eval(frm_weights, nnet_out, nnet_tgt, &nnet_diff);
+					if (this->kld_scale > 0)
+						mse.Eval(frm_weights, nnet_out, tgt_mat, &nnet_diff);
+					else
+						mse.Eval(frm_weights, nnet_out, nnet_tgt, &nnet_diff);
 				} else {
 					KALDI_ERR<< "Unknown objective function code : " << objective_function;
 				}
