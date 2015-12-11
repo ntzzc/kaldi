@@ -6,6 +6,7 @@ include ../kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
+LDLIBS += $(MPICH_LDLIBS)
 
 TESTFILES = nnet-randomizer-test nnet-component-test
 
@@ -19,7 +20,7 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
 
 LIBNAME = kaldi-nnet
 
-ADDLIBS = ../cudamatrix/kaldi-cudamatrix.a ../matrix/kaldi-matrix.a ../base/kaldi-base.a  ../util/kaldi-util.a 
+ADDLIBS = ../hmm/kaldi-hmm.a ../nnet2/kaldi-nnet2.a ../thread/kaldi-thread.a ../lat/kaldi-lat.a ../cudamatrix/kaldi-cudamatrix.a ../matrix/kaldi-matrix.a ../base/kaldi-base.a ../util/kaldi-util.a
 
 include ../makefiles/default_rules.mk
 
