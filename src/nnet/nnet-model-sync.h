@@ -179,6 +179,7 @@ public:
 	std::string FAddSuffix(std::string filename, int idx);
 	std::string GetFilename(std::string filename);
 	int NumofMerge(std::string fn, int merge_size);
+	int NumofCEMerge(std::string fn, int merge_size);
 };
 
 

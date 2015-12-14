@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 	    scpfile = util.GetFilename(feature_rspecifier);
 	    if (parallel_opts.myid == 0)
 	    {
-	    	parallel_opts.num_merge = util.NumofMerge(scpfile, parallel_opts.merge_size);
+	    	parallel_opts.num_merge = util.NumofCEMerge(scpfile, parallel_opts.merge_size);
 	    }
 
 		MPI_Barrier(MPI_COMM_WORLD);

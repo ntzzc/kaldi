@@ -489,6 +489,25 @@ int NnetParallelUtil::NumofMerge(std::string fn, int merge_size)
 	return piece;
 }
 
+int NnetParallelUtil::NumofCEMerge(std::string fn, int merge_size)
+{
+	std::string sfn = fn+".len";
+	std::ifstream in(sfn.c_str());
+	std::string str, featname;
+	int len, piece = 0;
+	size_t frames = 0;
+	while(std::getline(in, str))
+	{
+		std::istringstream ss(str);
+		ss>>featname>>len;
+
+		frames += len;
+	}
+
+	piece = frames/merge_size + 1;
+
+	return piece;
+}
 
 } // namespace nnet
 } // namespace kaldi
