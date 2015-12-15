@@ -114,7 +114,11 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     peephole_f_c_.Resize(ncell_, kUndefined);
     peephole_o_c_.Resize(ncell_, kUndefined);
 
-    InitVecParam(bias_, param_scale);
+    //InitVecParam(bias_, param_scale);
+    bias_.Set(0);
+    CuSubVector<BaseFloat> fb(bias_.Range(2*ncell_,ncell_));
+    fb.Set(1.0);
+
     InitVecParam(peephole_i_c_, param_scale);
     InitVecParam(peephole_f_c_, param_scale);
     InitVecParam(peephole_o_c_, param_scale);

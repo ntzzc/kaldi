@@ -52,7 +52,7 @@ ModelMergeFunction::Factory(const NnetParallelOptions *opts, NnetModelSync *mode
 void ModelAverageMerge::Merge(int root)
 {
 
-	cblas_Xscal(model_sync_->Dim(), 1.0/opts->num_procs, model_sync_->data_, 1);
+	//cblas_Xscal(model_sync_->Dim(), 1.0/opts->num_procs, model_sync_->data_, 1);
 
 	void *srcaddr = (void *) (opts->myid==root ? MPI_IN_PLACE : this->model_sync_->data_);
 
@@ -60,7 +60,6 @@ void ModelAverageMerge::Merge(int root)
 	MPI_Reduce(srcaddr, (void*)(this->model_sync_->data_),
 			this->model_sync_->dim_, MPI_FLOAT, MPI_SUM, root, MPI_COMM_WORLD);
 
-	/*
 	if (opts->myid == root)
 	{
 		cblas_Xscal(model_sync_->Dim(), 1.0/opts->num_procs, model_sync_->data_, 1);
@@ -71,7 +70,6 @@ void ModelAverageMerge::Merge(int root)
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Bcast((void*)(model_sync_->data_), model_sync_->Dim(), MPI_FLOAT, root, MPI_COMM_WORLD);
-	 */
 	//std::cout<<"Bcast finished!"<<std::endl;
 	this->mLeftMerge--;
 }

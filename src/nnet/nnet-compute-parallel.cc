@@ -338,12 +338,12 @@ private:
 						{
 							model_sync->GetWeight(&nnet);
 
-							double st = mpi_time.Reset();
+							mpi_time.Reset();
 							p_merge_func->Merge(0);
-							double en = mpi_time.Elapsed();
+							double gap = mpi_time.Elapsed();
 							KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
-											<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames "
-											<< "time elapsed = " << en-st << " s.";
+											<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames, "
+											<< "time elapsed = " << gap << " s.";
 							p_merge_func->MergeCacheReset();
 
 							model_sync->SetWeight(&nnet);
