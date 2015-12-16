@@ -41,7 +41,7 @@
 namespace kaldi {
 namespace nnet1 {
 
-class TrainLstmParallelClass: public MultiThreadable {
+class TrainLstmAsgdClass: public MultiThreadable {
 
 private:
     const NnetLstmUpdateOptions *opts;
@@ -71,7 +71,7 @@ private:
  public:
   // This constructor is only called for a temporary object
   // that we pass to the RunMultiThreaded function.
-    TrainLstmParallelClass(const NnetLstmUpdateOptions *opts,
+    TrainLstmAsgdClass(const NnetLstmUpdateOptions *opts,
 			NnetModelSync *model_sync,
 			std::string	model_filename,
 			std::string targets_rspecifier,
@@ -450,7 +450,7 @@ void NnetLstmUpdateAsgd(const NnetLstmUpdateOptions *opts,
 		ExamplesRepository repository;
 		NnetModelSync model_sync(nnet, opts->parallel_opts);
 
-		TrainLstmParallelClass c(opts, &model_sync,
+		TrainLstmAsgdClass c(opts, &model_sync,
 								model_filename, targets_rspecifier,
 								&repository, nnet, stats);
 
@@ -466,7 +466,7 @@ void NnetLstmUpdateAsgd(const NnetLstmUpdateOptions *opts,
 
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
-	    MultiThreader<TrainLstmParallelClass> mc(opts->parallel_opts->num_threads, c);
+	    MultiThreader<TrainLstmAsgdClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
