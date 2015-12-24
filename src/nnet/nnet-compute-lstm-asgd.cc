@@ -41,7 +41,7 @@
 namespace kaldi {
 namespace nnet1 {
 
-class TrainLstmParallelClass: public MultiThreadable {
+class TrainLstmAsgdClass: public MultiThreadable {
 
 private:
     const NnetLstmUpdateOptions *opts;
@@ -71,7 +71,7 @@ private:
  public:
   // This constructor is only called for a temporary object
   // that we pass to the RunMultiThreaded function.
-    TrainLstmParallelClass(const NnetLstmUpdateOptions *opts,
+    TrainLstmAsgdClass(const NnetLstmUpdateOptions *opts,
 			NnetModelSync *model_sync,
 			std::string	model_filename,
 			std::string targets_rspecifier,
@@ -245,7 +245,7 @@ private:
 	                // get the feature matrix,
 	                const Matrix<BaseFloat> &mat = example->input_frames;
 	                // forward the features through a feature-transform,
-	                //nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feat_transf);
+	                nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
 
 	                // get the labels,
 	                const Posterior& target = example->targets;
@@ -254,9 +254,9 @@ private:
 
 	                // checks ok, put the data in the buffers,
 	                keys[s] = key;
-	                //feats[s].Resize(feat_transf.NumRows(), feat_transf.NumCols());
-	                //feat_transf.CopyToMat(&feats[s]);
-	                feats[s] = mat;
+	                feats[s].Resize(feats_transf.NumRows(), feats_transf.NumCols());
+	                feats_transf.CopyToMat(&feats[s]);
+	                //feats[s] = mat;
 	                targets[s] = target;
 	                curt[s] = 0;
 	                lent[s] = feats[s].NumRows();
@@ -313,13 +313,13 @@ private:
 	                }
 
 	        // apply optional feature transform
-	        nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
+	        //nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
 
 	        // for streams with new utterance, history states need to be reset
 	        nnet.ResetLstmStreams(new_utt_flags);
 
 	        // forward pass
-	        nnet.Propagate(feats_transf, &nnet_out);
+	        nnet.Propagate(CuMatrix<BaseFloat>(feat), &nnet_out);
 
 	        // evaluate objective function we've chosen
 	        if (objective_function == "xent") {
@@ -450,7 +450,7 @@ void NnetLstmUpdateAsgd(const NnetLstmUpdateOptions *opts,
 		ExamplesRepository repository;
 		NnetModelSync model_sync(nnet, opts->parallel_opts);
 
-		TrainLstmParallelClass c(opts, &model_sync,
+		TrainLstmAsgdClass c(opts, &model_sync,
 								model_filename, targets_rspecifier,
 								&repository, nnet, stats);
 
@@ -466,7 +466,7 @@ void NnetLstmUpdateAsgd(const NnetLstmUpdateOptions *opts,
 
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
-	    MultiThreader<TrainLstmParallelClass> mc(opts->parallel_opts->num_threads, c);
+	    MultiThreader<TrainLstmAsgdClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
