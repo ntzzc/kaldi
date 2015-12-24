@@ -162,14 +162,16 @@ public:
 	    		{
 	    	    	std::string key = example->utt;
 	    	    	Matrix<BaseFloat> &mat = example->feat;
+			// forward the features through a feature-transform,
+                        nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
 
 	    	    	num_done++;
 
 	                // checks ok, put the data in the buffers,
 	                keys[s] = key;
-	                //feats[s].Resize(feat_transf.NumRows(), feat_transf.NumCols());
-	                //feat_transf.CopyToMat(&feats[s]);
-	                feats[s] = mat;
+	                feats[s].Resize(feats_transf.NumRows(), feats_transf.NumCols());
+	                feats_transf.CopyToMat(&feats[s]);
+	                //feats[s] = mat;
 	                curt[s] = 0;
 	                lent[s] = feats[s].NumRows();
 	                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
@@ -218,13 +220,14 @@ public:
 			    }
 
 			    // apply optional feature transform
-			   nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
+			   //nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
 
 			   // for streams with new utterance, history states need to be reset
 			   nnet.ResetLstmStreams(new_utt_flags);
 
 			   // forward pass
-			   nnet.Propagate(feats_transf, &nnet_out);
+			   //nnet.Propagate(feats_transf, &nnet_out);
+			   nnet.Propagate(CuMatrix<BaseFloat>(feat), &nnet_out);
 
 		    	// convert posteriors to log-posteriors,
 		    	if (apply_log) {
