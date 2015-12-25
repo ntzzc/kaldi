@@ -407,6 +407,53 @@ class CuMatrixBase {
   void MaxPoolingBackward(const CuMatrixBase<Real> &in, const CuMatrixBase<Real> &out, const CuMatrixBase<Real> &out_diff,
 		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_);
 
+  /////////////////////////////////////////////////////
+  /////  CTC Training
+  /////////////////////////////////////////////////////
+
+  /// Perform a CTC foward pass over a single sequence, computing the alpha values. Here, "rescale"
+  /// is a boolean value indicating whether the scaling version is used.
+  void ComputeCtcAlpha(const CuMatrixBase<Real> &prob,
+                       int32 row_idx,
+                       const std::vector<int32> &labels,
+                       bool rescale);
+
+  /// Computing alpha values by processing multiple sequences at one time.
+  void ComputeCtcAlphaMSeq(const CuMatrixBase<Real> &prob,
+                       int32 row_idx,
+                       const std::vector<int32> &labels,
+                       const std::vector<int32> &frame_num_utt);
+
+  /// Perform a CTC backward pass over a single sequence, computing the beta values. Here, "rescale"
+  /// is a boolean value indicating whether the scaling version is used.
+  void ComputeCtcBeta(const CuMatrixBase<Real> &prob,
+                      int32 row_idx,
+                      const std::vector<int32> &labels,
+                      bool rescale);
+
+  /// Computing beta values by processing multiple sequences at one time.
+  void ComputeCtcBetaMSeq(const CuMatrixBase<Real> &prob,
+                       int32 row_idx,
+                       const std::vector<int32> &labels,
+                       const std::vector<int32> &frame_num_utt,
+                       const std::vector<int32> &label_lengths_utt);
+
+  /// Evaluate the errors from the CTC objective over a single sequence.
+  void ComputeCtcError(const CuMatrixBase<Real> &alpha,
+                       const CuMatrixBase<Real> &beta,
+                       const CuMatrixBase<Real> &prob,
+                       const std::vector<int32> &labels,
+                       Real pzx);
+
+ /// Evaluate the errors from the CTC objective over multiple sequences.
+ void  ComputeCtcErrorMSeq(const CuMatrixBase<Real> &alpha,
+                           const CuMatrixBase<Real> &beta,
+                           const CuMatrixBase<Real> &prob,
+                           const std::vector<int32> &labels,
+                           const std::vector<int32> &frame_num_utt,
+                           const CuVector<Real> pzx);
+
+
   /// if A.NumRows() is multiple of (*this)->NumRows and A.NumCols() is multiple of (*this)->NumCols
   /// divide A into blocks of the same size as (*this) and add them to *this (times alpha)
   void AddMatBlocks(Real alpha, const CuMatrixBase<Real> &A, MatrixTransposeType trans = kNoTrans);

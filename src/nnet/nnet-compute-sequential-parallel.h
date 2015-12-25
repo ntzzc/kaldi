@@ -55,7 +55,7 @@ struct NnetSequentialUpdateOptions {
                                   // for MPE/SMBR only.
 
   int32 update_frames;
-  kaldi::int32 max_frames; // Allow segments maximum of one minute by default
+  int32 max_frames; // Allow segments maximum of one minute by default
   std::string use_gpu;
   std::string si_model_filename;
   bool use_psgd;

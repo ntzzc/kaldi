@@ -71,7 +71,35 @@ struct DNNNnetExample : NnetExample
 	bool PrepareData();
 };
 
-struct SequentialNnetExample: NnetExample
+struct CTCNnetExample : NnetExample
+{
+	SequentialBaseFloatMatrixReader *feature_reader;
+	RandomAccessInt32VectorReader *targets_reader;
+
+	NnetModelSync *model_sync;
+	NnetStats *stats;
+	const NnetUpdateOptions *opts;
+
+	std::string utt;
+
+	Matrix<BaseFloat> input_frames;
+	std::vector<int32> targets;
+
+	CTCNnetExample(SequentialBaseFloatMatrixReader *feature_reader,
+					RandomAccessInt32VectorReader *targets_reader,
+
+					NnetModelSync *model_sync,
+					NnetStats *stats,
+					const NnetUpdateOptions *opts):
+	feature_reader(feature_reader), targets_reader(targets_reader),
+	model_sync(model_sync), stats(stats), opts(opts)
+	{
+
+	}
+	bool PrepareData();
+};
+
+struct SequentialNnetExample : NnetExample
 {
 	SequentialBaseFloatMatrixReader *feature_reader;
 	RandomAccessLatticeReader *den_lat_reader;

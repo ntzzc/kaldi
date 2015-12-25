@@ -86,6 +86,27 @@ bool DNNNnetExample::PrepareData()
 	return true;
 }
 
+bool CTCNnetExample::PrepareData()
+{
+    utt = feature_reader->Key();
+    KALDI_VLOG(3) << "Reading " << utt;
+    // check that we have targets
+    if (!targets_reader->HasKey(utt)) {
+      KALDI_WARN << utt << ", missing targets";
+      model_sync->LockStates();
+      stats->num_no_tgt_mat++;
+      model_sync->UnlockStates();
+      return false;
+    }
+
+    // get feature / target pair
+    input_frames = feature_reader->Value();
+    targets = targets_reader->Value(utt);
+
+    return true;
+}
+
+
 bool SequentialNnetExample::PrepareData()
 {
 			  utt = feature_reader->Key();

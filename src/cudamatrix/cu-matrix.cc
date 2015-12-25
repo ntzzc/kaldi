@@ -1011,6 +1011,209 @@ void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const 
 }
 
 template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcAlpha(const CuMatrixBase<Real> &prob,
+                                         int32 row_idx,
+                                         const std::vector<MatrixIndexT> &labels,
+                                         bool rescale) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(prob.NumRows() == NumRows());
+    KALDI_ASSERT(static_cast<MatrixIndexT>(labels.size()) == NumCols());
+#ifdef KALDI_PARANOID
+    MatrixIndexT prob_cols = prob.NumCols();
+    for (size_t i = 0; i < labels.size(); i++)
+      KALDI_ASSERT(labels[i] >= 0 && labels[i] < prob_cols);
+#endif
+    CuArray<MatrixIndexT> cuda_labels(labels);
+
+    Timer tim;
+    int dimBlock(CU1DBLOCK);
+    int dimGrid(n_blocks(num_cols_,CU1DBLOCK));
+    if (rescale) {
+      cuda_compute_ctc_alpha_rescale(dimGrid, dimBlock, data_, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data());
+    } else {
+      cuda_compute_ctc_alpha(dimGrid, dimBlock, data_, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data());
+    }
+    CU_SAFE_CALL(cudaGetLastError());
+
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+ {
+    // not implemented for CPU yet
+ }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcAlphaMSeq(const CuMatrixBase<Real> &prob,
+                                         int32 row_idx,
+                                         const std::vector<MatrixIndexT> &labels,
+                                         const std::vector<int32> &frame_num_utt) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(prob.NumRows() == NumRows());
+    KALDI_ASSERT(static_cast<MatrixIndexT>(labels.size()) % NumCols() == 0);
+//    KALDI_ASSERT(frame_num_utt.size() == (labels.size() / exp_len_labels));
+#ifdef KALDI_PARANOID
+    MatrixIndexT prob_cols = prob.NumCols();
+    for (size_t i = 0; i < labels.size(); i++)
+      KALDI_ASSERT(labels[i] >= -1 && labels[i] < prob_cols);
+#endif
+    CuArray<MatrixIndexT> cuda_labels(labels);
+    CuArray<int32> cuda_frame_nums(frame_num_utt);
+    int32 seq_num = frame_num_utt.size();
+
+    Timer tim;
+    dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+    dim3 dimGrid(n_blocks(seq_num, CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+    cuda_compute_ctc_alpha_multiple_sequence(dimGrid, dimBlock, data_, seq_num, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data(), NumCols(), cuda_frame_nums.Data());
+    CU_SAFE_CALL(cudaGetLastError());
+
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+ {
+    // not implemented for CPU yet
+ }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcBeta(const CuMatrixBase<Real> &prob,
+                                         int32 row_idx,
+                                         const std::vector<MatrixIndexT> &labels,
+                                         bool rescale) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(prob.NumRows() == NumRows());
+    KALDI_ASSERT(static_cast<MatrixIndexT>(labels.size()) == NumCols());
+#ifdef KALDI_PARANOID
+    MatrixIndexT prob_cols = prob.NumCols();
+    for (size_t i = 0; i < labels.size(); i++)
+      KALDI_ASSERT(labels[i] >= 0 && labels[i] < prob_cols);
+#endif
+    CuArray<MatrixIndexT> cuda_labels(labels);
+    Timer tim;
+    int dimBlock(CU1DBLOCK);
+    int dimGrid(n_blocks(num_cols_,CU1DBLOCK));
+    if (rescale) {
+       cuda_compute_ctc_beta_rescale(dimGrid, dimBlock, data_, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data());
+    } else {
+       cuda_compute_ctc_beta(dimGrid, dimBlock, data_, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data());
+    }
+    CU_SAFE_CALL(cudaGetLastError());
+
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+ {
+    // not implemented for CPU yet
+ }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcBetaMSeq(const CuMatrixBase<Real> &prob,
+                                         int32 row_idx,
+                                         const std::vector<MatrixIndexT> &labels,
+                                         const std::vector<int32> &frame_num_utt,
+                                         const std::vector<int32> &label_lengths_utt) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(prob.NumRows() == NumRows());
+    KALDI_ASSERT(static_cast<MatrixIndexT>(labels.size()) % NumCols() == 0);
+#ifdef KALDI_PARANOID
+    MatrixIndexT prob_cols = prob.NumCols();
+    for (size_t i = 0; i < labels.size(); i++)
+      KALDI_ASSERT(labels[i] >= -1 && labels[i] < prob_cols);
+#endif
+    CuArray<MatrixIndexT> cuda_labels(labels);
+    CuArray<int32> cuda_frame_nums(frame_num_utt);
+    CuArray<int32> cuda_label_lengths(label_lengths_utt);
+    int32 seq_num = frame_num_utt.size();
+
+    Timer tim;
+    dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+    dim3 dimGrid(n_blocks(seq_num, CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+    cuda_compute_ctc_beta_multiple_sequence(dimGrid, dimBlock, data_, seq_num, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data(), NumCols(), cuda_frame_nums.Data(), cuda_label_lengths.Data());
+    CU_SAFE_CALL(cudaGetLastError());
+
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+ {
+    // not implemented for CPU yet
+ }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcError(const CuMatrixBase<Real> &alpha,
+                                         const CuMatrixBase<Real> &beta,
+                                         const CuMatrixBase<Real> &prob,
+                                         const std::vector<int32> &labels,
+                                         Real pzx) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(alpha.NumRows() == NumRows() && beta.NumRows() == NumRows() && prob.NumRows() == NumRows());
+    KALDI_ASSERT(alpha.NumCols() == beta.NumCols());
+    KALDI_ASSERT(prob.NumCols() == NumCols());
+    KALDI_ASSERT(static_cast<MatrixIndexT>(labels.size()) == alpha.NumCols());
+#ifdef KALDI_PARANOID
+    MatrixIndexT prob_cols = prob.NumCols();
+    for (size_t i = 0; i < labels.size(); i++)
+      KALDI_ASSERT(labels[i] >= 0 && labels[i] < prob_cols);
+#endif
+    CuArray<MatrixIndexT> cuda_labels(labels);
+
+    Timer tim;
+    dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+    dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+    cuda_compute_ctc_error(dimGrid, dimBlock, data_, Dim(), alpha.data_, beta.data_, alpha.Dim(), prob.data_, cuda_labels.Data(), pzx);
+    CU_SAFE_CALL(cudaGetLastError());
+
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+ {
+    // not implemented for CPU yet
+ }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcErrorMSeq(const CuMatrixBase<Real> &alpha,
+                                         const CuMatrixBase<Real> &beta,
+                                         const CuMatrixBase<Real> &prob,
+                                         const std::vector<int32> &labels,
+                                         const std::vector<int32> &frame_num_utt,
+                                         const CuVector<Real> pzx) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(alpha.NumRows() == NumRows() && beta.NumRows() == NumRows() && prob.NumRows() == NumRows());
+    KALDI_ASSERT(alpha.NumCols() == beta.NumCols());
+    KALDI_ASSERT(prob.NumCols() == NumCols());
+    KALDI_ASSERT(static_cast<MatrixIndexT>(labels.size()) % alpha.NumCols() == 0);
+#ifdef KALDI_PARANOID
+    MatrixIndexT prob_cols = prob.NumCols();
+    for (size_t i = 0; i < labels.size(); i++)
+      KALDI_ASSERT(labels[i] >= -1 && labels[i] < prob_cols);
+#endif
+    CuArray<MatrixIndexT> cuda_labels(labels);
+    CuArray<MatrixIndexT> cuda_frame_nums(frame_num_utt);
+    int32 seq_num = frame_num_utt.size();
+
+    Timer tim;
+    dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+    dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
+    cuda_compute_ctc_error_multiple_sequence(dimGrid, dimBlock, data_, seq_num, Dim(), alpha.data_, beta.data_, alpha.Dim(), prob.data_, cuda_labels.Data(), alpha.NumCols(), cuda_frame_nums.Data(), pzx.Data());
+    CU_SAFE_CALL(cudaGetLastError());
+
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+ {
+    // not implemented for CPU yet
+ }
+}
+
+template<typename Real>
 void CuMatrixBase<Real>::AddMatBlocks(Real alpha, const CuMatrixBase<Real> &A, 
 		MatrixTransposeType transA) {
   if (num_rows_ == 0 || num_cols_ == 0) return;
