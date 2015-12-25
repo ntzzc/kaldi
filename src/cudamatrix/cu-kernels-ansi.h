@@ -379,6 +379,39 @@ void cudaD_equal_element_mask(dim3 Gr, dim3 Bl, const double *mat1,
                               int mat2_stride, int mask_stride);
   
 
+/*
+ * ctc::
+ */
+void cudaF_compute_ctc_alpha(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels);
+void cudaD_compute_ctc_alpha(dim3 Gr, dim3 Bl, double *alpha, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels);
+
+void cudaF_compute_ctc_beta(dim3 Gr, dim3 Bl, float *beta, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels);
+void cudaD_compute_ctc_beta(dim3 Gr, dim3 Bl, double *beta, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels);
+
+void cudaF_compute_ctc_error(dim3 Gr, dim3 Bl, float *error, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, float pzx);
+void cudaD_compute_ctc_error(dim3 Gr, dim3 Bl, double *error, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, double pzx);
+
+void cudaF_compute_ctc_alpha_rescale(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels);
+void cudaD_compute_ctc_alpha_rescale(dim3 Gr, dim3 Bl, double *alpha, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels);
+
+void cudaF_compute_ctc_beta_rescale(dim3 Gr, dim3 Bl, float *beta, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels);
+void cudaD_compute_ctc_beta_rescale(dim3 Gr, dim3 Bl, double *beta, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels);
+
+void cudaF_compute_ctc_error_rescale(dim3 Gr, dim3 Bl, float *error, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, const float *zt);
+void cudaD_compute_ctc_error_rescale(dim3 Gr, dim3 Bl, double *error, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, const double *zt);
+
+void cudaF_distribute_prob_by_label(dim3 Gr, dim3 Bl, float *prob_dist, MatrixDim dim_prob_dist, const float *prob, MatrixDim dim_prob, const int *labels);
+void cudaD_distribute_prob_by_label(dim3 Gr, dim3 Bl, double *prob_dist, MatrixDim dim_prob_dist, const double *prob, MatrixDim dim_prob, const int *labels);
+
+void cudaF_compute_ctc_alpha_multiple_sequence(dim3 Gr, dim3 Bl, float *alpha, int seq_num, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths);
+void cudaD_compute_ctc_alpha_multiple_sequence(dim3 Gr, dim3 Bl, double *alpha, int seq_num, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths);
+
+void cudaF_compute_ctc_beta_multiple_sequence(dim3 Gr, dim3 Bl, float *beta, int seq_num, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths, const int *label_lengths);
+void cudaD_compute_ctc_beta_multiple_sequence(dim3 Gr, dim3 Bl, double *beta, int seq_num, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths, const int *label_lengths);
+
+void cudaF_compute_ctc_error_multiple_sequence(dim3 Gr, dim3 Bl, float *error, int seq_num, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, int dim_label_stride, const int *seq_lengths, const float *pzx);
+void cudaD_compute_ctc_error_multiple_sequence(dim3 Gr, dim3 Bl, double *error, int seq_num, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, int dim_label_stride, const int *seq_lengths, const double *pzx);
+
   
 } // extern "C" 
 

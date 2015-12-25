@@ -27,7 +27,6 @@
 #include <cfloat>
 #include "cu-kernels-ansi.h"
 
-
 /***********************************************************************
  * Generic __device__ functions
  */
@@ -3483,5 +3482,413 @@ void cudaD_trace_mat_smat(dim3 Gr, dim3 Bl, const double* mat_in, const MatrixEl
 }
 void cudaD_trace_mat_smat_trans(dim3 Gr, dim3 Bl, const double* mat_in, const MatrixElement<double>* smat_in, MatrixDim mat_d_in, MatrixIndexT_cuda smat_d_in, double* trace_vec_out) {
   _trace_mat_smat_trans<<<Gr,Bl>>>(mat_in, smat_in, mat_d_in, smat_d_in, trace_vec_out);
+}
+
+
+
+#include "cuPrintf.cuh"
+#include "cuPrintf.cu"
+#include "ctc-utils.h"
+
+/*
+ * All the following kernels are written by Yajie Miao for CTC training
+ */
+template<typename Real>
+__global__
+static void _compute_ctc_alpha_one_sequence(Real* mat_alpha, int row, MatrixDim dim_alpha, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
+
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda dim = dim_alpha.cols;
+
+  if (i < dim) {
+
+  int32_cuda index_alpha = i + row * dim_alpha.stride;
+  int32_cuda class_idx = labels[i];
+  int32_cuda index_prob = class_idx + row * dim_prob.stride;
+
+  int32_cuda index_alpha_rm1_i = i + (row - 1) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im1 = (i - 1) + (row - 1) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im2 = (i - 2) + (row - 1) * dim_alpha.stride;
+
+  if (row == 0) {
+    if (i < 2) mat_alpha[index_alpha] = mat_prob[index_prob];
+    else mat_alpha[index_alpha] = NumericLimits<Real>::log_zero_;
+  } else {
+    if (i > 1) {
+      if (i % 2 == 0 || labels[i-2] == labels[i]) {
+        mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]));
+      } else {
+        Real tmp = LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]);
+        mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im2], tmp));
+      }
+    } else if (i == 1) {
+      mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]));
+    } else {
+      mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], mat_alpha[index_alpha_rm1_i]);
+    }
+  }
+ }
+}
+
+template<typename Real>
+__global__
+static void _compute_ctc_alpha_multiple_sequence(Real* mat_alpha, int sequence_num, int row, MatrixDim dim_alpha, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels, int32_cuda dim_label_stride, const int32_cuda* seq_lengths) {
+
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;  // row index, that is, the index for sequence
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;  // label index, cannot exceed 2*|l|+1
+  int32_cuda dim = dim_alpha.cols;
+
+  if (j >= dim || i >= sequence_num) return;
+   
+  int32_cuda index_alpha = j + (row * sequence_num + i) * dim_alpha.stride;
+  int32_cuda index_label = j + i * dim_label_stride;
+  int32_cuda class_idx = labels[index_label];// if -1, this is the padding cell;labels now is a matrix which has the same size as mat_alpha
+  if (class_idx == -1 || row >= seq_lengths[i]) {
+    mat_alpha[index_alpha] = NumericLimits<Real>::log_zero_;
+    return;
+  }
+  int32_cuda index_label_m2 = (j-2) + i * dim_label_stride;
+  int32_cuda index_prob = class_idx + (row * sequence_num + i) * dim_prob.stride;
+
+  int32_cuda index_alpha_rm1_i = j + ((row-1) * sequence_num + i) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im1 = (j-1) + ((row-1) * sequence_num + i) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im2 = (j-2) + ((row-1) * sequence_num + i) * dim_alpha.stride;
+
+  if (row == 0) {
+    if (j < 2) mat_alpha[index_alpha] = mat_prob[index_prob];
+    else mat_alpha[index_alpha] = NumericLimits<Real>::log_zero_;
+  } else {
+    if (j > 1) {
+      if (j % 2 == 0 || labels[index_label_m2] == labels[index_label]) {
+        mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]));
+      } else {
+        Real tmp = LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]);
+        mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im2], tmp));
+      }
+    } else if (j == 1) {
+      mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]));
+    } else {
+      mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], mat_alpha[index_alpha_rm1_i]);
+    }
+  }
+}
+
+template<typename Real>
+__global__
+static void _compute_ctc_alpha_one_sequence_rescale(Real* mat_alpha, int row, MatrixDim dim_alpha, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
+
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda dim = dim_alpha.cols;
+
+  if (i < dim) {
+
+  int32_cuda index_alpha = i + row * dim_alpha.stride;
+  int32_cuda class_idx = labels[i];
+  int32_cuda index_prob = class_idx + row * dim_prob.stride;
+
+  int32_cuda index_alpha_rm1_i = i + (row - 1) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im1 = (i - 1) + (row - 1) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im2 = (i - 2) + (row - 1) * dim_alpha.stride;
+
+  if (row == 0) {
+    if (i < 2) mat_alpha[index_alpha] = mat_prob[index_prob];
+    else mat_alpha[index_alpha] = 0.0;
+  } else {
+    if (i > 1) {
+      if (i % 2 == 0 || labels[i-2] == labels[i]) {
+        mat_alpha[index_alpha] = mat_prob[index_prob] * (mat_alpha[index_alpha_rm1_im1] + mat_alpha[index_alpha_rm1_i]);
+      } else {
+        mat_alpha[index_alpha] = mat_prob[index_prob] * (mat_alpha[index_alpha_rm1_im1] + mat_alpha[index_alpha_rm1_i] + mat_alpha[index_alpha_rm1_im2]);
+      }
+    } else if (i == 1) {
+      mat_alpha[index_alpha] = mat_prob[index_prob] * (mat_alpha[index_alpha_rm1_im1] + mat_alpha[index_alpha_rm1_i]);
+    } else {
+      mat_alpha[index_alpha] = mat_prob[index_prob] * mat_alpha[index_alpha_rm1_i];
+    }
+  }
+ }
+}
+
+template<typename Real>
+__global__
+static void _compute_ctc_beta_one_sequence(Real* mat_beta, int row, MatrixDim dim_beta, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda dim = dim_beta.cols;
+  if (i < dim) {
+
+  int32_cuda index_beta = i + row * dim_beta.stride;
+  int32_cuda class_idx = labels[i];
+  int32_cuda index_prob = class_idx + row * dim_prob.stride;
+
+  int32_cuda index_beta_rp1_i = i + (row + 1) * dim_beta.stride;
+  int32_cuda index_beta_rp1_ip1 = (i + 1) + (row + 1) * dim_beta.stride;
+  int32_cuda index_beta_rp1_ip2 = (i + 2) + (row + 1) * dim_beta.stride;
+
+  int32_cuda row_num = dim_beta.rows;
+  if (row == row_num - 1) {
+    if (i > dim - 3) mat_beta[index_beta] = mat_prob[index_prob];
+    else mat_beta[index_beta] = NumericLimits<Real>::log_zero_;
+  } else {
+   if (i < dim - 2) {
+     if (i % 2 == 0 || labels[i+2] == labels[i]) {
+       mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]));
+     } else {
+       Real tmp = LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]);
+       mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip2], tmp));
+     }
+   } else if (i == dim - 2) {
+     mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]));
+   } else {
+     mat_beta[index_beta] = AddAB(mat_prob[index_prob], mat_beta[index_beta_rp1_i]);
+   }
+  }
+ }
+}
+
+template<typename Real>
+__global__
+static void _compute_ctc_beta_multiple_sequence(Real* mat_beta, int sequence_num, int row, MatrixDim dim_beta, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels, int32_cuda dim_label_stride, const int32_cuda* seq_lengths, const int32_cuda* label_lengths) {
+
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;  // row index, that is, the index for sequence
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;  // label index, cannot exceed 2*|l|+1
+  int32_cuda dim = dim_beta.cols;
+
+  if (j >= dim || i >= sequence_num) return;
+
+  int32_cuda index_beta = j + (row * sequence_num + i) * dim_beta.stride;
+  int32_cuda index_label = j + i * dim_label_stride;
+  int32_cuda class_idx = labels[index_label];// if -1, this is the padding cell;labels now is a matrix which has the same size as mat_alpha
+  if (class_idx == -1 || row >= seq_lengths[i]) {
+    mat_beta[index_beta] = NumericLimits<Real>::log_zero_;
+    return;
+  }
+  int32_cuda index_label_p2 = (j+2) + i * dim_label_stride;
+  int32_cuda index_prob = class_idx + (row * sequence_num + i) * dim_prob.stride;
+
+  int32_cuda index_beta_rp1_i = j + ((row+1) * sequence_num + i) * dim_beta.stride;
+  int32_cuda index_beta_rp1_ip1 = (j+1) + ((row+1) * sequence_num + i) * dim_beta.stride;
+  int32_cuda index_beta_rp1_ip2 = (j+2) + ((row+1) * sequence_num + i) * dim_beta.stride;
+  
+  int32_cuda row_num = seq_lengths[i];
+  int32_cuda label_len = label_lengths[i];
+
+/*  if (row == row_num - 1) {
+    if (j > dim - 3) mat_beta[index_beta] = mat_prob[index_prob];
+    else mat_beta[index_beta] = NumericLimits<Real>::log_zero_;
+  } else {
+    if (j < dim - 2) {
+      if (j % 2 == 0 || labels[index_label_p2] == labels[index_label]) {
+        mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]));
+      } else {
+        Real tmp = LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]);
+        mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip2], tmp));
+      }
+    } else if (j == dim - 2) {
+      mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]));
+    } else {
+      mat_beta[index_beta] = AddAB(mat_prob[index_prob], mat_beta[index_beta_rp1_i]);
+    }
+  }
+*/
+  if (row == row_num - 1) {
+    if (j > label_len - 3) mat_beta[index_beta] = mat_prob[index_prob];
+    else mat_beta[index_beta] = NumericLimits<Real>::log_zero_;
+  } else {
+    if (j < label_len - 2) {
+      if (j % 2 == 0 || labels[index_label_p2] == labels[index_label]) {
+        mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]));
+      } else {
+        Real tmp = LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]);
+        mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip2], tmp));
+      }
+    } else if (j == label_len - 2) {
+      mat_beta[index_beta] = AddAB(mat_prob[index_prob], LogAPlusB(mat_beta[index_beta_rp1_ip1], mat_beta[index_beta_rp1_i]));
+    } else {
+      mat_beta[index_beta] = AddAB(mat_prob[index_prob], mat_beta[index_beta_rp1_i]);
+    }
+  }
+}
+
+template<typename Real>
+__global__
+static void _compute_ctc_beta_one_sequence_rescale(Real* mat_beta, int row, MatrixDim dim_beta, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda dim = dim_beta.cols;
+  if (i < dim) {
+
+  int32_cuda index_beta = i + row * dim_beta.stride;
+  int32_cuda class_idx = labels[i];
+  int32_cuda index_prob = class_idx + row * dim_prob.stride;
+
+  int32_cuda index_beta_rp1_i = i + (row + 1) * dim_beta.stride;
+  int32_cuda index_beta_rp1_ip1 = (i + 1) + (row + 1) * dim_beta.stride;
+  int32_cuda index_beta_rp1_ip2 = (i + 2) + (row + 1) * dim_beta.stride;
+
+  int32_cuda row_num = dim_beta.rows;
+  if (row == row_num - 1) {
+    if (i > dim - 3) mat_beta[index_beta] = mat_prob[index_prob];
+    else mat_beta[index_beta] = 0;
+  } else {
+   if (i < dim - 2) {
+     if (i % 2 == 0 || labels[i+2] == labels[i]) {
+       mat_beta[index_beta] = mat_prob[index_prob] * (mat_beta[index_beta_rp1_ip1] + mat_beta[index_beta_rp1_i]);
+     } else {
+       mat_beta[index_beta] = mat_prob[index_prob] * (mat_beta[index_beta_rp1_ip1] + mat_beta[index_beta_rp1_i] + mat_beta[index_beta_rp1_ip2]);
+     }
+   } else if (i == dim - 2) {
+     mat_beta[index_beta] = mat_prob[index_prob] * (mat_beta[index_beta_rp1_ip1] + mat_beta[index_beta_rp1_i]);
+   } else {
+     mat_beta[index_beta] = mat_prob[index_prob] * mat_beta[index_beta_rp1_i];
+   }
+  }
+ }
+}
+
+// mat_prob are in probability scale.
+template<typename Real>
+__global__
+static void _compute_ctc_error_one_sequence(Real* mat_error, MatrixDim dim_error, const Real* mat_alpha, const Real* mat_beta, MatrixDim dim_alpha, const Real* mat_prob, const int32_cuda* labels, Real pzx) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x; // row index
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y; // column index
+  if (i < dim_error.rows && j < dim_error.cols) {
+
+    Real err = NumericLimits<Real>::log_zero_;
+    int32_cuda index_error = i * dim_error.stride + j;
+    for(int s = 0; s < dim_alpha.cols; s++) {
+      if (labels[s] == j) {  //
+        int32_cuda index_alpha = i * dim_alpha.stride + s;
+        err = LogAPlusB(err, AddAB(mat_alpha[index_alpha], mat_beta[index_alpha]));
+      }
+    }
+    Real val = ExpA(SubAB(err, AddAB(pzx, mat_prob[index_error] == 0? NumericLimits<Real>::log_zero_ : 2*log(mat_prob[index_error]))));
+    mat_error[index_error] = -1.0 * val;
+  }
+}
+
+// mat_prob are in probability scale.
+template<typename Real>
+__global__
+static void _compute_ctc_error_multiple_sequence(Real* mat_error, int32_cuda sequence_num, MatrixDim dim_error, const Real* mat_alpha, const Real* mat_beta, MatrixDim dim_alpha, const Real* mat_prob, const int32_cuda* labels, int32_cuda dim_label_stride, const int32_cuda* seq_lengths, const Real* pzx) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x; // row index
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y; // column index
+  if (i >= dim_error.rows || j >= dim_error.cols) return;
+
+  int32_cuda seqX = i % sequence_num;
+  int32_cuda rowX = i / sequence_num;
+
+  if (rowX >= seq_lengths[seqX]) return;
+
+  Real err = NumericLimits<Real>::log_zero_;
+  int32_cuda index_error = i * dim_error.stride + j;
+  for(int s = 0; s < dim_alpha.cols; s++) {
+    int32_cuda index_label = s + seqX * dim_label_stride;
+    if (labels[index_label] == -1) {continue;}
+    if (labels[index_label] == j) {  //
+      int32_cuda index_alpha = i * dim_alpha.stride + s;
+      err = LogAPlusB(err, AddAB(mat_alpha[index_alpha], mat_beta[index_alpha]));
+    }
+  }
+  Real val = ExpA(SubAB(err, AddAB(pzx[seqX], mat_prob[index_error] == 0? NumericLimits<Real>::log_zero_ : 2*log(mat_prob[index_error]))));
+  mat_error[index_error] = -1.0 * val;
+}
+
+template<typename Real>
+__global__
+static void _distribute_prob_by_label(Real* mat_prob_dist, MatrixDim dim_prob_dist, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x; // row index
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y; // column index
+  if (i < dim_prob_dist.rows && j < dim_prob_dist.cols) {
+    int32_cuda index_prob_dist = i * dim_prob_dist.stride + j;
+    int32_cuda index_prob = i * dim_prob.stride + labels[j];
+    mat_prob_dist[index_prob_dist] = mat_prob[index_prob];
+  }
+}
+
+// directly get the errors for the prior-softmax values
+template<typename Real>
+__global__
+static void _compute_ctc_error_one_sequence_rescale(Real* mat_error, MatrixDim dim_error, const Real* mat_alpha, const Real* mat_beta, MatrixDim dim_alpha, const Real* mat_prob, const int32_cuda* labels, const Real* zt) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x; // row index
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y; // column index
+  if (i < dim_error.rows && j < dim_error.cols) {
+
+    Real err = 0;
+    int32_cuda index_error = i * dim_error.stride + j;
+    for(int s = 0; s < dim_alpha.cols; s++) {
+      if (labels[s] == j) {  //
+        int32_cuda index_alpha = i * dim_alpha.stride + s;
+        err += mat_alpha[index_alpha] * mat_beta[index_alpha];
+      }
+    }
+    if (mat_prob[index_error] == 0 || zt[i] == 0) {
+        mat_error[index_error] = 0;
+    } else {
+       mat_error[index_error] = mat_prob[index_error] - (err / zt[i]) / mat_prob[index_error];
+    }
+  }
+}
+
+void cudaF_compute_ctc_alpha(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_alpha_one_sequence<<<Gr, Bl>>>(alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+void cudaF_compute_ctc_beta(dim3 Gr, dim3 Bl, float *beta, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_beta_one_sequence<<<Gr, Bl>>>(beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+void cudaF_compute_ctc_error(dim3 Gr, dim3 Bl, float *error, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, float pzx) {
+  _compute_ctc_error_one_sequence<<<Gr, Bl>>>(error, dim_error, alpha, beta, dim_alpha, prob, labels, pzx);
+}
+
+void cudaF_compute_ctc_alpha_rescale(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_alpha_one_sequence_rescale<<<Gr, Bl>>>(alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+void cudaF_compute_ctc_beta_rescale(dim3 Gr, dim3 Bl, float *beta, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_beta_one_sequence_rescale<<<Gr, Bl>>>(beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+void cudaF_compute_ctc_error_rescale(dim3 Gr, dim3 Bl, float *error, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, const float *zt) {
+  _compute_ctc_error_one_sequence_rescale<<<Gr, Bl>>>(error, dim_error, alpha, beta, dim_alpha, prob, labels, zt);
+}
+void cudaF_distribute_prob_by_label(dim3 Gr, dim3 Bl, float *prob_dist, MatrixDim dim_prob_dist, const float *prob, MatrixDim dim_prob, const int *labels) {
+  _distribute_prob_by_label<<<Gr, Bl>>>(prob_dist, dim_prob_dist, prob, dim_prob, labels);
+}
+void cudaF_compute_ctc_alpha_multiple_sequence(dim3 Gr, dim3 Bl, float *alpha, int seq_num, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths) {
+  _compute_ctc_alpha_multiple_sequence<<<Gr, Bl>>>(alpha, seq_num, row_idx, dim_alpha, prob, dim_prob, labels, dim_label_stride, seq_lengths);
+}
+void cudaF_compute_ctc_beta_multiple_sequence(dim3 Gr, dim3 Bl, float *beta, int seq_num, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths, const int *label_lengths) {
+  _compute_ctc_beta_multiple_sequence<<<Gr, Bl>>>(beta, seq_num, row_idx, dim_beta, prob, dim_prob, labels, dim_label_stride, seq_lengths, label_lengths);
+}
+void cudaF_compute_ctc_error_multiple_sequence(dim3 Gr, dim3 Bl, float *error, int seq_num, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, int dim_label_stride, const int *seq_lengths, const float *pzx) {
+  _compute_ctc_error_multiple_sequence<<<Gr, Bl>>>(error, seq_num, dim_error, alpha, beta, dim_alpha, prob, labels, dim_label_stride, seq_lengths, pzx);
+}
+
+
+void cudaD_compute_ctc_alpha(dim3 Gr, dim3 Bl, double *alpha, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_alpha_one_sequence<<<Gr, Bl>>>(alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+void cudaD_compute_ctc_beta(dim3 Gr, dim3 Bl, double *beta, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_beta_one_sequence<<<Gr, Bl>>>(beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+void cudaD_compute_ctc_error(dim3 Gr, dim3 Bl, double *error, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, double pzx) {
+  _compute_ctc_error_one_sequence<<<Gr, Bl>>>(error, dim_error, alpha, beta, dim_alpha, prob, labels, pzx);
+}
+void cudaD_compute_ctc_alpha_rescale(dim3 Gr, dim3 Bl, double *alpha, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_alpha_one_sequence_rescale<<<Gr, Bl>>>(alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+void cudaD_compute_ctc_beta_rescale(dim3 Gr, dim3 Bl, double *beta, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_beta_one_sequence_rescale<<<Gr, Bl>>>(beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+void cudaD_compute_ctc_error_rescale(dim3 Gr, dim3 Bl, double *error, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, const double *zt) {
+  _compute_ctc_error_one_sequence_rescale<<<Gr, Bl>>>(error, dim_error, alpha, beta, dim_alpha, prob, labels, zt);
+}
+void cudaD_distribute_prob_by_label(dim3 Gr, dim3 Bl, double *prob_dist, MatrixDim dim_prob_dist, const double *prob, MatrixDim dim_prob, const int *labels) {
+  _distribute_prob_by_label<<<Gr, Bl>>>(prob_dist, dim_prob_dist, prob, dim_prob, labels);
+}
+void cudaD_compute_ctc_alpha_multiple_sequence(dim3 Gr, dim3 Bl, double *alpha, int seq_num, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths) {
+  _compute_ctc_alpha_multiple_sequence<<<Gr, Bl>>>(alpha, seq_num, row_idx, dim_alpha, prob, dim_prob, labels, dim_label_stride, seq_lengths);
+}
+void cudaD_compute_ctc_beta_multiple_sequence(dim3 Gr, dim3 Bl, double *beta, int seq_num, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths, const int *label_lengths) {
+  _compute_ctc_beta_multiple_sequence<<<Gr, Bl>>>(beta, seq_num, row_idx, dim_beta, prob, dim_prob, labels, dim_label_stride, seq_lengths, label_lengths);
+}
+void cudaD_compute_ctc_error_multiple_sequence(dim3 Gr, dim3 Bl, double *error, int seq_num, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, int dim_label_stride, const int *seq_lengths, const double *pzx) {
+  _compute_ctc_error_multiple_sequence<<<Gr, Bl>>>(error, seq_num, dim_error, alpha, beta, dim_alpha, prob, labels, dim_label_stride, seq_lengths, pzx);
 }
 

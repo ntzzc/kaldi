@@ -17,8 +17,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef KALDI_NNET_NNET_COMPUTE_LSTM_H_
-#define KALDI_NNET_NNET_COMPUTE_LSTM_H_
+#ifndef KALDI_NNET_NNET_COMPUTE_LSTM_PARALLEL_H_
+#define KALDI_NNET_NNET_COMPUTE_LSTM_PARALLEL_H_
 
 #include "nnet2/am-nnet.h"
 #include "hmm/transition-model.h"

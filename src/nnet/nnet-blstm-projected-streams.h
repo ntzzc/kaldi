@@ -45,6 +45,7 @@ namespace kaldi {
 namespace nnet1 {
 
 class BLstmProjectedStreams : public UpdatableComponent {
+	friend class NnetModelSync;
  public:
   BLstmProjectedStreams(int32 input_dim, int32 output_dim) :
     UpdatableComponent(input_dim, output_dim),

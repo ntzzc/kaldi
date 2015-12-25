@@ -238,8 +238,8 @@ class Ctc {
   float NumErrorTokens() const { return error_num_;}
   int32 NumRefTokens() const { return ref_num_;}
 
-  void Ctc::Add(Ctc *ctc);
-  void Ctc::Merge(int myid, int root);
+  void Add(Ctc *ctc);
+  void Merge(int myid, int root);
 
  private:
   double frames_;                    // total frame number

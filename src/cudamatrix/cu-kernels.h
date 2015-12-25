@@ -330,6 +330,77 @@ inline void cuda_equal_element_mask(dim3 Gr, dim3 Bl, const float *mat1, const f
 }
 
 
+/// CTC Training
+inline void cuda_compute_ctc_alpha(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels) {
+  cudaF_compute_ctc_alpha(Gr, Bl, alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+inline void cuda_compute_ctc_alpha(dim3 Gr, dim3 Bl, double *alpha, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels) {
+  cudaD_compute_ctc_alpha(Gr, Bl, alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+
+inline void cuda_compute_ctc_beta(dim3 Gr, dim3 Bl, float *beta, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels) {
+  cudaF_compute_ctc_beta(Gr, Bl, beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+inline void cuda_compute_ctc_beta(dim3 Gr, dim3 Bl, double *beta, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels) {
+  cudaD_compute_ctc_beta(Gr, Bl, beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+
+inline void cuda_compute_ctc_error(dim3 Gr, dim3 Bl, float *error, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, float pzx) {
+  cudaF_compute_ctc_error(Gr, Bl, error, dim_error, alpha, beta, dim_alpha, prob, labels, pzx);
+}
+inline void cuda_compute_ctc_error(dim3 Gr, dim3 Bl, double *error, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, double pzx) {
+  cudaD_compute_ctc_error(Gr, Bl, error, dim_error, alpha, beta, dim_alpha, prob, labels, pzx);
+}
+
+inline void cuda_compute_ctc_alpha_rescale(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels) {
+  cudaF_compute_ctc_alpha_rescale(Gr, Bl, alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+inline void cuda_compute_ctc_alpha_rescale(dim3 Gr, dim3 Bl, double *alpha, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels) {
+  cudaD_compute_ctc_alpha_rescale(Gr, Bl, alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+
+inline void cuda_compute_ctc_beta_rescale(dim3 Gr, dim3 Bl, float *beta, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels) {
+  cudaF_compute_ctc_beta_rescale(Gr, Bl, beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+inline void cuda_compute_ctc_beta_rescale(dim3 Gr, dim3 Bl, double *beta, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels) {
+  cudaD_compute_ctc_beta_rescale(Gr, Bl, beta, row_idx, dim_beta, prob, dim_prob, labels);
+}
+
+inline void cuda_compute_ctc_error_rescale(dim3 Gr, dim3 Bl, float *error, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, float *zt) {
+  cudaF_compute_ctc_error_rescale(Gr, Bl, error, dim_error, alpha, beta, dim_alpha, prob, labels, zt);
+}
+inline void cuda_compute_ctc_error_rescale(dim3 Gr, dim3 Bl, double *error, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, double *zt) {
+  cudaD_compute_ctc_error_rescale(Gr, Bl, error, dim_error, alpha, beta, dim_alpha, prob, labels, zt);
+}
+
+inline void cuda_distribute_prob_by_label(dim3 Gr, dim3 Bl, float *prob_dist, MatrixDim dim_prob_dist, const float *prob, MatrixDim dim_prob, const int *labels) {
+  cudaF_distribute_prob_by_label(Gr, Bl, prob_dist, dim_prob_dist, prob, dim_prob, labels);
+}
+inline void cuda_distribute_prob_by_label(dim3 Gr, dim3 Bl, double *prob_dist, MatrixDim dim_prob_dist, const double *prob, MatrixDim dim_prob, const int *labels) {
+  cudaD_distribute_prob_by_label(Gr, Bl, prob_dist, dim_prob_dist, prob, dim_prob, labels);
+}
+
+inline void cuda_compute_ctc_alpha_multiple_sequence(dim3 Gr, dim3 Bl, float *alpha, int seq_num, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths) {
+  cudaF_compute_ctc_alpha_multiple_sequence(Gr, Bl, alpha, seq_num, row_idx, dim_alpha, prob, dim_prob, labels, dim_label_stride, seq_lengths);
+}
+inline void cuda_compute_ctc_alpha_multiple_sequence(dim3 Gr, dim3 Bl, double *alpha, int seq_num, int row_idx, MatrixDim dim_alpha, const double *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths) {
+  cudaD_compute_ctc_alpha_multiple_sequence(Gr, Bl, alpha, seq_num, row_idx, dim_alpha, prob, dim_prob, labels, dim_label_stride, seq_lengths);
+}
+
+inline void cuda_compute_ctc_beta_multiple_sequence(dim3 Gr, dim3 Bl, float *beta, int seq_num, int row_idx, MatrixDim dim_beta, const float *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths, const int *label_lengths) {
+  cudaF_compute_ctc_beta_multiple_sequence(Gr, Bl, beta, seq_num, row_idx, dim_beta, prob, dim_prob, labels, dim_label_stride, seq_lengths, label_lengths);
+}
+inline void cuda_compute_ctc_beta_multiple_sequence(dim3 Gr, dim3 Bl, double *beta, int seq_num, int row_idx, MatrixDim dim_beta, const double *prob, MatrixDim dim_prob, const int *labels, int dim_label_stride, const int *seq_lengths, const int *label_lengths) {
+  cudaD_compute_ctc_beta_multiple_sequence(Gr, Bl, beta, seq_num, row_idx, dim_beta, prob, dim_prob, labels, dim_label_stride, seq_lengths, label_lengths);
+}
+
+inline void cuda_compute_ctc_error_multiple_sequence(dim3 Gr, dim3 Bl, float *error, int seq_num, MatrixDim dim_error, const float *alpha, const float *beta, MatrixDim dim_alpha, const float *prob, const int *labels, int dim_label_stride, const int *seq_lengths, const float *pzx) {
+  cudaF_compute_ctc_error_multiple_sequence(Gr, Bl, error, seq_num, dim_error, alpha, beta, dim_alpha, prob, labels, dim_label_stride, seq_lengths, pzx);
+}
+inline void cuda_compute_ctc_error_multiple_sequence(dim3 Gr, dim3 Bl, double *error, int seq_num, MatrixDim dim_error, const double *alpha, const double *beta, MatrixDim dim_alpha, const double *prob, const int *labels, int dim_label_stride, const int *seq_lengths, const double *pzx) {
+  cudaD_compute_ctc_error_multiple_sequence(Gr, Bl, error, seq_num, dim_error, alpha, beta, dim_alpha, prob, labels, dim_label_stride, seq_lengths, pzx);
+}
+
 
 // double versions
 

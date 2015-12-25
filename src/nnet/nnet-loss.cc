@@ -22,6 +22,7 @@
 #include "cudamatrix/cu-math.h"
 #include "hmm/posterior.h"
 #include "util/edit-distance.h"
+#include "cudamatrix/ctc-utils.h"
 
 #include <sstream>
 #include <iterator>
@@ -709,7 +710,6 @@ void Ctc::Add(Ctc *ctc)
 	  this->error_num_ += ctc->error_num_;
 	  this->ref_num_ += ctc->ref_num_;
 	  this->frames_ += ctc->frames_;
-	  this->ctc_err_ += this->ctc_err_;
 
 	  // partial results during training
 	  this->error_num_progress_ += ctc->error_num_progress_;

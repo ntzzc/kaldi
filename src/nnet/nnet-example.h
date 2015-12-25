@@ -22,6 +22,7 @@
 
 #include "nnet/nnet-compute-parallel.h"
 #include "nnet/nnet-compute-sequential-parallel.h"
+#include "nnet/nnet-compute-ctc-parallel.h"
 
 namespace kaldi {
 namespace nnet1 {
@@ -77,7 +78,7 @@ struct CTCNnetExample : NnetExample
 	RandomAccessInt32VectorReader *targets_reader;
 
 	NnetModelSync *model_sync;
-	NnetStats *stats;
+	NnetCtcStats *stats;
 	const NnetUpdateOptions *opts;
 
 	std::string utt;
@@ -89,7 +90,7 @@ struct CTCNnetExample : NnetExample
 					RandomAccessInt32VectorReader *targets_reader,
 
 					NnetModelSync *model_sync,
-					NnetStats *stats,
+					NnetCtcStats *stats,
 					const NnetUpdateOptions *opts):
 	feature_reader(feature_reader), targets_reader(targets_reader),
 	model_sync(model_sync), stats(stats), opts(opts)

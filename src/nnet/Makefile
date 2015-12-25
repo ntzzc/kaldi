@@ -16,7 +16,7 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-compute-sequential-parallel.o nnet-compute-parallel.o \
            nnet-affine-preconditioned-transform.o nnet-model-merge-function.o \
 	   nnet-compute-lstm-parallel.o nnet-compute-lstm-asgd.o \
-	   nnet-compute-forward.o
+	   nnet-compute-forward.o nnet-compute-ctc-parallel.o 
 
 LIBNAME = kaldi-nnet
 
