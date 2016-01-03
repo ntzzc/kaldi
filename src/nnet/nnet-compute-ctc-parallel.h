@@ -45,10 +45,11 @@ struct NnetCtcUpdateOptions : public NnetUpdateOptions {
 
     int32 num_stream;
     int32 max_frames;
+    int32 targets_delay;
 
 
     NnetCtcUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), num_stream(4) { }
+    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), num_stream(4), max_frames(25000), targets_delay(0) { }
 
   	  void Register(OptionsItf *po)
   	  {
@@ -57,6 +58,8 @@ struct NnetCtcUpdateOptions : public NnetUpdateOptions {
 	      po->Register("num-stream", &num_stream, "---CTC--- BPTT multi-stream training");
 
 	      po->Register("max-frames", &max_frames, "Max number of frames to be processed");
+		
+              po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
 
   	  }
 };
@@ -104,7 +107,7 @@ struct NnetCtcStats {
                   << ", " << time_now/60 << " min, " << total_frames/time_now << " fps"
                   << "]";
 
-        ctc.Report();
+        KALDI_LOG << ctc.Report();
 
     }
 };

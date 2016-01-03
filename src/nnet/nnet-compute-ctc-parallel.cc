@@ -210,14 +210,16 @@ private:
 
 		int32 num_stream = opts->num_stream;
 		int32 frame_limit = opts->max_frames;
+                int32 targets_delay = opts->targets_delay;
 
 	    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
 	    std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
 	    std::vector<int> frame_num_utt;
+            std::vector<int> new_utt_flags;
 
 	    Matrix<BaseFloat> feat_mat_host;
 
-	    CTCNnetExample *example;
+	    CTCNnetExample *example = NULL;
 	    Timer time;
 	    double time_now = 0;
 
@@ -233,6 +235,9 @@ private:
 
 			if (NULL == example)
 				example = dynamic_cast<CTCNnetExample*>(repository_->ProvideExample());
+
+			if (NULL == example)
+				break;
 
 			while (s < num_stream && cur_frames < frame_limit && NULL != example)
 			{
@@ -256,17 +261,26 @@ private:
 			}
 
 			cur_stream_num = s;
+			new_utt_flags.resize(cur_stream_num, 1);
 
 			// Create the final feature matrix. Every utterance is padded to the max length within this group of utterances
 			feat_mat_host.Resize(cur_stream_num * max_frame_num, feat_dim, kSetZero);
 			for (int s = 0; s < cur_stream_num; s++) {
-			  Matrix<BaseFloat> mat_tmp = feats_utt[s];
+			  //Matrix<BaseFloat> mat_tmp = feats_utt[s];
 			  for (int r = 0; r < frame_num_utt[s]; r++) {
-				  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(mat_tmp.Row(r));
+				  //feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(mat_tmp.Row(r));
+                                  if (r + targets_delay < frame_num_utt[s]) {
+                        		feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r+targets_delay));
+                		  }   
+                		  else{
+                        		feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(frame_num_utt[s]-1));
+                	          }   
 			  }
 			}
 			      // Set the original lengths of utterances before padding
-			nnet.SetSeqLengths(frame_num_utt);
+			//nnet.SetSeqLengths(frame_num_utt);
+			//nnet.ResetLstmStreams(frame_num_utt);
+			nnet.ResetLstmStreams(new_utt_flags);
 
 			num_frames = feat_mat_host.NumRows();
 	        // report the speed
