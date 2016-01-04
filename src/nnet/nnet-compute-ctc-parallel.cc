@@ -248,9 +248,15 @@ private:
 				if ((s+1)*mat.NumRows() > frame_limit || (s+1)*max_frame_num > frame_limit) break;
 				if (max_frame_num < mat.NumRows()) max_frame_num = mat.NumRows();
 
-		        feats_utt[s] = mat;
+				// forward the features through a feature-transform,
+				nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
+
+				feats_utt[s].Resize(feats_transf.NumRows(), feats_transf.NumCols());
+				feats_transf.CopyToMat(&feats_utt[s]);
+		        //feats_utt[s] = mat;
 		        labels_utt[s] = targets;
 		        frame_num_utt.push_back(mat.NumRows());
+		        num_frames += mat.NumRows();
 
 				s++;
 				num_done++;
@@ -282,7 +288,6 @@ private:
 			//nnet.ResetLstmStreams(frame_num_utt);
 			nnet.ResetLstmStreams(new_utt_flags);
 
-			num_frames = feat_mat_host.NumRows();
 	        // report the speed
 	        if (num_done % 5000 == 0) {
 	          time_now = time.Elapsed();
