@@ -28,6 +28,7 @@
 
 #include "nnet/nnet-affine-preconditioned-transform.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
+#include "nnet/nnet-lstm-streams.h"
 
 namespace kaldi {
 namespace nnet1 {
@@ -434,6 +435,10 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
     }    
     else if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
       LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }    
+    else if (GetComponent(c).GetType() == Component::kLstmStreams) {
+      LstmStreams& comp = dynamic_cast<LstmStreams&>(GetComponent(c));
       comp.ResetLstmStreams(stream_reset_flag);
     }    
   }

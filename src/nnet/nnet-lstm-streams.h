@@ -43,6 +43,7 @@ namespace kaldi {
 namespace nnet1 {
 
 class LstmStreams : public UpdatableComponent {
+	friend class NnetModelSync;
  public:
   LstmStreams(int32 input_dim, int32 output_dim) :
     UpdatableComponent(input_dim, output_dim),
@@ -266,7 +267,7 @@ class LstmStreams : public UpdatableComponent {
 
   void ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
     // allocate prev_nnet_state_ if not done yet,
-    if (nstream_ == 0) {
+    if (nstream_ != stream_reset_flag.size()) {
       // Karel: we just got number of streams! (before the 1st batch comes)
       nstream_ = stream_reset_flag.size();
       prev_nnet_state_.Resize(nstream_, 7*ncell_, kSetZero);
