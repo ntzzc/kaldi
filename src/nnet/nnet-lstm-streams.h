@@ -515,54 +515,117 @@ class LstmStreams : public UpdatableComponent {
     // g,i,f,o -> x, do it all in once
     in_diff->AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kNoTrans, w_gifo_x_, kNoTrans, 0.0);
 
-    //// backward pass dropout
-    //if (dropout_rate_ != 0.0) {
-    //  in_diff->MulElements(dropout_mask_);
-    //}
 
-    // calculate delta
-    const BaseFloat mmt = opts_.momentum;
+  }
 
-    // weight x -> g, i, f, o
-    w_gifo_x_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
-                                  in                     , kNoTrans, mmt);
-    // bias of g, i, f, o
-    bias_corr_.AddRowSumMat(1.0, DGIFO.RowRange(1*S,T*S), mmt);
+  void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
+  {
+	    // we use following hyperparameters from the option class
+	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+	    //const BaseFloat mmt = opts_.momentum;
+	    const BaseFloat l2 = opts_.l2_penalty;
+	    const BaseFloat l1 = opts_.l1_penalty;
+	    // we will also need the number of frames in the mini-batch
+	    const int32 num_frames = input.NumRows();
 
-    // recurrent peephole c -> i
-    peephole_i_c_corr_.AddDiagMatMat(1.0, DI.RowRange(1*S,T*S), kTrans,
-                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
-    // recurrent peephole c -> f
-    peephole_f_c_corr_.AddDiagMatMat(1.0, DF.RowRange(1*S,T*S), kTrans,
-                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
-    // peephole c -> o
-    peephole_o_c_corr_.AddDiagMatMat(1.0, DO.RowRange(1*S,T*S), kTrans,
-                                          YC.RowRange(1*S,T*S), kNoTrans, mmt);
+	    int DEBUG = 0;
 
-    if (clip_gradient_ > 0.0) {
-      w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
-      w_gifo_x_corr_.ApplyCeiling(clip_gradient_);
-      w_gifo_m_corr_.ApplyFloor(-clip_gradient_);
-      w_gifo_m_corr_.ApplyCeiling(clip_gradient_);
-      bias_corr_.ApplyFloor(-clip_gradient_);
-      bias_corr_.ApplyCeiling(clip_gradient_);
-      peephole_i_c_corr_.ApplyFloor(-clip_gradient_);
-      peephole_i_c_corr_.ApplyCeiling(clip_gradient_);
-      peephole_f_c_corr_.ApplyFloor(-clip_gradient_);
-      peephole_f_c_corr_.ApplyCeiling(clip_gradient_);
-      peephole_o_c_corr_.ApplyFloor(-clip_gradient_);
-      peephole_o_c_corr_.ApplyCeiling(clip_gradient_);
-    }
+	    int32 T = input.NumRows() / nstream_;
+	    int32 S = nstream_;
 
-    if (DEBUG) {
-      std::cerr << "gradients(with optional momentum): \n";
-      std::cerr << "w_gifo_x_corr_ " << w_gifo_x_corr_;
-      std::cerr << "w_gifo_r_corr_ " << w_gifo_m_corr_;
-      std::cerr << "bias_corr_ " << bias_corr_;
-      std::cerr << "peephole_i_c_corr_ " << peephole_i_c_corr_;
-      std::cerr << "peephole_f_c_corr_ " << peephole_f_c_corr_;
-      std::cerr << "peephole_o_c_corr_ " << peephole_o_c_corr_;
-    }
+	    // disassemble propagated buffer into neurons
+	    CuSubMatrix<BaseFloat> YG(propagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YI(propagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YF(propagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YO(propagate_buf_.ColRange(3*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YC(propagate_buf_.ColRange(4*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YH(propagate_buf_.ColRange(5*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YM(propagate_buf_.ColRange(6*ncell_, ncell_));
+
+	    // disassemble backpropagate buffer into neurons
+	    CuSubMatrix<BaseFloat> DG(backpropagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DI(backpropagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DF(backpropagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DO(backpropagate_buf_.ColRange(3*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DC(backpropagate_buf_.ColRange(4*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DH(backpropagate_buf_.ColRange(5*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DM(backpropagate_buf_.ColRange(6*ncell_, ncell_));
+
+	    CuSubMatrix<BaseFloat> DGIFO(backpropagate_buf_.ColRange(0, 4*ncell_));
+
+	    //// backward pass dropout
+	    //if (dropout_rate_ != 0.0) {
+	    //  in_diff->MulElements(dropout_mask_);
+	    //}
+
+	    // calculate delta
+	    const BaseFloat mmt = opts_.momentum;
+
+	    // weight x -> g, i, f, o
+	    w_gifo_x_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
+	                                  input                     , kNoTrans, mmt);
+	    // bias of g, i, f, o
+	    bias_corr_.AddRowSumMat(1.0, DGIFO.RowRange(1*S,T*S), mmt);
+
+	    // recurrent peephole c -> i
+	    peephole_i_c_corr_.AddDiagMatMat(1.0, DI.RowRange(1*S,T*S), kTrans,
+	                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
+	    // recurrent peephole c -> f
+	    peephole_f_c_corr_.AddDiagMatMat(1.0, DF.RowRange(1*S,T*S), kTrans,
+	                                          YC.RowRange(0*S,T*S), kNoTrans, mmt);
+	    // peephole c -> o
+	    peephole_o_c_corr_.AddDiagMatMat(1.0, DO.RowRange(1*S,T*S), kTrans,
+	                                          YC.RowRange(1*S,T*S), kNoTrans, mmt);
+
+	    if (clip_gradient_ > 0.0) {
+	      w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
+	      w_gifo_x_corr_.ApplyCeiling(clip_gradient_);
+	      w_gifo_m_corr_.ApplyFloor(-clip_gradient_);
+	      w_gifo_m_corr_.ApplyCeiling(clip_gradient_);
+	      bias_corr_.ApplyFloor(-clip_gradient_);
+	      bias_corr_.ApplyCeiling(clip_gradient_);
+	      peephole_i_c_corr_.ApplyFloor(-clip_gradient_);
+	      peephole_i_c_corr_.ApplyCeiling(clip_gradient_);
+	      peephole_f_c_corr_.ApplyFloor(-clip_gradient_);
+	      peephole_f_c_corr_.ApplyCeiling(clip_gradient_);
+	      peephole_o_c_corr_.ApplyFloor(-clip_gradient_);
+	      peephole_o_c_corr_.ApplyCeiling(clip_gradient_);
+	    }
+
+	    if (DEBUG) {
+	      std::cerr << "gradients(with optional momentum): \n";
+	      std::cerr << "w_gifo_x_corr_ " << w_gifo_x_corr_;
+	      std::cerr << "w_gifo_r_corr_ " << w_gifo_m_corr_;
+	      std::cerr << "bias_corr_ " << bias_corr_;
+	      std::cerr << "peephole_i_c_corr_ " << peephole_i_c_corr_;
+	      std::cerr << "peephole_f_c_corr_ " << peephole_f_c_corr_;
+	      std::cerr << "peephole_o_c_corr_ " << peephole_o_c_corr_;
+	    }
+
+	    // l2 regularization
+	    if (l2 != 0.0) {
+	    	w_gifo_x_.AddMat(-lr*l2*num_frames, w_gifo_x_);
+	    	w_gifo_m_.AddMat(-lr*l2*num_frames, w_gifo_m_);
+
+	    	peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
+	    	peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);
+	    	peephole_o_c_.AddVec(-lr*l2*num_frames, peephole_o_c_);
+	    }
+
+  }
+
+  void UpdateGradient()
+  {
+	    const BaseFloat lr  = opts_.learn_rate;
+
+	    w_gifo_x_.AddMat(-lr, w_gifo_x_corr_);
+	    w_gifo_m_.AddMat(-lr, w_gifo_m_corr_);
+	    bias_.AddVec(-lr, bias_corr_, 1.0);
+
+	    peephole_i_c_.AddVec(-lr, peephole_i_c_corr_, 1.0);
+	    peephole_f_c_.AddVec(-lr, peephole_f_c_corr_, 1.0);
+	    peephole_o_c_.AddVec(-lr, peephole_o_c_corr_, 1.0);
   }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
