@@ -141,7 +141,9 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseF
                             backpropagate_buf_[i+1], &backpropagate_buf_[i]);
     if (components_[i]->IsUpdatable() && update) {
       UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
-      uc->Update(propagate_buf_[i], backpropagate_buf_[i+1]);
+      uc->Gradient(propagate_buf_[i], backpropagate_buf_[i+1]);
+      uc->UpdateGradient();
+      //uc->Update(propagate_buf_[i], backpropagate_buf_[i+1]);
     }
   }
   // eventually export the derivative
