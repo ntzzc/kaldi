@@ -65,37 +65,18 @@ struct NnetCtcUpdateOptions : public NnetUpdateOptions {
 };
 
 
-struct NnetCtcStats {
+struct NnetCtcStats: NnetStats {
 
-    int32 num_done, num_no_tgt_mat, num_other_error;
-
-    kaldi::int64 total_frames;
-    Xent xent;
-    Mse mse;
     Ctc ctc;
 
     NnetCtcStats() { std::memset(this, 0, sizeof(*this)); }
 
     void MergeStats(NnetCtcUpdateOptions *opts, int root)
     {
+    	NnetStats::MergeStats(opts, root);
     	int myid = opts->parallel_opts->myid;
-    	MPI_Barrier(MPI_COMM_WORLD);
 
-    	void *addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->total_frames));
-    	MPI_Reduce(addr, (void*)(&this->total_frames), 1, MPI_UNSIGNED_LONG, MPI_SUM, root, MPI_COMM_WORLD);
-
-    	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->num_done));
-    	MPI_Reduce(addr, (void*)(&this->num_done), 1, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
-
-    	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->num_no_tgt_mat));
-    	MPI_Reduce(addr, (void*)(&this->num_no_tgt_mat), 1, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
-
-    	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->num_other_error));
-    	MPI_Reduce(addr, (void*)(&this->num_other_error), 1, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
-
-        if (opts->objective_function == "xent") {
-        		xent.Merge(myid, 0);
-        } else if (opts->objective_function == "ctc") {
+    	if (opts->objective_function == "ctc") {
         		ctc.Merge(myid, 0);
         } else {
         		KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
@@ -105,17 +86,9 @@ struct NnetCtcStats {
 
     void Print(NnetCtcUpdateOptions *opts, double time_now)
     {
-        KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
-                  << " with no tgt_mats, " << num_other_error
-                  << " with other errors. "
-                  << "[" << (opts->crossvalidate?"CROSS-VALIDATION":"TRAINING")
-                  << ", " << (opts->randomize?"RANDOMIZED":"NOT-RANDOMIZED")
-                  << ", " << time_now/60 << " min, " << total_frames/time_now << " fps"
-                  << "]";
+    	NnetStats::Print(opts, time_now);
 
-        if (opts->objective_function == "xent") {
-        	KALDI_LOG << xent.Report();
-        } else if (opts->objective_function == "ctc") {
+        if (opts->objective_function == "ctc") {
         	KALDI_LOG << ctc.Report();
         } else {
         	KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
@@ -131,6 +104,12 @@ void NnetCtcUpdateParallel(const NnetCtcUpdateOptions *opts,
 		Nnet *nnet,
 		NnetCtcStats *stats);
 
+void NnetCEUpdateParallel(const NnetCtcUpdateOptions *opts,
+		std::string	model_filename,
+		std::string feature_rspecifier,
+		std::string targets_rspecifier,
+		Nnet *nnet,
+		NnetStats *stats);
 
 } // namespace nnet1
 } // namespace kaldi

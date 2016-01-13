@@ -111,7 +111,7 @@ struct NnetStats {
 
     NnetStats() { std::memset(this, 0, sizeof(*this)); }
 
-    void MergeStats(NnetUpdateOptions *opts, int root)
+    virtual void  MergeStats(NnetUpdateOptions *opts, int root)
     {
     	int myid = opts->parallel_opts->myid;
     	MPI_Barrier(MPI_COMM_WORLD);
@@ -138,7 +138,7 @@ struct NnetStats {
 
     }
 
-    void Print(NnetUpdateOptions *opts, double time_now)
+    virtual void  Print(NnetUpdateOptions *opts, double time_now)
     {
         KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
                   << " with no tgt_mats, " << num_other_error

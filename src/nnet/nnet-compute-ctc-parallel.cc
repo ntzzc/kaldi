@@ -53,7 +53,7 @@ private:
 				targets_rspecifier;
 
 	ExamplesRepository *repository_;
-    NnetCtcStats *stats_;
+    NnetStats *stats_;
 
     const NnetTrainOptions *trn_opts;
     const NnetDataRandomizerOptions *rnd_opts;
@@ -77,7 +77,7 @@ private:
 			std::string targets_rspecifier,
 			ExamplesRepository *repository,
 			Nnet *nnet,
-			NnetCtcStats *stats):
+			NnetStats *stats):
 				opts(opts),
 				model_sync(model_sync),
 				model_filename(model_filename),
@@ -409,7 +409,7 @@ private:
 		if (objective_function == "xent")
 			stats_->xent.Add(&xent);
 		else if (objective_function == "ctc")
-			stats_->ctc.Add(&ctc);
+			dynamic_cast<NnetCtcStats*>(stats_)->ctc.Add(&ctc);
 		else
 			KALDI_ERR<< "Unknown objective function code : " << objective_function;
 
@@ -459,21 +459,14 @@ void NnetCtcUpdateParallel(const NnetCtcUpdateOptions *opts,
 	  {
 
 		    SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
-		    RandomAccessBaseFloatVectorReader weights_reader;
-		    if (opts->objective_function == "xent")
-			RandomAccessPosteriorReader xent_targets_reader(targets_rspecifier);
-		    else if (opts->objective_function == "ctc")
-		    	RandomAccessInt32VectorReader ctc_targets_reader(targets_rspecifier);
+		    RandomAccessInt32VectorReader targets_reader(targets_rspecifier);
 
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainCtcParallelClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-		if (opts->objective_function == "xent")
-			example = new DNNNnetExample(&feature_reader, &xent_targets_reader, &weights_reader, &model_sync, stats, opts);
-		else if (opts->objective_function == "ctc")
-	    		example = new CTCNnetExample(&feature_reader, &ctc_targets_reader, &model_sync, stats, opts);
+	    		example = new CTCNnetExample(&feature_reader, &targets_reader, &model_sync, stats, opts);
 	    	if (example->PrepareData())
 	    		repository.AcceptExample(example);
 	    	else
@@ -484,6 +477,42 @@ void NnetCtcUpdateParallel(const NnetCtcUpdateOptions *opts,
 
 }
 
+void NnetCEUpdateParallel(const NnetCtcUpdateOptions *opts,
+		std::string	model_filename,
+		std::string feature_rspecifier,
+		std::string targets_rspecifier,
+		Nnet *nnet,
+		NnetStats *stats)
+{
+		ExamplesRepository repository;
+		NnetModelSync model_sync(nnet, opts->parallel_opts);
+
+		TrainCtcParallelClass c(opts, &model_sync,
+								model_filename, targets_rspecifier,
+								&repository, nnet, stats);
+
+
+	  {
+
+		    SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
+		    RandomAccessBaseFloatVectorReader weights_reader;
+			RandomAccessPosteriorReader targets_reader(targets_rspecifier);
+
+	    // The initialization of the following class spawns the threads that
+	    // process the examples.  They get re-joined in its destructor.
+	    MultiThreader<TrainCtcParallelClass> mc(opts->parallel_opts->num_threads, c);
+	    NnetExample *example;
+	    for (; !feature_reader.Done(); feature_reader.Next()) {
+				example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
+	    	if (example->PrepareData())
+	    		repository.AcceptExample(example);
+	    	else
+	    		delete example;
+	    }
+	    repository.ExamplesDone();
+	  }
+
+}
 
 } // namespace nnet
 } // namespace kaldi

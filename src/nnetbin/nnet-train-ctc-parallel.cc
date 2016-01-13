@@ -25,6 +25,7 @@
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "cudamatrix/cu-device.h"
+#include "nnet/nnet-compute-parallel.h"
 #include "nnet/nnet-compute-ctc-parallel.h"
 
 int main(int argc, char *argv[]) {
@@ -82,19 +83,25 @@ int main(int argc, char *argv[]) {
 
 
     Nnet nnet;
-    NnetCtcStats stats;
+    NnetStats *stats;
 
     Timer time;
     double time_now = 0;
     KALDI_LOG << "TRAINING STARTED";
 
 
-    NnetCtcUpdateParallel(&opts,
-					model_filename,
-					feature_rspecifier,
-					targets_rspecifier,
-								&nnet,
-								&stats);
+    if (opts.objective_function == "xent"){
+    	stats = new NnetStats;
+    	NnetCEUpdateParallel(&opts, model_filename, feature_rspecifier,
+    			targets_rspecifier, &nnet, stats);
+    }
+    else if (opts.objective_function == "ctc"){
+    	stats = new NnetCtcStats;
+    	NnetCtcUpdateParallel(&opts, model_filename, feature_rspecifier,
+    			targets_rspecifier, &nnet, dynamic_cast<NnetCtcStats*>(stats));
+    }
+    else
+    	KALDI_ERR << "Unknown objective function code : " << opts.objective_function;
 
 
     if (!opts.crossvalidate) {
@@ -104,7 +111,8 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "TRAINING FINISHED; ";
     time_now = time.Elapsed();
 
-    stats.Print(&opts, time_now);
+
+    stats->Print(&opts, time_now);
 
 #if HAVE_CUDA==1
     CuDevice::Instantiate().PrintProfile();
