@@ -218,6 +218,8 @@ private:
             std::vector<int> new_utt_flags;
 
 	    Matrix<BaseFloat> feat_mat_host;
+	    Vector<BaseFloat> frame_mask_host;
+	    Posterior target;
 
 	    CTCNnetExample *example = NULL;
 	    Timer time;
@@ -271,16 +273,28 @@ private:
 
 			// Create the final feature matrix. Every utterance is padded to the max length within this group of utterances
 			feat_mat_host.Resize(cur_stream_num * max_frame_num, feat_dim, kSetZero);
+			if (this->objective_function == "xent")
+			{
+				frame_mask_host.Resize(cur_stream_num * max_frame_num, kSetZero);
+				target.resize(cur_stream_num * max_frame_num);
+			}
+
 			for (int s = 0; s < cur_stream_num; s++) {
 			  //Matrix<BaseFloat> mat_tmp = feats_utt[s];
 			  for (int r = 0; r < frame_num_utt[s]; r++) {
 				  //feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(mat_tmp.Row(r));
-                                  if (r + targets_delay < frame_num_utt[s]) {
-                        		feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r+targets_delay));
-                		  }   
-                		  else{
-                        		feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(frame_num_utt[s]-1));
-                	          }   
+				  if (r + targets_delay < frame_num_utt[s]) {
+					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r+targets_delay));
+				  }
+				  else{
+					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(frame_num_utt[s]-1));
+				  }
+				  //label
+				  if (this->objective_function == "xent")
+				  {
+					  target[r*cur_stream_num + s] = labels_utt[s][r];
+					  frame_mask_host[r*cur_stream_num + s] = 1;
+				  }
 			  }
 			}
 			      // Set the original lengths of utterances before padding
@@ -298,10 +312,18 @@ private:
 
 	        // Propagation and CTC training
 	        nnet.Propagate(CuMatrix<BaseFloat>(feat_mat_host), &nnet_out);
-	        ctc.EvalParallel(frame_num_utt, nnet_out, labels_utt, &nnet_diff);
 
-	        // Error rates
-	        ctc.ErrorRateMSeq(frame_num_utt, nnet_out, labels_utt);
+	        if (objective_function == "xent"){
+	        	xent.Eval(frame_mask_host, nnet_out, target, &nnet_diff);
+	        }
+	        else if (objective_function == "ctc"){
+	        	//ctc error
+	        	ctc.EvalParallel(frame_num_utt, nnet_out, labels_utt, &nnet_diff);
+	        	// Error rates
+	        	ctc.ErrorRateMSeq(frame_num_utt, nnet_out, labels_utt);
+	        }
+	        else
+	        	KALDI_ERR<< "Unknown objective function code : " << objective_function;
 
 
 		        // backward pass
@@ -374,7 +396,12 @@ private:
 
 		stats_->total_frames += total_frames;
 		stats_->num_done += num_done;
-		stats_->ctc.Add(&ctc);
+		if (objective_function == "xent")
+			stats_->xent.Add(&xent);
+		else if (objective_function == "ctc")
+			stats_->ctc.Add(&ctc);
+		else
+			KALDI_ERR<< "Unknown objective function code : " << objective_function;
 
 		model_sync->UnlockStates();
 

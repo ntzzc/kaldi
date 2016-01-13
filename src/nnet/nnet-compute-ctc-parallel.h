@@ -59,7 +59,7 @@ struct NnetCtcUpdateOptions : public NnetUpdateOptions {
 
 	      po->Register("max-frames", &max_frames, "Max number of frames to be processed");
 		
-              po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
+          po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
 
   	  }
 };
@@ -93,7 +93,13 @@ struct NnetCtcStats {
     	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->num_other_error));
     	MPI_Reduce(addr, (void*)(&this->num_other_error), 1, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 
-    	ctc.Merge(myid, 0);
+        if (opts->objective_function == "xent") {
+        		xent.Merge(myid, 0);
+        } else if (opts->objective_function == "ctc") {
+        		ctc.Merge(myid, 0);
+        } else {
+        		KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
+        }
 
     }
 
@@ -107,8 +113,13 @@ struct NnetCtcStats {
                   << ", " << time_now/60 << " min, " << total_frames/time_now << " fps"
                   << "]";
 
-        KALDI_LOG << ctc.Report();
-
+        if (opts->objective_function == "xent") {
+        	KALDI_LOG << xent.Report();
+        } else if (opts->objective_function == "ctc") {
+        	KALDI_LOG << ctc.Report();
+        } else {
+        	KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
+        }
     }
 };
 
