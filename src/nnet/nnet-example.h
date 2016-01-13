@@ -138,6 +138,7 @@ struct LstmNnetExample: NnetExample
     std::vector<int> new_utt_flags;
 
     LstmNnetExample(Vector<BaseFloat> &mask, Posterior &tgt, Matrix<BaseFloat> &ft, std::vector<int> &flags)
+    :NnetExample(NULL)
     {
     	frame_mask = mask;
     	target = tgt;
@@ -152,7 +153,8 @@ struct FeatureExample: NnetExample
 	Matrix<BaseFloat> feat;
 	std::string utt;
 	SequentialBaseFloatMatrixReader *feature_reader;
-	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader):feature_reader(feature_reader){}
+	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader)
+	:NnetExample(feature_reader){}
 
 	bool PrepareData()
 	{

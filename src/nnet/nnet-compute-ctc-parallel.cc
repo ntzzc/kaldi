@@ -302,8 +302,8 @@ private:
 				  //ce label
 				  if (this->objective_function == "xent")
 				  {
-					  target(r*cur_stream_num + s) = targets_utt[s][r];
-					  frame_mask_host[r*cur_stream_num + s] = 1;
+					  target[r*cur_stream_num + s] = targets_utt[s][r];
+					  frame_mask_host(r*cur_stream_num + s) = 1;
 				  }
 			  }
 			}
@@ -459,14 +459,21 @@ void NnetCtcUpdateParallel(const NnetCtcUpdateOptions *opts,
 	  {
 
 		    SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
-		    RandomAccessInt32VectorReader targets_reader(targets_rspecifier);
+		    RandomAccessBaseFloatVectorReader weights_reader;
+		    if (opts->objective_function == "xent")
+			RandomAccessPosteriorReader xent_targets_reader(targets_rspecifier);
+		    else if (opts->objective_function == "ctc")
+		    	RandomAccessInt32VectorReader ctc_targets_reader(targets_rspecifier);
 
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainCtcParallelClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new CTCNnetExample(&feature_reader, &targets_reader, &model_sync, stats, opts);
+		if (opts->objective_function == "xent")
+			example = new DNNNnetExample(&feature_reader, &xent_targets_reader, &weights_reader, &model_sync, stats, opts);
+		else if (opts->objective_function == "ctc")
+	    		example = new CTCNnetExample(&feature_reader, &ctc_targets_reader, &model_sync, stats, opts);
 	    	if (example->PrepareData())
 	    		repository.AcceptExample(example);
 	    	else
