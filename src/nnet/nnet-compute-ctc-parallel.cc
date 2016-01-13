@@ -215,13 +215,16 @@ private:
 	    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
 	    std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
 	    std::vector<int> frame_num_utt;
-            std::vector<int> new_utt_flags;
+        std::vector<int> new_utt_flags;
 
 	    Matrix<BaseFloat> feat_mat_host;
 	    Vector<BaseFloat> frame_mask_host;
 	    Posterior target;
+	    std::vector<Posterior> targets_utt(num_stream);
 
-	    CTCNnetExample *example = NULL;
+	    CTCNnetExample *ctc_example = NULL;
+	    DNNNnetExample *dnn_example = NULL;
+	    NnetExample		*example = NULL;
 	    Timer time;
 	    double time_now = 0;
 
@@ -236,7 +239,7 @@ private:
 			frame_num_utt.clear();
 
 			if (NULL == example)
-				example = dynamic_cast<CTCNnetExample*>(repository_->ProvideExample());
+				example = repository_->ProvideExample();
 
 			if (NULL == example)
 				break;
@@ -245,7 +248,15 @@ private:
 			{
 				std::string key = example->utt;
 				Matrix<BaseFloat> &mat = example->input_frames;
-				std::vector<int32> &targets = example->targets;
+
+				if (objective_function == "xent"){
+					dnn_example = dynamic_cast<DNNNnetExample*>(example);
+					targets_utt[s] = dnn_example->targets;
+				}
+				else if (objective_function == "ctc"){
+					ctc_example = dynamic_cast<CTCNnetExample*>(example);
+					labels_utt[s] = ctc_example->targets;
+				}
 
 				if ((s+1)*mat.NumRows() > frame_limit || (s+1)*max_frame_num > frame_limit) break;
 				if (max_frame_num < mat.NumRows()) max_frame_num = mat.NumRows();
@@ -256,7 +267,6 @@ private:
 				feats_utt[s].Resize(feats_transf.NumRows(), feats_transf.NumCols());
 				feats_transf.CopyToMat(&feats_utt[s]);
 		        //feats_utt[s] = mat;
-		        labels_utt[s] = targets;
 		        frame_num_utt.push_back(mat.NumRows());
 		        num_frames += mat.NumRows();
 
@@ -265,7 +275,7 @@ private:
 				cur_frames = max_frame_num * s;
 
 				delete example;
-				example = dynamic_cast<CTCNnetExample*>(repository_->ProvideExample());
+				example = repository_->ProvideExample();
 			}
 
 			cur_stream_num = s;
@@ -289,10 +299,10 @@ private:
 				  else{
 					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(frame_num_utt[s]-1));
 				  }
-				  //label
+				  //ce label
 				  if (this->objective_function == "xent")
 				  {
-					  target[r*cur_stream_num + s] = labels_utt[s][r];
+					  target(r*cur_stream_num + s) = targets_utt[s][r];
 					  frame_mask_host[r*cur_stream_num + s] = 1;
 				  }
 			  }

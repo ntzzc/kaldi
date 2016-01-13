@@ -30,17 +30,24 @@ namespace nnet1 {
 
 struct NnetExample{
 
-	NnetExample(){}
+	SequentialBaseFloatMatrixReader *feature_reader;
+
+	std::string utt;
+	Matrix<BaseFloat> input_frames;
+
+	NnetExample(SequentialBaseFloatMatrixReader *feature_reader):
+		feature_reader(feature_reader){}
 	virtual ~NnetExample(){}
 
 	virtual bool PrepareData() = 0;
+
 
 };
 
 struct DNNNnetExample : NnetExample
 {
 
-	SequentialBaseFloatMatrixReader *feature_reader;
+
 	RandomAccessPosteriorReader *targets_reader;
 	RandomAccessBaseFloatVectorReader *weights_reader;
 
@@ -48,14 +55,9 @@ struct DNNNnetExample : NnetExample
 	NnetStats *stats;
 	const NnetUpdateOptions *opts;
 
-	std::string utt;
 
-	Matrix<BaseFloat> input_frames;
 	Posterior targets;
 	Vector<BaseFloat> frames_weights;
-
-
-	//randomizer_mask(randomizer_mask), feature_randomizer(feature_randomizer), targets_randomizer(targets_randomizer), weights_randomizer(weights_randomizer),
 
 	DNNNnetExample(SequentialBaseFloatMatrixReader *feature_reader,
 					RandomAccessPosteriorReader *targets_reader,
@@ -64,7 +66,7 @@ struct DNNNnetExample : NnetExample
 					NnetModelSync *model_sync,
 					NnetStats *stats,
 					const NnetUpdateOptions *opts):
-	feature_reader(feature_reader), targets_reader(targets_reader), weights_reader(weights_reader),
+	NnetExample(feature_reader), targets_reader(targets_reader), weights_reader(weights_reader),
 	model_sync(model_sync), stats(stats), opts(opts)
 	{
 
@@ -74,16 +76,12 @@ struct DNNNnetExample : NnetExample
 
 struct CTCNnetExample : NnetExample
 {
-	SequentialBaseFloatMatrixReader *feature_reader;
 	RandomAccessInt32VectorReader *targets_reader;
 
 	NnetModelSync *model_sync;
 	NnetCtcStats *stats;
 	const NnetUpdateOptions *opts;
 
-	std::string utt;
-
-	Matrix<BaseFloat> input_frames;
 	std::vector<int32> targets;
 
 	CTCNnetExample(SequentialBaseFloatMatrixReader *feature_reader,
@@ -92,7 +90,7 @@ struct CTCNnetExample : NnetExample
 					NnetModelSync *model_sync,
 					NnetCtcStats *stats,
 					const NnetUpdateOptions *opts):
-	feature_reader(feature_reader), targets_reader(targets_reader),
+	NnetExample(feature_reader), targets_reader(targets_reader),
 	model_sync(model_sync), stats(stats), opts(opts)
 	{
 
@@ -102,21 +100,14 @@ struct CTCNnetExample : NnetExample
 
 struct SequentialNnetExample : NnetExample
 {
-	SequentialBaseFloatMatrixReader *feature_reader;
 	RandomAccessLatticeReader *den_lat_reader;
 	RandomAccessInt32VectorReader *num_ali_reader;
 	NnetModelSync *model_sync;
 	NnetSequentialStats *stats;
 	const NnetSequentialUpdateOptions *opts;
 
-	std::string utt;
-
-	Matrix<BaseFloat> input_frames;
-
-
 	 /// The numerator alignment
 	std::vector<int32> num_ali;
-
 	Lattice den_lat;
 
 	std::vector<int32> state_times;
@@ -128,7 +119,7 @@ struct SequentialNnetExample : NnetExample
 							NnetModelSync *model_sync,
 							NnetSequentialStats *stats,
 							const NnetSequentialUpdateOptions *opts):
-								feature_reader(feature_reader), den_lat_reader(den_lat_reader),
+								NnetExample(feature_reader), den_lat_reader(den_lat_reader),
 								num_ali_reader(num_ali_reader),model_sync(model_sync),stats(stats),opts(opts)
 							{
 
