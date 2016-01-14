@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
     else if (opts.objective_function == "ctc"){
     	stats = new NnetCtcStats;
     	NnetCtcUpdateParallel(&opts, model_filename, feature_rspecifier,
+    			//targets_rspecifier, &nnet, (NnetCtcStats*)(stats));
     			targets_rspecifier, &nnet, dynamic_cast<NnetCtcStats*>(stats));
     }
     else

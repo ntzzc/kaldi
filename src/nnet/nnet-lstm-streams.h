@@ -565,6 +565,10 @@ class LstmStreams : public UpdatableComponent {
 	    // weight x -> g, i, f, o
 	    w_gifo_x_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
 	                                  input                     , kNoTrans, mmt);
+
+	    // recurrent weight m -> g, i, f, o
+	    w_gifo_m_corr_.AddMatMat(1.0, DGIFO.RowRange(1*S,T*S), kTrans,
+                                  YM.RowRange(0*S,T*S)   , kNoTrans, mmt);
 	    // bias of g, i, f, o
 	    bias_corr_.AddRowSumMat(1.0, DGIFO.RowRange(1*S,T*S), mmt);
 

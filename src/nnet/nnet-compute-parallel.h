@@ -109,7 +109,9 @@ struct NnetStats {
     Xent xent;
     Mse mse;
 
-    NnetStats() { std::memset(this, 0, sizeof(*this)); }
+    NnetStats():num_done(0),num_no_tgt_mat(0),num_other_error(0),total_frames(0){} //{ std::memset(this, 0, sizeof(*this)); }
+
+    virtual ~NnetStats(){}
 
     virtual void  MergeStats(NnetUpdateOptions *opts, int root)
     {
