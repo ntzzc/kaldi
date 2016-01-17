@@ -112,6 +112,8 @@ class LstmStreams : public UpdatableComponent {
     peephole_o_c_.Resize(ncell_, kUndefined);
 
     InitVecParam(bias_, param_scale);
+    bias_.Range(2*ncell_,ncell_).Set(fgate_param_scale);
+
     InitVecParam(peephole_i_c_, param_scale);
     InitVecParam(peephole_f_c_, param_scale);
     InitVecParam(peephole_o_c_, param_scale);
@@ -364,8 +366,8 @@ class LstmStreams : public UpdatableComponent {
       // c(t-1) -> c(t) via forget-gate
       y_c.AddMatMatElements(1.0, YC.RowRange((t-1)*S,S), y_f, 1.0);
 
-      y_c.ApplyFloor(-50);   // optional clipping of cell activation
-      y_c.ApplyCeiling(50);  // google paper Interspeech2014: LSTM for LVCSR
+      //y_c.ApplyFloor(-50);   // optional clipping of cell activation
+      //y_c.ApplyCeiling(50);  // google paper Interspeech2014: LSTM for LVCSR
 
       // h tanh squashing
       y_h.Tanh(y_c);
