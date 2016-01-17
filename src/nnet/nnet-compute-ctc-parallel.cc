@@ -210,7 +210,8 @@ private:
 
 		int32 num_stream = opts->num_stream;
 		int32 frame_limit = opts->max_frames;
-                int32 targets_delay = opts->targets_delay;
+        int32 targets_delay = opts->targets_delay;
+        int32 skip_frames = opts->skip_frames;
 
 	    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
 	    std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
@@ -291,7 +292,7 @@ private:
 
 			for (int s = 0; s < cur_stream_num; s++) {
 			  //Matrix<BaseFloat> mat_tmp = feats_utt[s];
-			  for (int r = 0; r < frame_num_utt[s]; r++) {
+			  for (int r = 0; r < frame_num_utt[s]; r+=skip_frames) {
 				  //feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(mat_tmp.Row(r));
 				  if (r + targets_delay < frame_num_utt[s]) {
 					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r+targets_delay));

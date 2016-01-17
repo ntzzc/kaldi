@@ -576,7 +576,7 @@ std::string Nnet::InfoPropagate() const {
   return ostr.str();
 }
 
-std::string Nnet::InfoBackPropagate() const {
+std::string Net::InfoBackPropagate() const {
   std::ostringstream ostr;
   // forward-pass buffer stats
   ostr << "### Backward propagation buffer content :\n";
