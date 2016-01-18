@@ -614,9 +614,9 @@ class LstmStreams : public UpdatableComponent {
 	    	w_gifo_x_.AddMat(-lr*l2*num_frames, w_gifo_x_);
 	    	w_gifo_m_.AddMat(-lr*l2*num_frames, w_gifo_m_);
 
-	    	peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
-	    	peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);
-	    	peephole_o_c_.AddVec(-lr*l2*num_frames, peephole_o_c_);
+	    	//peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
+	    	//peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);
+	    	//peephole_o_c_.AddVec(-lr*l2*num_frames, peephole_o_c_);
 	    }
 
   }
