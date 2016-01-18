@@ -268,7 +268,7 @@ private:
 				feats_utt[s].Resize(feats_transf.NumRows(), feats_transf.NumCols());
 				feats_transf.CopyToMat(&feats_utt[s]);
 		        //feats_utt[s] = mat;
-		        frame_num_utt.push_back(mat.NumRows());
+		        frame_num_utt.push_back((mat.NumRows()+skip_frames-1)/skip_frames);
 		        num_frames += mat.NumRows();
 
 				s++;
@@ -279,6 +279,7 @@ private:
 				example = repository_->ProvideExample();
 			}
 
+			max_frame_num = (max_frame_num+skip_frames-1)/skip_frames;
 			cur_stream_num = s;
 			new_utt_flags.resize(cur_stream_num, 1);
 
@@ -292,10 +293,10 @@ private:
 
 			for (int s = 0; s < cur_stream_num; s++) {
 			  //Matrix<BaseFloat> mat_tmp = feats_utt[s];
-			  for (int r = 0; r < frame_num_utt[s]; r+=skip_frames) {
+			  for (int r = 0; r < frame_num_utt[s]; r++) {
 				  //feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(mat_tmp.Row(r));
 				  if (r + targets_delay < frame_num_utt[s]) {
-					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r+targets_delay));
+					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r*skip_frames+targets_delay));
 				  }
 				  else{
 					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(frame_num_utt[s]-1));
@@ -303,7 +304,7 @@ private:
 				  //ce label
 				  if (this->objective_function == "xent")
 				  {
-					  target[r*cur_stream_num + s] = targets_utt[s][r];
+					  target[r*cur_stream_num + s] = targets_utt[s][r*skip_frames];
 					  frame_mask_host(r*cur_stream_num + s) = 1;
 				  }
 			  }
