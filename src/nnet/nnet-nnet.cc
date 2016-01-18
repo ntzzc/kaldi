@@ -452,6 +452,10 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
       BLstmProjectedStreams& comp = dynamic_cast<BLstmProjectedStreams&>(GetComponent(c));
       comp.SetSeqLengths(sequence_lengths);
     }
+    else if (GetComponent(c).GetType() == Component::kBLstmStreams) {
+        BLstmStreams& comp = dynamic_cast<BLstmStreams&>(GetComponent(c));
+        comp.SetSeqLengths(sequence_lengths);
+      }
   }
 }
 

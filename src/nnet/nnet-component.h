@@ -60,6 +60,7 @@ class Component {
 	kLstmStreams,
 	kLstmProjectedStreamsFast,
     kBLstmProjectedStreams,
+	kBLstmStreams,
 
     kActivationFunction = 0x0200, 
     kSoftmax, 

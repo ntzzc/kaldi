@@ -49,7 +49,8 @@ class LstmStreams : public UpdatableComponent {
     UpdatableComponent(input_dim, output_dim),
     ncell_(0),
     nstream_(0),
-    clip_gradient_(0.0)
+    clip_gradient_(0.0),
+ 	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
     //, dropout_rate_(0.0)
   { }
 
@@ -614,16 +615,16 @@ class LstmStreams : public UpdatableComponent {
 	    	w_gifo_x_.AddMat(-lr*l2*num_frames, w_gifo_x_);
 	    	w_gifo_m_.AddMat(-lr*l2*num_frames, w_gifo_m_);
 
-	    	//peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
-	    	//peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);
-	    	//peephole_o_c_.AddVec(-lr*l2*num_frames, peephole_o_c_);
+	    	peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
+	    	peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);
+	    	peephole_o_c_.AddVec(-lr*l2*num_frames, peephole_o_c_);
 	    }
 
   }
 
   void UpdateGradient()
   {
-	    const BaseFloat lr  = opts_.learn_rate;
+	    const BaseFloat lr  = opts_.learn_rate * learn_rate_coef_;
 
 	    w_gifo_x_.AddMat(-lr, w_gifo_x_corr_);
 	    w_gifo_m_.AddMat(-lr, w_gifo_m_corr_);

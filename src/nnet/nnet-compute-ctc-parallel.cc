@@ -312,7 +312,10 @@ private:
 			      // Set the original lengths of utterances before padding
 			//nnet.SetSeqLengths(frame_num_utt);
 			//nnet.ResetLstmStreams(frame_num_utt);
+			//for lstm
 			nnet.ResetLstmStreams(new_utt_flags);
+			//for bilstm
+			nnet.SetSeqLengths(frame_num_utt);
 
 	        // report the speed
 	        if (num_done % 5000 == 0) {
