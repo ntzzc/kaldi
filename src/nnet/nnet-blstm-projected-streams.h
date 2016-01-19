@@ -52,7 +52,8 @@ class BLstmProjectedStreams : public UpdatableComponent {
     ncell_(0),
     nrecur_(static_cast<int32>(output_dim/2)),
     nstream_(0),
-    clip_gradient_(0.0)
+    clip_gradient_(0.0),
+ 	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
     //, dropout_rate_(0.0)
   { }
 
@@ -84,6 +85,7 @@ class BLstmProjectedStreams : public UpdatableComponent {
   void InitData(std::istream &is) {
     // define options
     float param_scale = 0.02;
+    float fgate_param_scale = param_scale;
     // parse config
     std::string token;
     while (!is.eof()) {
@@ -96,6 +98,10 @@ class BLstmProjectedStreams : public UpdatableComponent {
       //  ReadBasicType(is, false, &dropout_rate_);
       else if (token == "<ParamScale>")
         ReadBasicType(is, false, &param_scale);
+      else if (token == "<FgateBias>") ReadBasicType(is, false, &fgate_param_scale);
+      else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef_);
+      else if (token == "<BiasLearnRateCoef>") ReadBasicType(is, false, &bias_learn_rate_coef_);
+      else if (token == "<MaxNorm>") ReadBasicType(is, false, &max_norm_);
       else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
                << " (CellDim|NumStream|ParamScale)";
                //<< " (CellDim|NumStream|DropoutRate|ParamScale)";
@@ -126,6 +132,8 @@ class BLstmProjectedStreams : public UpdatableComponent {
     b_bias_.Resize(4*ncell_, kUndefined);
     InitVecParam(f_bias_, param_scale);
     InitVecParam(b_bias_, param_scale);
+    f_bias_.Range(2*ncell_,ncell_).Set(fgate_param_scale);
+    b_bias_.Range(2*ncell_,ncell_).Set(fgate_param_scale);
 
     // forward direction
     f_peephole_i_c_.Resize(ncell_, kUndefined);
@@ -901,119 +909,229 @@ class BLstmProjectedStreams : public UpdatableComponent {
     // backward direction difference
     in_diff->AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kNoTrans, b_w_gifo_x_, kNoTrans, 1.0);
 
-    // backward pass dropout
-    // if (dropout_rate_ != 0.0) {
-    //  in_diff->MulElements(dropout_mask_);
-    //}
 
-    // calculate delta
-    const BaseFloat mmt = opts_.momentum;
-
-    // forward direction
-    // weight x -> g, i, f, o
-    f_w_gifo_x_corr_.AddMatMat(1.0, F_DGIFO.RowRange(1*S, T*S), kTrans,
-                                    in,                        kNoTrans, mmt);
-    // recurrent weight r -> g, i, f, o
-    f_w_gifo_r_corr_.AddMatMat(1.0, F_DGIFO.RowRange(1*S, T*S), kTrans,
-                                    F_YR.RowRange(0*S, T*S),    kNoTrans, mmt);
-    // bias of g, i, f, o
-    f_bias_corr_.AddRowSumMat(1.0, F_DGIFO.RowRange(1*S, T*S), mmt);
-
-    // recurrent peephole c -> i
-    f_peephole_i_c_corr_.AddDiagMatMat(1.0, F_DI.RowRange(1*S, T*S), kTrans,
-                                            F_YC.RowRange(0*S, T*S), kNoTrans, mmt);
-    // recurrent peephole c -> f
-    f_peephole_f_c_corr_.AddDiagMatMat(1.0, F_DF.RowRange(1*S, T*S), kTrans,
-                                            F_YC.RowRange(0*S, T*S), kNoTrans, mmt);
-    // peephole c -> o
-    f_peephole_o_c_corr_.AddDiagMatMat(1.0, F_DO.RowRange(1*S, T*S), kTrans,
-                                            F_YC.RowRange(1*S, T*S), kNoTrans, mmt);
-
-    f_w_r_m_corr_.AddMatMat(1.0, F_DR.RowRange(1*S, T*S), kTrans,
-                                 F_YM.RowRange(1*S, T*S), kNoTrans, mmt);
-
-    // apply the gradient clipping for forwardpass gradients
-    if (clip_gradient_ > 0.0) {
-      f_w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
-      f_w_gifo_x_corr_.ApplyCeiling(clip_gradient_);
-      f_w_gifo_r_corr_.ApplyFloor(-clip_gradient_);
-      f_w_gifo_r_corr_.ApplyCeiling(clip_gradient_);
-      f_bias_corr_.ApplyFloor(-clip_gradient_);
-      f_bias_corr_.ApplyCeiling(clip_gradient_);
-      f_w_r_m_corr_.ApplyFloor(-clip_gradient_);
-      f_w_r_m_corr_.ApplyCeiling(clip_gradient_);
-      f_peephole_i_c_corr_.ApplyFloor(-clip_gradient_);
-      f_peephole_i_c_corr_.ApplyCeiling(clip_gradient_);
-      f_peephole_f_c_corr_.ApplyFloor(-clip_gradient_);
-      f_peephole_f_c_corr_.ApplyCeiling(clip_gradient_);
-      f_peephole_o_c_corr_.ApplyFloor(-clip_gradient_);
-      f_peephole_o_c_corr_.ApplyCeiling(clip_gradient_);
-    }
-
-    // backward direction backpropagate
-    // weight x -> g, i, f, o
-    b_w_gifo_x_corr_.AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kTrans, in, kNoTrans, mmt);
-    // recurrent weight r -> g, i, f, o
-    b_w_gifo_r_corr_.AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kTrans,
-                                    B_YR.RowRange(0*S, T*S)   , kNoTrans, mmt);
-    // bias of g, i, f, o
-    b_bias_corr_.AddRowSumMat(1.0, B_DGIFO.RowRange(1*S, T*S), mmt);
-
-    // recurrent peephole c -> i, c(t+1) --> i
-    b_peephole_i_c_corr_.AddDiagMatMat(1.0, B_DI.RowRange(1*S, T*S), kTrans,
-                                            B_YC.RowRange(2*S, T*S), kNoTrans, mmt);
-    // recurrent peephole c -> f, c(t+1) --> f
-    b_peephole_f_c_corr_.AddDiagMatMat(1.0, B_DF.RowRange(1*S, T*S), kTrans,
-                                            B_YC.RowRange(2*S, T*S), kNoTrans, mmt);
-    // peephole c -> o
-    b_peephole_o_c_corr_.AddDiagMatMat(1.0, B_DO.RowRange(1*S, T*S), kTrans,
-                                            B_YC.RowRange(1*S, T*S), kNoTrans, mmt);
-
-    b_w_r_m_corr_.AddMatMat(1.0, B_DR.RowRange(1*S, T*S), kTrans,
-                                 B_YM.RowRange(1*S, T*S), kNoTrans, mmt);
-
-    // apply the gradient clipping for backwardpass gradients
-    if (clip_gradient_ > 0.0) {
-      b_w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
-      b_w_gifo_x_corr_.ApplyCeiling(clip_gradient_);
-      b_w_gifo_r_corr_.ApplyFloor(-clip_gradient_);
-      b_w_gifo_r_corr_.ApplyCeiling(clip_gradient_);
-      b_bias_corr_.ApplyFloor(-clip_gradient_);
-      b_bias_corr_.ApplyCeiling(clip_gradient_);
-      b_w_r_m_corr_.ApplyFloor(-clip_gradient_);
-      b_w_r_m_corr_.ApplyCeiling(clip_gradient_);
-      b_peephole_i_c_corr_.ApplyFloor(-clip_gradient_);
-      b_peephole_i_c_corr_.ApplyCeiling(clip_gradient_);
-      b_peephole_f_c_corr_.ApplyFloor(-clip_gradient_);
-      b_peephole_f_c_corr_.ApplyCeiling(clip_gradient_);
-      b_peephole_o_c_corr_.ApplyFloor(-clip_gradient_);
-      b_peephole_o_c_corr_.ApplyCeiling(clip_gradient_);
-    }
-
-    // forward direction
-    if (DEBUG) {
-      std::cerr << "gradients(with optional momentum): \n";
-      std::cerr << "w_gifo_x_corr_ " << f_w_gifo_x_corr_;
-      std::cerr << "w_gifo_r_corr_ " << f_w_gifo_r_corr_;
-      std::cerr << "bias_corr_ "     << f_bias_corr_;
-      std::cerr << "w_r_m_corr_ "    << f_w_r_m_corr_;
-      std::cerr << "peephole_i_c_corr_ " << f_peephole_i_c_corr_;
-      std::cerr << "peephole_f_c_corr_ " << f_peephole_f_c_corr_;
-      std::cerr << "peephole_o_c_corr_ " << f_peephole_o_c_corr_;
-    }
-    // backward direction
-    if (DEBUG) {
-      std::cerr << "gradients(with optional momentum): \n";
-      std::cerr << "w_gifo_x_corr_ " << b_w_gifo_x_corr_;
-      std::cerr << "w_gifo_r_corr_ " << b_w_gifo_r_corr_;
-      std::cerr << "bias_corr_ "     << b_bias_corr_;
-      std::cerr << "w_r_m_corr_ "    << b_w_r_m_corr_;
-      std::cerr << "peephole_i_c_corr_ " << b_peephole_i_c_corr_;
-      std::cerr << "peephole_f_c_corr_ " << b_peephole_f_c_corr_;
-      std::cerr << "peephole_o_c_corr_ " << b_peephole_o_c_corr_;
-    }
   }
 
+
+  void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
+  {
+   	    // we use following hyperparameters from the option class
+   	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+   	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+   	    //const BaseFloat mmt = opts_.momentum;
+   	    const BaseFloat l2 = opts_.l2_penalty;
+   	    const BaseFloat l1 = opts_.l1_penalty;
+   	    // we will also need the number of frames in the mini-batch
+   	    const int32 num_frames = input.NumRows();
+
+
+  	    int DEBUG = 0;
+
+	    // the number of sequences to be processed in parallel
+	    int32 nstream_ = sequence_lengths_.size();
+	    int32 T = input.NumRows() / nstream_;
+	    int32 S = nstream_;
+
+	    // disassembling forward-pass forward-propagation buffer into different neurons,
+	    CuSubMatrix<BaseFloat> F_YG(f_propagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YI(f_propagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YF(f_propagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YO(f_propagate_buf_.ColRange(3*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YC(f_propagate_buf_.ColRange(4*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YH(f_propagate_buf_.ColRange(5*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YM(f_propagate_buf_.ColRange(6*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_YR(f_propagate_buf_.ColRange(7*ncell_, nrecur_));
+
+	    // disassembling forward-pass back-propagation buffer into different neurons,
+	    CuSubMatrix<BaseFloat> F_DG(f_backpropagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DI(f_backpropagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DF(f_backpropagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DO(f_backpropagate_buf_.ColRange(3*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DC(f_backpropagate_buf_.ColRange(4*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DH(f_backpropagate_buf_.ColRange(5*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DM(f_backpropagate_buf_.ColRange(6*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> F_DR(f_backpropagate_buf_.ColRange(7*ncell_, nrecur_));
+	    CuSubMatrix<BaseFloat> F_DGIFO(f_backpropagate_buf_.ColRange(0, 4*ncell_));
+
+
+	    // disassembling backward-pass forward-propagation buffer into different neurons,
+	    CuSubMatrix<BaseFloat> B_YG(b_propagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YI(b_propagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YF(b_propagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YO(b_propagate_buf_.ColRange(3*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YC(b_propagate_buf_.ColRange(4*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YH(b_propagate_buf_.ColRange(5*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YM(b_propagate_buf_.ColRange(6*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_YR(b_propagate_buf_.ColRange(7*ncell_, nrecur_));
+
+	    // disassembling backward-pass back-propagation buffer into different neurons,
+	    CuSubMatrix<BaseFloat> B_DG(b_backpropagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DI(b_backpropagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DF(b_backpropagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DO(b_backpropagate_buf_.ColRange(3*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DC(b_backpropagate_buf_.ColRange(4*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DH(b_backpropagate_buf_.ColRange(5*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DM(b_backpropagate_buf_.ColRange(6*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> B_DR(b_backpropagate_buf_.ColRange(7*ncell_, nrecur_));
+	    CuSubMatrix<BaseFloat> B_DGIFO(b_backpropagate_buf_.ColRange(0, 4*ncell_));
+
+
+	    // backward pass dropout
+	        // if (dropout_rate_ != 0.0) {
+	        //  in_diff->MulElements(dropout_mask_);
+	        //}
+
+	        // calculate delta
+	        const BaseFloat mmt = opts_.momentum;
+
+	        // forward direction
+	        // weight x -> g, i, f, o
+	        f_w_gifo_x_corr_.AddMatMat(1.0, F_DGIFO.RowRange(1*S, T*S), kTrans,
+	                                        input,                        kNoTrans, mmt);
+	        // recurrent weight r -> g, i, f, o
+	        f_w_gifo_r_corr_.AddMatMat(1.0, F_DGIFO.RowRange(1*S, T*S), kTrans,
+	                                        F_YR.RowRange(0*S, T*S),    kNoTrans, mmt);
+	        // bias of g, i, f, o
+	        f_bias_corr_.AddRowSumMat(1.0, F_DGIFO.RowRange(1*S, T*S), mmt);
+
+	        // recurrent peephole c -> i
+	        f_peephole_i_c_corr_.AddDiagMatMat(1.0, F_DI.RowRange(1*S, T*S), kTrans,
+	                                                F_YC.RowRange(0*S, T*S), kNoTrans, mmt);
+	        // recurrent peephole c -> f
+	        f_peephole_f_c_corr_.AddDiagMatMat(1.0, F_DF.RowRange(1*S, T*S), kTrans,
+	                                                F_YC.RowRange(0*S, T*S), kNoTrans, mmt);
+	        // peephole c -> o
+	        f_peephole_o_c_corr_.AddDiagMatMat(1.0, F_DO.RowRange(1*S, T*S), kTrans,
+	                                                F_YC.RowRange(1*S, T*S), kNoTrans, mmt);
+
+	        f_w_r_m_corr_.AddMatMat(1.0, F_DR.RowRange(1*S, T*S), kTrans,
+	                                     F_YM.RowRange(1*S, T*S), kNoTrans, mmt);
+
+	        // apply the gradient clipping for forwardpass gradients
+	        if (clip_gradient_ > 0.0) {
+	          f_w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
+	          f_w_gifo_x_corr_.ApplyCeiling(clip_gradient_);
+	          f_w_gifo_r_corr_.ApplyFloor(-clip_gradient_);
+	          f_w_gifo_r_corr_.ApplyCeiling(clip_gradient_);
+	          f_bias_corr_.ApplyFloor(-clip_gradient_);
+	          f_bias_corr_.ApplyCeiling(clip_gradient_);
+	          f_w_r_m_corr_.ApplyFloor(-clip_gradient_);
+	          f_w_r_m_corr_.ApplyCeiling(clip_gradient_);
+	          f_peephole_i_c_corr_.ApplyFloor(-clip_gradient_);
+	          f_peephole_i_c_corr_.ApplyCeiling(clip_gradient_);
+	          f_peephole_f_c_corr_.ApplyFloor(-clip_gradient_);
+	          f_peephole_f_c_corr_.ApplyCeiling(clip_gradient_);
+	          f_peephole_o_c_corr_.ApplyFloor(-clip_gradient_);
+	          f_peephole_o_c_corr_.ApplyCeiling(clip_gradient_);
+	        }
+
+	        // backward direction backpropagate
+	        // weight x -> g, i, f, o
+	        b_w_gifo_x_corr_.AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kTrans, input, kNoTrans, mmt);
+	        // recurrent weight r -> g, i, f, o
+	        b_w_gifo_r_corr_.AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kTrans,
+	                                        B_YR.RowRange(0*S, T*S)   , kNoTrans, mmt);
+	        // bias of g, i, f, o
+	        b_bias_corr_.AddRowSumMat(1.0, B_DGIFO.RowRange(1*S, T*S), mmt);
+
+	        // recurrent peephole c -> i, c(t+1) --> i
+	        b_peephole_i_c_corr_.AddDiagMatMat(1.0, B_DI.RowRange(1*S, T*S), kTrans,
+	                                                B_YC.RowRange(2*S, T*S), kNoTrans, mmt);
+	        // recurrent peephole c -> f, c(t+1) --> f
+	        b_peephole_f_c_corr_.AddDiagMatMat(1.0, B_DF.RowRange(1*S, T*S), kTrans,
+	                                                B_YC.RowRange(2*S, T*S), kNoTrans, mmt);
+	        // peephole c -> o
+	        b_peephole_o_c_corr_.AddDiagMatMat(1.0, B_DO.RowRange(1*S, T*S), kTrans,
+	                                                B_YC.RowRange(1*S, T*S), kNoTrans, mmt);
+
+	        b_w_r_m_corr_.AddMatMat(1.0, B_DR.RowRange(1*S, T*S), kTrans,
+	                                     B_YM.RowRange(1*S, T*S), kNoTrans, mmt);
+
+	        // apply the gradient clipping for backwardpass gradients
+	        if (clip_gradient_ > 0.0) {
+	          b_w_gifo_x_corr_.ApplyFloor(-clip_gradient_);
+	          b_w_gifo_x_corr_.ApplyCeiling(clip_gradient_);
+	          b_w_gifo_r_corr_.ApplyFloor(-clip_gradient_);
+	          b_w_gifo_r_corr_.ApplyCeiling(clip_gradient_);
+	          b_bias_corr_.ApplyFloor(-clip_gradient_);
+	          b_bias_corr_.ApplyCeiling(clip_gradient_);
+	          b_w_r_m_corr_.ApplyFloor(-clip_gradient_);
+	          b_w_r_m_corr_.ApplyCeiling(clip_gradient_);
+	          b_peephole_i_c_corr_.ApplyFloor(-clip_gradient_);
+	          b_peephole_i_c_corr_.ApplyCeiling(clip_gradient_);
+	          b_peephole_f_c_corr_.ApplyFloor(-clip_gradient_);
+	          b_peephole_f_c_corr_.ApplyCeiling(clip_gradient_);
+	          b_peephole_o_c_corr_.ApplyFloor(-clip_gradient_);
+	          b_peephole_o_c_corr_.ApplyCeiling(clip_gradient_);
+	        }
+
+	        // forward direction
+	        if (DEBUG) {
+	          std::cerr << "gradients(with optional momentum): \n";
+	          std::cerr << "w_gifo_x_corr_ " << f_w_gifo_x_corr_;
+	          std::cerr << "w_gifo_r_corr_ " << f_w_gifo_r_corr_;
+	          std::cerr << "bias_corr_ "     << f_bias_corr_;
+	          std::cerr << "w_r_m_corr_ "    << f_w_r_m_corr_;
+	          std::cerr << "peephole_i_c_corr_ " << f_peephole_i_c_corr_;
+	          std::cerr << "peephole_f_c_corr_ " << f_peephole_f_c_corr_;
+	          std::cerr << "peephole_o_c_corr_ " << f_peephole_o_c_corr_;
+	        }
+	        // backward direction
+	        if (DEBUG) {
+	          std::cerr << "gradients(with optional momentum): \n";
+	          std::cerr << "w_gifo_x_corr_ " << b_w_gifo_x_corr_;
+	          std::cerr << "w_gifo_r_corr_ " << b_w_gifo_r_corr_;
+	          std::cerr << "bias_corr_ "     << b_bias_corr_;
+	          std::cerr << "w_r_m_corr_ "    << b_w_r_m_corr_;
+	          std::cerr << "peephole_i_c_corr_ " << b_peephole_i_c_corr_;
+	          std::cerr << "peephole_f_c_corr_ " << b_peephole_f_c_corr_;
+	          std::cerr << "peephole_o_c_corr_ " << b_peephole_o_c_corr_;
+	        }
+
+ 		    // l2 regularization
+ 		    if (l2 != 0.0) {
+ 		    	f_w_gifo_x_.AddMat(-lr*l2*num_frames, f_w_gifo_x_);
+ 		    	f_w_gifo_r_.AddMat(-lr*l2*num_frames, f_w_gifo_r_);
+ 		    	f_w_r_m_.AddMat(-lr*l2*num_frames, f_w_r_m_);
+
+ 		    	//f_peephole_i_c_.AddVec(-lr*l2*num_frames, f_peephole_i_c_);
+ 		    	//f_peephole_f_c_.AddVec(-lr*l2*num_frames, f_peephole_f_c_);
+ 		    	//f_peephole_o_c_.AddVec(-lr*l2*num_frames, f_peephole_o_c_);
+
+ 		    	b_w_gifo_x_.AddMat(-lr*l2*num_frames, b_w_gifo_x_);
+ 		    	b_w_gifo_r_.AddMat(-lr*l2*num_frames, b_w_gifo_r_);
+ 		    	b_w_r_m_.AddMat(-lr*l2*num_frames, b_w_r_m_);
+
+ 		    	//b_peephole_i_c_.AddVec(-lr*l2*num_frames, b_peephole_i_c_);
+ 		    	//b_peephole_f_c_.AddVec(-lr*l2*num_frames, b_peephole_f_c_);
+ 		    	//b_peephole_o_c_.AddVec(-lr*l2*num_frames, b_peephole_o_c_);
+ 		    }
+  }
+
+  void UpdateGradient()
+  {
+	    const BaseFloat lr  = opts_.learn_rate * learn_rate_coef_;
+
+	    f_w_gifo_x_.AddMat(-lr, f_w_gifo_x_corr_);
+	    f_w_gifo_r_.AddMat(-lr, f_w_gifo_r_corr_);
+	    f_bias_.AddVec(-lr, f_bias_corr_, 1.0);
+
+	    f_peephole_i_c_.AddVec(-lr, f_peephole_i_c_corr_, 1.0);
+	    f_peephole_f_c_.AddVec(-lr, f_peephole_f_c_corr_, 1.0);
+	    f_peephole_o_c_.AddVec(-lr, f_peephole_o_c_corr_, 1.0);
+
+	    f_w_r_m_.AddMat(-lr, f_w_r_m_corr_);
+
+	    b_w_gifo_x_.AddMat(-lr, b_w_gifo_x_corr_);
+	    b_w_gifo_r_.AddMat(-lr, b_w_gifo_r_corr_);
+	    b_bias_.AddVec(-lr, f_bias_corr_, 1.0);
+
+	    b_peephole_i_c_.AddVec(-lr, b_peephole_i_c_corr_, 1.0);
+	    b_peephole_f_c_.AddVec(-lr, b_peephole_f_c_corr_, 1.0);
+	    b_peephole_o_c_.AddVec(-lr, b_peephole_o_c_corr_, 1.0);
+
+	    b_w_r_m_.AddMat(-lr, b_w_r_m_corr_);
+  }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
     const BaseFloat lr  = opts_.learn_rate;
@@ -1121,6 +1239,9 @@ class BLstmProjectedStreams : public UpdatableComponent {
   // backward direction
   CuMatrix<BaseFloat> b_backpropagate_buf_;
 
+  BaseFloat learn_rate_coef_;
+  BaseFloat bias_learn_rate_coef_;
+  BaseFloat max_norm_;
 };
 }  // namespace nnet1
 }  // namespace kaldi
