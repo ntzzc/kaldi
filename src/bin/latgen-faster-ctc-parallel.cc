@@ -97,12 +97,15 @@ int main(int argc, char *argv[]) {
     double tot_like = 0.0;
     kaldi::int64 frame_count = 0;
     int num_success = 0, num_fail = 0;
+
+    VectorFst<StdArc> *decode_fst = NULL; // only used if there is a single
+                                          // decoding graph.
     
     TaskSequencer<DecodeUtteranceLatticeFasterClass> sequencer(sequencer_config);
     if (ClassifyRspecifier(fst_in_str, NULL, NULL) == kNoRspecifier) {
       SequentialBaseFloatMatrixReader loglike_reader(feature_rspecifier);
       // Input FST is just one FST, not a table of FSTs.
-      VectorFst<StdArc> *decode_fst = fst::ReadFstKaldi(fst_in_str);
+      decode_fst = fst::ReadFstKaldi(fst_in_str);
 
       {
           LatticeFasterDecoder *decoder = new LatticeFasterDecoder(*decode_fst, config);
@@ -116,7 +119,7 @@ int main(int argc, char *argv[]) {
             continue;
           }
       
-          DecodableMatrixScaled *decodable = new decodable(loglikes, acoustic_scale); 
+          DecodableMatrixScaled *decodable = new DecodableMatrixScaled(loglikes, acoustic_scale); 
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
           DecodeUtteranceLatticeFasterClass *task =
               new DecodeUtteranceLatticeFasterClass(

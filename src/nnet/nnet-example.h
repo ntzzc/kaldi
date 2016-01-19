@@ -150,16 +150,13 @@ struct LstmNnetExample: NnetExample
 
 struct FeatureExample: NnetExample
 {
-	Matrix<BaseFloat> feat;
-	std::string utt;
-	SequentialBaseFloatMatrixReader *feature_reader;
 	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader)
 	:NnetExample(feature_reader){}
 
 	bool PrepareData()
 	{
 		utt = feature_reader->Key();
-		feat = feature_reader->Value();
+		input_frames = feature_reader->Value();
 		return true;
 	}
 
