@@ -864,6 +864,8 @@ class BLstmStreams : public UpdatableComponent {
 
 	    int DEBUG = 0;
 
+	    // the number of sequences to be processed in parallel
+	    int32 nstream_ = sequence_lengths_.size();
 	    int32 T = input.NumRows() / nstream_;
 	    int32 S = nstream_;
 

@@ -43,6 +43,7 @@
 #include "nnet/nnet-lstm-streams.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
 #include "nnet/nnet-blstm-projected-streams.h"
+#include "nnet/nnet-blstm-streams.h"
 
 #include "nnet/nnet-sentence-averaging-component.h"
 #include "nnet/nnet-frame-pooling-component.h"
