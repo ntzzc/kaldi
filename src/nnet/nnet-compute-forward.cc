@@ -161,7 +161,7 @@ public:
 	    		while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
 	    		{
 	    	    	std::string key = example->utt;
-	    	    	Matrix<BaseFloat> &mat = example->feat;
+	    	    	Matrix<BaseFloat> &mat = example->input_frames;
 			// forward the features through a feature-transform,
                         nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
 
@@ -260,7 +260,7 @@ public:
 	    while ((example = dynamic_cast<FeatureExample*>(repository->ProvideExample())) != NULL)
 	    {
 	    	std::string utt = example->utt;
-	    	Matrix<BaseFloat> &mat = example->feat;
+	    	Matrix<BaseFloat> &mat = example->input_frames;
 
 	    	/*
 	        if (!KALDI_ISFINITE(mat.Sum())) { // check there's no nan/inf,
@@ -334,7 +334,7 @@ public:
 	    	                << " frames per second.";
 	    	}
 	    	num_done++;
-	    	total_frames += example->feat.NumRows();
+	    	total_frames += example->input_frames.NumRows();
 
 	        // release the buffers we don't need anymore
 	       	delete example;
