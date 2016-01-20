@@ -152,7 +152,6 @@ struct FeatureExample: NnetExample
 {
 	Matrix<BaseFloat> feat;
 	std::string utt;
-	SequentialBaseFloatMatrixReader *feature_reader;
 	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader)
 	:NnetExample(feature_reader){}
 

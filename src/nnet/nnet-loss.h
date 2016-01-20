@@ -96,6 +96,7 @@ class Xent : public LossItf {
   double frames_progress_;
   double loss_progress_;
   double entropy_progress_;
+  double correct_progress_;
   std::vector<float> loss_vec_;
 
   // weigting buffer,

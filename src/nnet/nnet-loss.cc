@@ -131,11 +131,13 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
     frames_progress_ += num_frames;
     loss_progress_ += cross_entropy;
     entropy_progress_ += entropy;
+    correct_progress_ += correct;
     if (frames_progress_ > progress_step) {
       KALDI_VLOG(1) << "ProgressLoss[last " 
                     << static_cast<int>(frames_progress_/100/3600) << "h of " 
                     << static_cast<int>(frames_/100/3600) << "h]: " 
-                    << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent)";
+                    << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
+					<< correct_progress_/frames_progress_ << " (Frame accuracy)";
       // store
       loss_vec_.push_back((loss_progress_-entropy_progress_)/frames_progress_);
       // reset
