@@ -144,6 +144,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
       frames_progress_ = 0;
       loss_progress_ = 0.0;
       entropy_progress_ = 0.0;
+      correct_progress_ = 0.0;
     }
   }
 }
