@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
             continue;
           }
       
-          DecodableMatrixScaled *decodable = new DecodableMatrixScaled(loglikes, acoustic_scale); 
+          DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
           DecodeUtteranceLatticeFasterClass *task =
               new DecodeUtteranceLatticeFasterClass(

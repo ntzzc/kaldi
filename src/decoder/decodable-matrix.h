@@ -194,6 +194,38 @@ class DecodableMatrixScaled: public DecodableInterface {
 };
 
 
+class DecodableMatrixScaledCtc: public DecodableInterface {
+ public:
+	DecodableMatrixScaledCtc(const Matrix<BaseFloat> &likes,
+                        BaseFloat scale): likes_(likes),
+                                          scale_(scale) { }
+
+  virtual int32 NumFramesReady() const { return likes_.NumRows(); }
+
+  virtual bool IsLastFrame(int32 frame) const {
+    KALDI_ASSERT(frame < NumFramesReady());
+    return (frame == NumFramesReady() - 1);
+  }
+
+  // Note, frames are numbered from zero. Here "tid" means token id, the indexes of the
+  // CTC label tokens. When we compile the search graph, the tokens are indexed from 1
+  // because 0 is always occupied by <eps>. However, in the softmax layer of the RNN
+  // model, CTC tokens are indexed from 0. Thus, we simply shift "tid" by 1, to solve
+  // the mismatch.
+  virtual BaseFloat LogLikelihood(int32 frame, int32 tid) {
+    return scale_ * likes_(frame, tid-1);
+  }
+
+  // Indices are one-based!  This is for compatibility with OpenFst.
+  virtual int32 NumIndices() const { return likes_.NumCols(); }
+
+ private:
+  const Matrix<BaseFloat> &likes_;
+  BaseFloat scale_;
+  KALDI_DISALLOW_COPY_AND_ASSIGN(DecodableMatrixScaledCtc);
+};
+
+
 }  // namespace kaldi
 
 #endif  // KALDI_DECODER_DECODABLE_MATRIX_H_
