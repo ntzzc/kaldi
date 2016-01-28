@@ -430,7 +430,7 @@ void Nnet::SetDropoutRetention(BaseFloat r)  {
 }
 
 
-void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
+void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size) {
   for (int32 c=0; c < NumComponents(); c++) {
     if (GetComponent(c).GetType() == Component::kLstmProjectedStreams) {
       LstmProjectedStreams& comp = dynamic_cast<LstmProjectedStreams&>(GetComponent(c));
@@ -438,7 +438,7 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
     }    
     else if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
       LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
-      comp.ResetLstmStreams(stream_reset_flag);
+      comp.ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);
     }    
     else if (GetComponent(c).GetType() == Component::kLstmStreams) {
       LstmStreams& comp = dynamic_cast<LstmStreams&>(GetComponent(c));
