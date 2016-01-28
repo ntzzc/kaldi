@@ -687,11 +687,12 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 
   void UpdateGradient()
   {
-	    const BaseFloat lr  = opts_.learn_rate;
+	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+            const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
 
 	    w_gifo_x_.AddMat(-lr, w_gifo_x_corr_);
 	    w_gifo_r_.AddMat(-lr, w_gifo_r_corr_);
-	    bias_.AddVec(-lr, bias_corr_, 1.0);
+	    bias_.AddVec(-lr_bias, bias_corr_, 1.0);
 
 	    peephole_i_c_.AddVec(-lr, peephole_i_c_corr_, 1.0);
 	    peephole_f_c_.AddVec(-lr, peephole_f_c_corr_, 1.0);
