@@ -81,7 +81,7 @@ struct NnetSequentialUpdateOptions {
   	  	  	  	  	  	  	  	 use_gpu("yes"),
 								 si_model_filename(""),
 								 use_psgd(false),
-								 targets_delay(0), batch_size(20), num_stream(0), dump_interval(0),frame_limit(10000),
+								 targets_delay(0), batch_size(0), num_stream(0), dump_interval(0),frame_limit(10000),
 								 trn_opts(trn_opts),
 								 prior_opts(prior_opts),
 								 parallel_opts(parallel_opts){ }

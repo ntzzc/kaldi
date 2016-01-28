@@ -116,7 +116,7 @@ class Nnet {
   /// Set the dropout rate
   void SetDropoutRetention(BaseFloat r);
   /// Reset streams in LSTM multi-stream training,
-  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag);
+  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size = 0);
 
   /// set sequence length in LSTM multi-stream training
   void SetSeqLengths(const std::vector<int32> &sequence_lengths);

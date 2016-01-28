@@ -52,7 +52,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     nrecur_(output_dim),
     nstream_(0),
     clip_gradient_(0.0),
-	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
+	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0), ntruncated_bptt_size_(0)
     //, dropout_rate_(0.0)
   { }
 
@@ -305,7 +305,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       "\n  DR  " + MomentStatistics(DR);
   }
 
-  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
+  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size = 0) {
     // allocate prev_nnet_state_ if not done yet,
     if (nstream_ != stream_reset_flag.size()) {
       // Karel: we just got number of streams! (before the 1st batch comes)
@@ -320,6 +320,13 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
         prev_nnet_state_.Row(s).SetZero();
       }
     }
+
+    if (ntruncated_bptt_size != ntruncated_bptt_size_)
+    {
+    	ntruncated_bptt_size_ = ntruncated_bptt_size;
+    	KALDI_LOG << "Backpropagate Truncated BPTT size " << ntruncated_bptt_size_;
+    }
+
   }
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
@@ -469,6 +476,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
               const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
 
     int DEBUG = 0;
+    float bptt = 1.0;
 
     int32 T = in.NumRows() / nstream_;
     int32 S = nstream_;
@@ -522,10 +530,12 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 
     for (int t = T; t >= 1; t--) {
 
+      if (ntruncated_bptt_size_ > 0)
+    	  bptt = T % ntruncated_bptt_size_ ? 1.0 : 0;
       // r
       //   Version 1 (precise gradients):
       //   backprop error from g(t+1), i(t+1), f(t+1), o(t+1) to r(t)
-      d_r[t]->AddMatMat(1.0, *d_gifo[t+1], kNoTrans, w_gifo_r_, kNoTrans, 1.0);
+      d_r[t]->AddMatMat(1.0, *d_gifo[t+1], kNoTrans, w_gifo_r_, kNoTrans, bptt);
 
       /*
       //   Version 2 (Alex Graves' PhD dissertation):
@@ -558,9 +568,9 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       // 4. diff from f(t+1) (via peephole)
       // 5. diff from o(t)   (via peephole, not recurrent)
       d_c[t]->AddMat(1.0, *d_h[t]);
-      d_c[t]->AddMatMatElements(1.0, *d_c[t+1], *y_f[t+1], 1.0);
-      d_c[t]->AddMatDiagVec(1.0, *d_i[t+1], kNoTrans, peephole_i_c_, 1.0);
-      d_c[t]->AddMatDiagVec(1.0, *d_f[t+1], kNoTrans, peephole_f_c_, 1.0);
+      d_c[t]->AddMatMatElements(1.0, *d_c[t+1], *y_f[t+1], bptt);
+      d_c[t]->AddMatDiagVec(1.0, *d_i[t+1], kNoTrans, peephole_i_c_, bptt);
+      d_c[t]->AddMatDiagVec(1.0, *d_f[t+1], kNoTrans, peephole_f_c_, bptt);
       d_c[t]->AddMatDiagVec(1.0, *d_o[t]  , kNoTrans, peephole_o_c_, 1.0);
 
       // f
@@ -688,7 +698,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   void UpdateGradient()
   {
 	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
-            const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+        const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
 
 	    w_gifo_x_.AddMat(-lr, w_gifo_x_corr_);
 	    w_gifo_r_.AddMat(-lr, w_gifo_r_corr_);
@@ -879,6 +889,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   int32 ncell_;
   int32 nrecur_;  ///< recurrent projection layer dim
   int32 nstream_;
+  int32 ntruncated_bptt_size_;
 
   CuMatrix<BaseFloat> prev_nnet_state_;
 

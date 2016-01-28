@@ -115,8 +115,8 @@ struct NnetCtcStats: NnetStats {
 
         if (opts->objective_function == "xent") {
                 KALDI_LOG << xent.Report();
-	}
-        if (opts->objective_function == "ctc") {
+        }
+        else if (opts->objective_function == "ctc") {
         	KALDI_LOG << ctc.Report();
         } else {
         	KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
