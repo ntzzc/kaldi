@@ -633,6 +633,8 @@ private:
 
 					feat.Resize(max_frame_num * cur_stream_num, feat_dim, kSetZero);
 					nnet_out_host.Resize(max_frame_num * cur_stream_num, out_dim, kUndefined);
+
+					//int truc_frame_num = batch_size>0 ? (max_frame_num+batch_size-1)/batch_size * batch_size : max_frame_num;
 					diff_feat.Resize(max_frame_num * cur_stream_num, out_dim, kSetZero);
 
 					// fill a multi-stream bptt batch
@@ -653,7 +655,7 @@ private:
 					nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
 
 					// for streams with new utterance, history states need to be reset
-					nnet.ResetLstmStreams(new_utt_flags);
+					nnet.ResetLstmStreams(new_utt_flags, batch_size);
 
 					// forward pass
 					nnet.Propagate(feats_transf, &nnet_out);
