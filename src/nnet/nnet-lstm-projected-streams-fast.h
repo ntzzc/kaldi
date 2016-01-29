@@ -321,10 +321,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       }
     }
 
-    if (ntruncated_bptt_size != ntruncated_bptt_size_)
+    if (ntruncated_bptt_size_ != ntruncated_bptt_size)
     {
     	ntruncated_bptt_size_ = ntruncated_bptt_size;
-    	KALDI_LOG << "Backpropagate Truncated BPTT size " << ntruncated_bptt_size_;
+    	KALDI_LOG << "Backpropagate Truncated BPTT size: " << ntruncated_bptt_size_;
     }
 
   }

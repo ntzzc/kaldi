@@ -50,7 +50,7 @@ class LstmStreams : public UpdatableComponent {
     ncell_(0),
     nstream_(0),
     clip_gradient_(0.0),
- 	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
+ 	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0), ntruncated_bptt_size_(0)
     //, dropout_rate_(0.0)
   { }
 
@@ -268,7 +268,7 @@ class LstmStreams : public UpdatableComponent {
       "\n  DM  " + MomentStatistics(DM);
   }
 
-  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
+  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag,  int32 ntruncated_bptt_size) {
     // allocate prev_nnet_state_ if not done yet,
     if (nstream_ != stream_reset_flag.size()) {
       // Karel: we just got number of streams! (before the 1st batch comes)
@@ -282,6 +282,12 @@ class LstmStreams : public UpdatableComponent {
       if (stream_reset_flag[s] == 1) {
         prev_nnet_state_.Row(s).SetZero();
       }
+    }
+
+    if (ntruncated_bptt_size_ != ntruncated_bptt_size)
+    {
+    	ntruncated_bptt_size_ = ntruncated_bptt_size;
+    	KALDI_LOG << "Backpropagate Truncated BPTT size: " << ntruncated_bptt_size_;
     }
   }
 
@@ -405,6 +411,7 @@ class LstmStreams : public UpdatableComponent {
               const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
 
     int DEBUG = 0;
+    float bptt = 1.0;
 
     int32 T = in.NumRows() / nstream_;
     int32 S = nstream_;
@@ -452,10 +459,13 @@ class LstmStreams : public UpdatableComponent {
       CuSubMatrix<BaseFloat> d_h(DH.RowRange(t*S,S));
       CuSubMatrix<BaseFloat> d_m(DM.RowRange(t*S,S));
 
+      if (ntruncated_bptt_size_ > 0)
+    	  bptt = t % ntruncated_bptt_size_ ? 1.0 : 0;
+
       // m
       //   Version 1 (precise gradients):
       //   backprop error from g(t+1), i(t+1), f(t+1), o(t+1) to r(t)
-      d_m.AddMatMat(1.0, DGIFO.RowRange((t+1)*S,S), kNoTrans, w_gifo_m_, kNoTrans, 1.0);
+      d_m.AddMatMat(bptt, DGIFO.RowRange((t+1)*S,S), kNoTrans, w_gifo_m_, kNoTrans, 1.0);
 
       /*
       //   Version 2 (Alex Graves' PhD dissertation):
@@ -485,9 +495,9 @@ class LstmStreams : public UpdatableComponent {
       // 4. diff from f(t+1) (via peephole)
       // 5. diff from o(t)   (via peephole, not recurrent)
       d_c.AddMat(1.0, d_h);
-      d_c.AddMatMatElements(1.0, DC.RowRange((t+1)*S,S), YF.RowRange((t+1)*S,S), 1.0);
-      d_c.AddMatDiagVec(1.0, DI.RowRange((t+1)*S,S), kNoTrans, peephole_i_c_, 1.0);
-      d_c.AddMatDiagVec(1.0, DF.RowRange((t+1)*S,S), kNoTrans, peephole_f_c_, 1.0);
+      d_c.AddMatMatElements(bptt, DC.RowRange((t+1)*S,S), YF.RowRange((t+1)*S,S), 1.0);
+      d_c.AddMatDiagVec(bptt, DI.RowRange((t+1)*S,S), kNoTrans, peephole_i_c_, 1.0);
+      d_c.AddMatDiagVec(bptt, DF.RowRange((t+1)*S,S), kNoTrans, peephole_f_c_, 1.0);
       d_c.AddMatDiagVec(1.0, d_o                   , kNoTrans, peephole_o_c_, 1.0);
 
       // f
@@ -713,6 +723,7 @@ class LstmStreams : public UpdatableComponent {
   // dims
   int32 ncell_;
   int32 nstream_;
+  int32 ntruncated_bptt_size_;
 
   CuMatrix<BaseFloat> prev_nnet_state_;
 
