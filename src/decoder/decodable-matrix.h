@@ -226,6 +226,7 @@ class DecodableMatrixScaledCtc: public DecodableInterface {
 };
 
 
+
 }  // namespace kaldi
 
 #endif  // KALDI_DECODER_DECODABLE_MATRIX_H_
