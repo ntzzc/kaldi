@@ -687,6 +687,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	    if (l2 != 0.0) {
 	    	w_gifo_x_.AddMat(-lr*l2*num_frames, w_gifo_x_);
 	    	w_gifo_r_.AddMat(-lr*l2*num_frames, w_gifo_r_);
+	    	//bias_.AddVec(-lr*l2*num_frames, bias_);
 
 	    	peephole_i_c_.AddVec(-lr*l2*num_frames, peephole_i_c_);
 	    	peephole_f_c_.AddVec(-lr*l2*num_frames, peephole_f_c_);

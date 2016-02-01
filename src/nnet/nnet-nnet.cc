@@ -434,7 +434,7 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 n
   for (int32 c=0; c < NumComponents(); c++) {
     if (GetComponent(c).GetType() == Component::kLstmProjectedStreams) {
       LstmProjectedStreams& comp = dynamic_cast<LstmProjectedStreams&>(GetComponent(c));
-      comp.ResetLstmStreams(stream_reset_flag);
+      comp.ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);
     }    
     else if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
       LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
