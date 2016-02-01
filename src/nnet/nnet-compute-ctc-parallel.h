@@ -45,24 +45,25 @@ struct NnetCtcUpdateOptions : public NnetUpdateOptions {
 
     int32 num_stream;
     int32 max_frames;
+    int32 batch_size;
     int32 targets_delay;
     int32 skip_frames;
 
 
     NnetCtcUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), num_stream(4), max_frames(25000), targets_delay(0),skip_frames(1) { }
+    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), num_stream(4), max_frames(25000), batch_size(0), targets_delay(0),skip_frames(1) { }
 
   	  void Register(OptionsItf *po)
   	  {
-  		  NnetUpdateOptions::Register(po);
+  	  	NnetUpdateOptions::Register(po);
 
-	      po->Register("num-stream", &num_stream, "---CTC--- BPTT multi-stream training");
-
-	      po->Register("max-frames", &max_frames, "Max number of frames to be processed");
+	      	po->Register("num-stream", &num_stream, "---CTC--- BPTT multi-stream training");
+		po->Register("max-frames", &max_frames, "Max number of frames to be processed");
+	        po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
 		
-          po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
+          	po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
 
-          po->Register("skip-frames", &skip_frames, "CTC LSTM model skip frames for next input");
+          	po->Register("skip-frames", &skip_frames, "CTC LSTM model skip frames for next input");
 
   	  }
 };

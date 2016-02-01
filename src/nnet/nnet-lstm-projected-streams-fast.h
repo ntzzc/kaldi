@@ -346,12 +346,14 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     int32 T = in.NumRows() / nstream_;
     int32 S = nstream_;
 
+    bool reset = propagate_buf_.NumRows() != (T+2)*S ? true:false;
+
     // 0:forward pass history, [1, T]:current sequence, T+1:dummy
     propagate_buf_.Resize((T+2)*S, 7 * ncell_ + nrecur_, kSetZero);
     propagate_buf_.RowRange(0*S,S).CopyFromMat(prev_nnet_state_);
 
     // disassemble entire neuron activation buffer into different neurons
-    if (y_g.size() != T+2)
+    if (y_g.size() != T+2 || reset)
     {
     	Destroy();
 
@@ -481,10 +483,12 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     int32 T = in.NumRows() / nstream_;
     int32 S = nstream_;
 
+    bool reset = backpropagate_buf_.NumRows() != (T+2)*S ? true:false;
+
     // 0:dummy, [1,T] frames, T+1 backward pass history
     backpropagate_buf_.Resize((T+2)*S, 7 * ncell_ + nrecur_, kSetZero);
 
-    if (d_g.size() != T+2)
+    if (d_g.size() != T+2 || reset)
     {
         // disassemble backpropagate buffer into neurons
         DG = new CuSubMatrix<BaseFloat>(backpropagate_buf_.ColRange(0*ncell_, ncell_));

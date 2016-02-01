@@ -884,12 +884,19 @@ private:
 		                       << time_now/60 << " min; processed " << total_frames/time_now
 		                       << " frames per second.";
 
-		 	 	 #if HAVE_CUDA==1
-		         	 	 // check the GPU is not overheated
-		         	 	 CuDevice::Instantiate().CheckGpuHealth();
-		 	 	 #endif
+		 	 #if HAVE_CUDA==1
+		         	 // check the GPU is not overheated
+		         	 CuDevice::Instantiate().CheckGpuHealth();
+		 	 #endif
 
 		       }
+			
+		       if (num_done % 250000 == 0)
+			{
+				char name[50];
+				sprintf(name, "%s.%d", model_filename.c_str(),num_done);
+				nnet.Write(string(name), true);
+			}
 
 		       fflush(stderr); 
                	       fsync(fileno(stderr));

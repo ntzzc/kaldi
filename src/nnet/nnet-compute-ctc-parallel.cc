@@ -210,8 +210,9 @@ private:
 
 		int32 num_stream = opts->num_stream;
 		int32 frame_limit = opts->max_frames;
-        int32 targets_delay = opts->targets_delay;
-        int32 skip_frames = opts->skip_frames;
+        	int32 targets_delay = opts->targets_delay;
+		int32 batch_size = opts->batch_size;
+        	int32 skip_frames = opts->skip_frames;
 
 	    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
 	    std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
@@ -313,7 +314,7 @@ private:
 			//nnet.SetSeqLengths(frame_num_utt);
 			//nnet.ResetLstmStreams(frame_num_utt);
 			//for lstm
-			nnet.ResetLstmStreams(new_utt_flags);
+			nnet.ResetLstmStreams(new_utt_flags, batch_size);
 			//for bilstm
 			nnet.SetSeqLengths(frame_num_utt);
 
