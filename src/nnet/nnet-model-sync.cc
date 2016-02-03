@@ -22,6 +22,7 @@
 #include "nnet/nnet-batchnorm-transform.h"
 #include "nnet/nnet-convolutional-2d-component-fast.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
+#include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-lstm-streams.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 #include "nnet/nnet-blstm-streams.h"

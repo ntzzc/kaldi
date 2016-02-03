@@ -26,8 +26,8 @@
 //#include "tree/context-dep.h"
 #include "hmm/transition-model.h"
 #include "fstext/fstext-lib.h"
-#include "decoder/decoder-wrappers.h"
-#include "decoder/decodable-matrix.h"
+#include "/sgfs/users/wd007/src/eesen/src/decoder/decoder-wrappers.h"
+#include "/sgfs/users/wd007/src/eesen/src/decoder/decodable-matrix.h"
 #include "base/timer.h"
 #include "thread/kaldi-task-sequence.h"
 
