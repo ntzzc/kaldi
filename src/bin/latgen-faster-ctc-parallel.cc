@@ -24,20 +24,22 @@
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 //#include "tree/context-dep.h"
-#include "hmm/transition-model.h"
+//#include "hmm/transition-model.h"
 #include "fstext/fstext-lib.h"
-#include "decoder/decoder-wrappers.h"
+#include "decoder-ctc-wrappers.h"
 #include "decoder/decodable-matrix.h"
 #include "base/timer.h"
 #include "thread/kaldi-task-sequence.h"
 
 int main(int argc, char *argv[]) {
   try {
-    using namespace kaldi;
+    using namespace eesen;
     typedef kaldi::int32 int32;
     using fst::SymbolTable;
     using fst::VectorFst;
     using fst::StdArc;
+    using kaldi::TaskSequencer;
+    using kaldi::TaskSequencerConfig;
 
     const char *usage =
         "Generate lattices, reading log-likelihoods as matrices, using multiple decoding threads\n"
@@ -73,7 +75,7 @@ int main(int argc, char *argv[]) {
         words_wspecifier = po.GetOptArg(4),
         alignment_wspecifier = po.GetOptArg(5);
     
-    TransitionModel trans_model;
+    //TransitionModel trans_model;
     //ReadKaldiObject(model_in_filename, &trans_model);
           
     bool determinize = config.determinize_lattice;
@@ -119,11 +121,11 @@ int main(int argc, char *argv[]) {
             continue;
           }
       
-          DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
+          DecodableMatrixScaled *decodable = new DecodableMatrixScaled(loglikes, acoustic_scale);
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
           DecodeUtteranceLatticeFasterClass *task =
               new DecodeUtteranceLatticeFasterClass(
-                  decoder, decodable, trans_model, word_syms, utt,
+                  decoder, decodable, word_syms, utt,
                   acoustic_scale, determinize, allow_partial, &alignment_writer,
                   &words_writer, &compact_lattice_writer, &lattice_writer,
                   &tot_like, &frame_count, &num_success, &num_fail, NULL);
