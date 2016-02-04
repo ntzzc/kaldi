@@ -44,7 +44,8 @@ class GruStreams : public UpdatableComponent {
     UpdatableComponent(input_dim, output_dim),
     ncell_(0),
     nstream_(0),
-    clip_gradient_(0.0)
+    clip_gradient_(0.0),
+    learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0), ntruncated_bptt_size_(0)
   { }
 
   ~GruStreams()
@@ -82,6 +83,9 @@ class GruStreams : public UpdatableComponent {
       //  ReadBasicType(is, false, &dropout_rate_);
       else if (token == "<ParamScale>")
         ReadBasicType(is, false, &param_scale);
+      else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef_);
+      else if (token == "<BiasLearnRateCoef>") ReadBasicType(is, false, &bias_learn_rate_coef_);
+      else if (token == "<MaxNorm>") ReadBasicType(is, false, &max_norm_);
       else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
                << " (CellDim|ClipGradient|ParamScale)";
                //<< " (CellDim|ClipGradient|DropoutRate|ParamScale)";
@@ -213,7 +217,7 @@ class GruStreams : public UpdatableComponent {
       "\n  DH  " + MomentStatistics(DH) ;
   }
 
-  void ResetGRUStreams(const std::vector<int32> &stream_reset_flag) {
+  void ResetGRUStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size) {
     // allocate prev_nnet_state_ if not done yet,
     if (nstream_ == 0) {
       // Karel: we just got number of streams! (before the 1st batch comes)
@@ -228,6 +232,13 @@ class GruStreams : public UpdatableComponent {
         prev_nnet_state_.Row(s).SetZero();
       }
     }
+
+    if (ntruncated_bptt_size_ != ntruncated_bptt_size)
+    {
+    	ntruncated_bptt_size_ = ntruncated_bptt_size;
+    	KALDI_LOG << "Backpropagate Truncated BPTT size: " << ntruncated_bptt_size_;
+    }
+
   }
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
@@ -312,6 +323,7 @@ class GruStreams : public UpdatableComponent {
               const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
 
     int DEBUG = 0;
+    float bptt = 1.0;
 
     int32 T = in.NumRows() / nstream_;
     int32 S = nstream_;
@@ -352,6 +364,8 @@ class GruStreams : public UpdatableComponent {
       CuSubMatrix<BaseFloat> d_h(DH.RowRange(t*S,S));
       CuSubMatrix<BaseFloat> d_rh(DRH_.RowRange(t*S,S));
 
+      if (ntruncated_bptt_size_ > 0)
+    	  bptt = t % ntruncated_bptt_size_ ? 1.0 : 0;
 
       //   backprop error from r(t+1), z(t+1), c(t+1), h(t+1) to h(t)
       d_h.AddMatMatElements(1.0, YZ.RowRange((t+1)*S, S), DH.RowRange((t+1)*S, S),1.0);
@@ -390,44 +404,100 @@ class GruStreams : public UpdatableComponent {
     // r , z , c -> x, do it all in once
     in_diff->AddMatMat(1.0, DRZC.RowRange(1*S,T*S), kNoTrans, w_rzc_x_, kNoTrans, 0.0);
 
+  }
 
-    // calculate delta
-    const BaseFloat mmt = opts_.momentum;
+  void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
+  {
+	    // we use following hyperparameters from the option class
+	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+	    //const BaseFloat mmt = opts_.momentum;
+	    const BaseFloat l2 = opts_.l2_penalty;
+	    const BaseFloat l1 = opts_.l1_penalty;
+	    // we will also need the number of frames in the mini-batch
+	    const int32 num_frames = input.NumRows();
 
-    // weight x -> r , z , c
-    w_rzc_x_corr_.AddMatMat(1.0, DRZC.RowRange(1*S,T*S), kTrans,
-                                  in                     , kNoTrans, mmt);
-    // recurrent weight h -> r , z
-    w_rz_r_corr_.AddMatMat(1.0, DRZ.RowRange(1*S,T*S), kTrans,
-                                  YH.RowRange(0*S,T*S)   , kNoTrans, mmt );
-    // recurrent weight h -> c
-    w_c_r_corr_.AddMatMat(1.0, DC.RowRange(1*S,T*S), kTrans,
-                                  YRH_.RowRange(1*S,T*S), kNoTrans, mmt);
-    // bias of r,z,c
-    bias_corr_.AddRowSumMat(1.0, DRZC.RowRange(1*S,T*S), mmt);
+	    int DEBUG = 0;
+
+	    int32 T = input.NumRows() / nstream_;
+	    int32 S = nstream_;
+
+	    // disassemble propagated buffer into neurons
+	    CuSubMatrix<BaseFloat> YR(propagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YZ(propagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YC(propagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> YH(propagate_buf_.ColRange(3*ncell_, ncell_));
+
+	    CuSubMatrix<BaseFloat> YRZC(propagate_buf_.ColRange(0, 3*ncell_));
+	    CuSubMatrix<BaseFloat> YRZ(propagate_buf_.ColRange(0,2*ncell_));
+
+	    // disassemble backpropagate buffer into neurons
+	    CuSubMatrix<BaseFloat> DR(backpropagate_buf_.ColRange(0*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DZ(backpropagate_buf_.ColRange(1*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DC(backpropagate_buf_.ColRange(2*ncell_, ncell_));
+	    CuSubMatrix<BaseFloat> DH(backpropagate_buf_.ColRange(3*ncell_, ncell_));
+
+	    CuSubMatrix<BaseFloat> DRZC(backpropagate_buf_.ColRange(0, 3*ncell_));
+	    CuSubMatrix<BaseFloat> DRZ(backpropagate_buf_.ColRange(0,2*ncell_));
 
 
-    if (clip_gradient_ > 0.0) {
+	    // calculate delta
+	    const BaseFloat mmt = opts_.momentum;
 
-      w_rzc_x_corr_.ApplyFloor(-clip_gradient_);
-      w_rzc_x_corr_.ApplyCeiling(clip_gradient_);
-      w_rz_r_corr_.ApplyFloor(-clip_gradient_);
-      w_rz_r_corr_.ApplyCeiling(clip_gradient_);
-      w_c_r_corr_.ApplyFloor(-clip_gradient_);
-      w_c_r_corr_.ApplyCeiling(clip_gradient_);
-      bias_corr_.ApplyFloor(-clip_gradient_);
-      bias_corr_.ApplyCeiling(clip_gradient_);
+	    // weight x -> r , z , c
+	    w_rzc_x_corr_.AddMatMat(1.0, DRZC.RowRange(1*S,T*S), kTrans,
+	                                  input                     , kNoTrans, mmt);
+	    // recurrent weight h -> r , z
+	    w_rz_r_corr_.AddMatMat(1.0, DRZ.RowRange(1*S,T*S), kTrans,
+	                                  YH.RowRange(0*S,T*S)   , kNoTrans, mmt );
+	    // recurrent weight h -> c
+	    w_c_r_corr_.AddMatMat(1.0, DC.RowRange(1*S,T*S), kTrans,
+	                                  YRH_.RowRange(1*S,T*S), kNoTrans, mmt);
+	    // bias of r,z,c
+	    bias_corr_.AddRowSumMat(1.0, DRZC.RowRange(1*S,T*S), mmt);
 
-    }
 
-    if (DEBUG) {
-      std::cerr << "gradients(with optional momentum): \n";
-      std::cerr << "w_rzc_x_corr_ " << w_rzc_x_corr_;
-      std::cerr << "w_rz_r_corr_ " << w_rz_r_corr_;
-      std::cerr << "bias_corr_ " << bias_corr_;
-      std::cerr << "w_c_r_corr_ " << w_c_r_corr_;
+	    if (clip_gradient_ > 0.0) {
 
-    }
+	      w_rzc_x_corr_.ApplyFloor(-clip_gradient_);
+	      w_rzc_x_corr_.ApplyCeiling(clip_gradient_);
+	      w_rz_r_corr_.ApplyFloor(-clip_gradient_);
+	      w_rz_r_corr_.ApplyCeiling(clip_gradient_);
+	      w_c_r_corr_.ApplyFloor(-clip_gradient_);
+	      w_c_r_corr_.ApplyCeiling(clip_gradient_);
+	      bias_corr_.ApplyFloor(-clip_gradient_);
+	      bias_corr_.ApplyCeiling(clip_gradient_);
+
+	    }
+
+	    if (DEBUG) {
+	      std::cerr << "gradients(with optional momentum): \n";
+	      std::cerr << "w_rzc_x_corr_ " << w_rzc_x_corr_;
+	      std::cerr << "w_rz_r_corr_ " << w_rz_r_corr_;
+	      std::cerr << "bias_corr_ " << bias_corr_;
+	      std::cerr << "w_c_r_corr_ " << w_c_r_corr_;
+
+	    }
+
+		 // l2 regularization
+		 if (l2 != 0.0) {
+			 w_rzc_x_.AddMat(-lr*l2*num_frames, w_rzc_x_);
+			 w_rz_r_.AddMat(-lr*l2*num_frames, w_rz_r_);
+			 w_c_r_.AddMat(-lr*l2*num_frames, w_c_r_);
+		 	//bias_.AddVec(-lr*l2*num_frames, bias_);
+		 }
+
+  }
+
+  void UpdateGradient()
+  {
+	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
+        const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+
+        w_rzc_x_.AddMat(-lr, w_rzc_x_corr_);
+        w_rz_r_.AddMat(-lr, w_rz_r_corr_);
+        w_c_r_.AddMat(-lr, w_c_r_corr_);
+        bias_.AddVec(-lr_bias, bias_corr_, 1.0);
   }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
@@ -444,6 +514,7 @@ class GruStreams : public UpdatableComponent {
   // dims
   int32 ncell_;
   int32 nstream_;
+  int32 ntruncated_bptt_size_;
 
   CuMatrix<BaseFloat> prev_nnet_state_;
 
@@ -479,6 +550,9 @@ class GruStreams : public UpdatableComponent {
   // back-propagate buffer: diff-input of [g, i, f, o, c, h, m, r]
   CuMatrix<BaseFloat> backpropagate_buf_;
 
+  BaseFloat learn_rate_coef_;
+  BaseFloat bias_learn_rate_coef_;
+  BaseFloat max_norm_;
 };
 } // namespace nnet1
 } // namespace kaldi

@@ -24,6 +24,7 @@
 #include "nnet/nnet-lstm-projected-streams-fast.h"
 #include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-lstm-streams.h"
+#include "nnet/nnet-gru-streams.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 #include "nnet/nnet-blstm-streams.h"
 
@@ -110,6 +111,7 @@ NnetModelSync::GetDim(Nnet *nnet)
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
+	GruStreams *gru_t;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++)
 	{
@@ -178,6 +180,13 @@ NnetModelSync::GetDim(Nnet *nnet)
 					dim += stlstm_t->peephole_f_c_.Dim();
 					dim += stlstm_t->peephole_o_c_.Dim();
 					break;
+				case Component::kGruStreams:
+					gru_t = (GruStreams*)(nnet->components_[n]);
+					dim += gru_t->w_rzc_x_.SizeInBytes()/sizeof(BaseFloat);
+					dim += gru_t->w_rz_r_.SizeInBytes()/sizeof(BaseFloat);
+					dim += gru_t->w_c_r_.SizeInBytes()/sizeof(BaseFloat);
+					dim += gru_t->bias_.Dim();
+					break;
 				case Component::kConvolutional2DComponentFast:
 					conv_t = (Convolutional2DComponentFast*)(nnet->components_[n]);
 					dim += conv_t->filters_.SizeInBytes()/sizeof(BaseFloat);
@@ -226,6 +235,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
+	GruStreams *gru_t;
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
@@ -447,6 +457,36 @@ NnetModelSync::GetWeight(Nnet *nnet)
 
 				break;
 
+			case Component::kGruStreams:
+				gru_t = (GruStreams*)(nnet->components_[n]);
+
+				dim = gru_t->w_rzc_x_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, gru_t->w_rzc_x_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += gru_t->w_rzc_x_.SizeInBytes();
+
+				dim = gru_t->w_rz_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, gru_t->w_rz_r_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += gru_t->w_rz_r_.SizeInBytes();
+
+				dim = gru_t->w_c_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, gru_t->w_c_r_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += gru_t->w_c_r_.SizeInBytes();
+
+				size = gru_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, gru_t->bias_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				break;
+
 			case Component::kConvolutional2DComponentFast:
 				conv_t = (Convolutional2DComponentFast*)(nnet->components_[n]);
 
@@ -527,6 +567,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
+	GruStreams *gru_t;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
@@ -745,6 +786,36 @@ NnetModelSync::SetWeight(Nnet *nnet)
 
 				size = stlstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
 				CU_SAFE_CALL(cudaMemcpy(stlstm_t->peephole_o_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				break;
+
+			case Component::kGruStreams:
+				gru_t = (GruStreams*)(nnet->components_[n]);
+
+				dim = gru_t->w_rzc_x_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(gru_t->w_rzc_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += gru_t->w_rzc_x_.SizeInBytes();
+
+				dim = gru_t->w_rz_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(gru_t->w_rz_r_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += gru_t->w_rz_r_.SizeInBytes();
+
+				dim = gru_t->w_c_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(gru_t->w_c_r_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += gru_t->w_c_r_.SizeInBytes();
+
+				size = gru_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(gru_t->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
 				pos += size;
 
 				break;

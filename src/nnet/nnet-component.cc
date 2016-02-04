@@ -67,6 +67,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kLstmProjectedStreamsFast,"<LstmProjectedStreamsFast>"},
   { Component::kBLstmProjectedStreams,"<BLstmProjectedStreams>"},
   { Component::kBLstmStreams,"<BLstmStreams>"},
+  { Component::kGruStreams,"<GruStreams>"},
   { Component::kSoftmax,"<Softmax>" },
   { Component::kBlockSoftmax,"<BlockSoftmax>" },
   { Component::kSigmoid,"<Sigmoid>" },
@@ -152,6 +153,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kBLstmStreams :
       ans = new BLstmStreams(input_dim, output_dim);
+      break;
+    case Component::kGruStreams :
+      ans = new kGruStreams(input_dim, output_dim);
       break;
     case Component::kSoftmax :
       ans = new Softmax(input_dim, output_dim);
