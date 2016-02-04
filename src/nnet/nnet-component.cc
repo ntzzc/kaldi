@@ -41,6 +41,7 @@
 
 #include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-lstm-streams.h"
+#include "nnet/nnet-gru-streams.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 #include "nnet/nnet-blstm-streams.h"
@@ -155,7 +156,7 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       ans = new BLstmStreams(input_dim, output_dim);
       break;
     case Component::kGruStreams :
-      ans = new kGruStreams(input_dim, output_dim);
+      ans = new GruStreams(input_dim, output_dim);
       break;
     case Component::kSoftmax :
       ans = new Softmax(input_dim, output_dim);
