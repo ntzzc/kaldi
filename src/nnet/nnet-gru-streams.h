@@ -99,7 +99,8 @@ class GruStreams : public UpdatableComponent {
 
     bias_.Resize(3*ncell_, kUndefined);
     InitVecParam(bias_, param_scale);
-
+    CuSubVector<BaseFloat> rz_gate(bias_.Range(0, 2*ncell_));
+    rz_gate.Set(1.0);
 
     // init delta buffers
     w_rzc_x_corr_.Resize(3*ncell_, input_dim_, kSetZero);

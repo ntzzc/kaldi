@@ -24,20 +24,22 @@
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 //#include "tree/context-dep.h"
-#include "hmm/transition-model.h"
+//#include "hmm/transition-model.h"
 #include "fstext/fstext-lib.h"
-#include "/sgfs/users/wd007/src/eesen/src/decoder/decoder-wrappers.h"
-#include "/sgfs/users/wd007/src/eesen/src/decoder/decodable-matrix.h"
-#include "base/timer.h"
 #include "thread/kaldi-task-sequence.h"
+#include "decoder-ctc-wrappers.h"
+#include "decoder/decodable-matrix.h"
+#include "base/timer.h"
 
 int main(int argc, char *argv[]) {
   try {
-    using namespace kaldi;
-    typedef kaldi::int32 int32;
+    using namespace eesen;
+    typedef eesen::int32 int32;
     using fst::SymbolTable;
     using fst::VectorFst;
     using fst::StdArc;
+    using kaldi::TaskSequencer;
+    using kaldi::TaskSequencerConfig;
 
     const char *usage =
         "Generate lattices, reading log-likelihoods as matrices, using multiple decoding threads\n"
@@ -49,11 +51,20 @@ int main(int argc, char *argv[]) {
     bool allow_partial = false;
     BaseFloat acoustic_scale = 0.1;
     LatticeFasterDecoderConfig config;
-    TaskSequencerConfig sequencer_config; // has --num-threads option
 
     std::string word_syms_filename;
     config.Register(&po);
-    sequencer_config.Register(&po);
+    //sequencer_config.Register(&po);
+
+    int32 num_threads, num_threads_total;
+    po.Register("num-threads", &num_threads, "Number of actively processing "
+                   "threads to run in parallel");
+    po.Register("num-threads-total", &num_threads_total, "Total number of "
+                   "threads, including those that are waiting on other threads "
+                   "to produce their output.  Controls memory use.  If <= 0, "
+                   "defaults to --num-threads plus 20.  Otherwise, must "
+                   "be >= num-threads.");
+    TaskSequencerConfig sequencer_config(num_threads, num_threads_total); // has --num-threads option
 
     po.Register("acoustic-scale", &acoustic_scale, "Scaling factor for acoustic likelihoods");
 
@@ -73,7 +84,7 @@ int main(int argc, char *argv[]) {
         words_wspecifier = po.GetOptArg(4),
         alignment_wspecifier = po.GetOptArg(5);
     
-    TransitionModel trans_model;
+    //TransitionModel trans_model;
     //ReadKaldiObject(model_in_filename, &trans_model);
           
     bool determinize = config.determinize_lattice;
@@ -95,7 +106,7 @@ int main(int argc, char *argv[]) {
                    << word_syms_filename;
 
     double tot_like = 0.0;
-    kaldi::int64 frame_count = 0;
+    eesen::int64 frame_count = 0;
     int num_success = 0, num_fail = 0;
 
     VectorFst<StdArc> *decode_fst = NULL; // only used if there is a single
@@ -119,17 +130,31 @@ int main(int argc, char *argv[]) {
             continue;
           }
       
-          DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
+          DecodableMatrixScaled *decodable = new DecodableMatrixScaled(loglikes, acoustic_scale);
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
+          
+	 /*
           DecodeUtteranceLatticeFasterClass *task =
               new DecodeUtteranceLatticeFasterClass(
-                  decoder, decodable, trans_model, word_syms, utt,
+                  decoder, decodable, word_syms, utt,
                   acoustic_scale, determinize, allow_partial, &alignment_writer,
                   &words_writer, &compact_lattice_writer, &lattice_writer,
                   &tot_like, &frame_count, &num_success, &num_fail, NULL);
 
           sequencer.Run(task); // takes ownership of "task",
           // and will delete it when done.
+          */
+	
+          double like;
+          if (DecodeUtteranceLatticeFaster(
+                  *decoder, *decodable, word_syms, utt,
+                  acoustic_scale, determinize, allow_partial, &alignment_writer,
+                  &words_writer, &compact_lattice_writer, &lattice_writer,
+                  &like)) {
+            tot_like += like;
+            frame_count += loglikes.NumRows();
+            num_success++;
+          } else num_fail++;
         }
       }
     } else { // We have different FSTs for different utterances.
