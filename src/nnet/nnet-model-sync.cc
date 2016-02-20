@@ -416,7 +416,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 				pos += size;
 
 				size = lstm_t->peephole_i_f_.Dim()*sizeof(BaseFloat);
-				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_o_c_.Data(), size, cudaMemcpyDeviceToHost));
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_i_f_.Data(), size, cudaMemcpyDeviceToHost));
 				pos += size;
 
 				dim = lstm_t->w_r_m_.Dim();
@@ -753,7 +753,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 				pos += size;
 
 				size = lstm_t->peephole_i_f_.Dim()*sizeof(BaseFloat);
-				CU_SAFE_CALL(cudaMemcpy(lstm_t->peephole_o_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				CU_SAFE_CALL(cudaMemcpy(lstm_t->peephole_i_f_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
 				pos += size;
 
 				dim = lstm_t->w_r_m_.Dim();

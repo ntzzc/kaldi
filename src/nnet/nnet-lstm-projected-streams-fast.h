@@ -115,8 +115,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     peephole_i_c_.Resize(ncell_, kUndefined);
     peephole_f_c_.Resize(ncell_, kUndefined);
     peephole_o_c_.Resize(ncell_, kUndefined);
-
-    peephole_i_f_.Resize(ncell_, 1.0);
+    peephole_i_f_.Resize(ncell_, kUndefined);
+    peephole_i_f_.Set(1.0);
 
     InitVecParam(bias_, param_scale);
     bias_.Range(0*ncell_,ncell_).Set(fgate_param_scale);
@@ -447,7 +447,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       y_f[t]->Sigmoid(*y_f[t]);
 
       // 1-f -> t
-      y_t[t]->AddMat(-1.0, y_f[t]);
+      y_t[t]->AddMat(-1.0, *y_f[t]);
 
       // t -> i via peephole
       y_i[t]->AddMatDiagVec(1.0, *y_t[t], kNoTrans, peephole_i_f_, 0.0);
@@ -671,10 +671,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	    w_gifo_x_corr_.AddMatMat(1.0, DFGO->RowRange(1*S,T*S), kTrans,
 	                                  input                  , kNoTrans, mmt);
 	    // recurrent weight r -> g, i, f, o
-	    w_gifo_r_corr_.AddMatMat(1.0, DIFG->RowRange(1*S,T*S), kTrans,
+	    w_gifo_r_corr_.AddMatMat(1.0, DFG->RowRange(1*S,T*S), kTrans,
 	                                  YR->RowRange(0*S,T*S)   , kNoTrans, mmt);
 	    // bias of g, i, f, o
-	    bias_corr_.AddRowSumMat(1.0, DGIFO->RowRange(1*S,T*S), mmt);
+	    bias_corr_.AddRowSumMat(1.0, DFGO->RowRange(1*S,T*S), mmt);
 
 	    // recurrent peephole c -> i
 	    peephole_i_c_corr_.AddDiagMatMat(1.0, DI->RowRange(1*S,T*S), kTrans,
