@@ -30,6 +30,7 @@
 #include "nnet/nnet-affine-preconditioned-transform.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
 #include "nnet/nnet-lstm-streams.h"
+#include "nnet/nnet-gru-streams.h"
 
 namespace kaldi {
 namespace nnet1 {

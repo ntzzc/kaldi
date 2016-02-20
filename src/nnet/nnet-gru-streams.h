@@ -39,6 +39,7 @@ namespace kaldi {
 namespace nnet1 {
 
 class GruStreams : public UpdatableComponent {
+	friend class NnetModelSync;
  public:
   GruStreams(int32 input_dim, int32 output_dim) :
     UpdatableComponent(input_dim, output_dim),
