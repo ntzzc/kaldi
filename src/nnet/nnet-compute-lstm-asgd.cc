@@ -209,6 +209,7 @@ private:
 		int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
 		int32 targets_delay = opts->targets_delay;
+		int32 skip_frames = opts->skip_frames;
 
 	    //  book-keeping for multi-streams
 	    std::vector<std::string> keys(num_stream);
@@ -216,12 +217,12 @@ private:
 	    std::vector<Posterior> targets(num_stream);
 	    std::vector<int> curt(num_stream, 0);
 	    std::vector<int> lent(num_stream, 0);
+	    std::vector<int> skip_beg(num_stream, 1);
 	    std::vector<int> new_utt_flags(num_stream, 0);
 
 	    // bptt batch buffer
 	    //int32 feat_dim = nnet.InputDim();
 	    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
-	    //Matrix<BaseFloat> feat(batch_size * num_stream, feat_dim, kSetZero);
 	    Posterior target(batch_size * num_stream);
 	    Matrix<BaseFloat> feat;
 
@@ -234,10 +235,18 @@ private:
 	        // if any, feed the exhausted stream with a new utterance, update book-keeping infos
 	        for (int s = 0; s < num_stream; s++) {
 	            // this stream still has valid frames
-	            if (curt[s] < lent[s]) {
+	            if (curt[s] < lent[s] + targets_delay && curt[s] > 0) {
 	                new_utt_flags[s] = 0;
 	                continue;
 	            }
+		    // the next skip sub-utterance 
+		    if (skip_beg[s] < skip_frames && curt[s] > 0) {
+			curt[s] = skip_beg[s];
+			skip_beg[s]++;
+	                new_utt_flags[s] = 1;
+			continue;
+		    }
+			
 	            // else, this stream exhausted, need new utterance
 	            while ((example = dynamic_cast<DNNNnetExample*>(repository_->ProvideExample())) != NULL)
 	            {
@@ -259,6 +268,7 @@ private:
 	                //feats[s] = mat;
 	                targets[s] = target;
 	                curt[s] = 0;
+			skip_beg[s] = 1;
 	                lent[s] = feats[s].NumRows();
 	                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
 	                delete example;
@@ -269,14 +279,14 @@ private:
 	        // we are done if all streams are exhausted
 	        int done = 1;
 	        for (int s = 0; s < num_stream; s++) {
-	            if (curt[s] < lent[s]) done = 0;  // this stream still contains valid data, not exhausted
+	            if (curt[s]  < lent[s] + targets_delay) done = 0;  // this stream still contains valid data, not exhausted
 	        }
 
 	        if (done) break;
 
-	        if (feat.NumCols() != feats[0].NumCols())
+	        if (feat.NumCols() != feats[0].NumCols()) {
 	        	feat.Resize(batch_size * num_stream, feats[0].NumCols(), kSetZero);
-
+		}
 
 	        // fill a multi-stream bptt batch
 	        // * frame_mask: 0 indicates padded frames, 1 indicates valid frames
@@ -285,21 +295,25 @@ private:
 	        for (int t = 0; t < batch_size; t++) {
 	            for (int s = 0; s < num_stream; s++) {
 	                // frame_mask & targets padding
-	                if (curt[s] < lent[s]) {
+	                if (curt[s] < targets_delay) {
+			    frame_mask(t * num_stream + s) = 0;
+			    target[t * num_stream + s] = targets[s][0];
+			}
+	                else if (curt[s] < lent[s] + targets_delay) {
 	                    frame_mask(t * num_stream + s) = 1;
-	                    target[t * num_stream + s] = targets[s][curt[s]];
+	                    target[t * num_stream + s] = targets[s][curt[s]-targets_delay];
 	                } else {
 	                    frame_mask(t * num_stream + s) = 0;
 	                    target[t * num_stream + s] = targets[s][lent[s]-1];
 	                }
 	                // feat shifting & padding
-	                if (curt[s] + targets_delay < lent[s]) {
-	                    feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]+targets_delay));
+	                if (curt[s] < lent[s]) {
+	                    feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]));
 	                } else {
 	                    feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(lent[s]-1));
 	                }
 
-	                curt[s]++;
+	                curt[s] += skip_frames;
 	            }
 	        }
 

@@ -73,6 +73,7 @@ public:
 		const PdfPriorOptions *prior_opts = opts->prior_opts;
 		int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
+		int32 skip_frames = opts->skip_frames;
 
 
 		Nnet nnet_transf;
@@ -206,7 +207,7 @@ public:
 		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(lent[s]-1));
 		               }
 
-		               curt[s]++;
+		               curt[s] += skip_frames;
 		           }
 		       }
 
@@ -245,9 +246,11 @@ public:
 		       for (int t = 0; t < batch_size; t++) {
 		           for (int s = 0; s < num_stream; s++) {
 		               // feat shifting & padding
-		               if (utt_curt[s] < lent[s]) {
-		            	   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
-		            	   utt_curt[s]++;
+		               for (int k = 0; k < skip_frames; k++) {
+		               		if (utt_curt[s] < lent[s]) {
+		            	   	utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
+		            	   	utt_curt[s]++;
+				}
 		               }
 		           }
 		       }
