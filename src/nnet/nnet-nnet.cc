@@ -29,6 +29,7 @@
 
 #include "nnet/nnet-affine-preconditioned-transform.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
+#include "nnet/nnet-lstm-projected-streams-simple.h"
 #include "nnet/nnet-lstm-streams.h"
 #include "nnet/nnet-gru-streams.h"
 
@@ -440,7 +441,11 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 n
     else if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
       LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
       comp.ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);
-    }    
+    }
+    else if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsSimple) {
+      LstmProjectedStreamsSimple& comp = dynamic_cast<LstmProjectedStreamsSimple&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);
+    }
     else if (GetComponent(c).GetType() == Component::kLstmStreams) {
       LstmStreams& comp = dynamic_cast<LstmStreams&>(GetComponent(c));
       comp.ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);

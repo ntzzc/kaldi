@@ -22,6 +22,7 @@
 #include "nnet/nnet-batchnorm-transform.h"
 #include "nnet/nnet-convolutional-2d-component-fast.h"
 #include "nnet/nnet-lstm-projected-streams-fast.h"
+#include "nnet/nnet-lstm-projected-streams-simple.h"
 #include "nnet/nnet-lstm-projected-streams.h"
 #include "nnet/nnet-lstm-streams.h"
 #include "nnet/nnet-gru-streams.h"
@@ -107,6 +108,7 @@ NnetModelSync::GetDim(Nnet *nnet)
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
 	LstmProjectedStreamsFast *lstm_t;
+	LstmProjectedStreamsSimple *splstm_t;
 	LstmProjectedStreams *plstm_t;
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
@@ -169,8 +171,17 @@ NnetModelSync::GetDim(Nnet *nnet)
 					dim += lstm_t->peephole_i_c_.Dim();
 					dim += lstm_t->peephole_f_c_.Dim();
 					dim += lstm_t->peephole_o_c_.Dim();
-					//dim += lstm_t->peephole_i_f_.Dim();
 					dim += lstm_t->w_r_m_.SizeInBytes()/sizeof(BaseFloat);
+					break;
+				case Component::kLstmProjectedStreamsSimple:
+					splstm_t = (LstmProjectedStreamsSimple*)(nnet->components_[n]);
+					dim += splstm_t->w_gifo_x_.SizeInBytes()/sizeof(BaseFloat);
+					dim += splstm_t->w_gifo_r_.SizeInBytes()/sizeof(BaseFloat);
+					dim += splstm_t->bias_.Dim();
+					dim += splstm_t->peephole_f_c_.Dim();
+					dim += splstm_t->peephole_o_c_.Dim();
+					dim += splstm_t->peephole_i_f_.Dim();
+					dim += splstm_t->w_r_m_.SizeInBytes()/sizeof(BaseFloat);
 					break;
 				case Component::kLstmStreams:
 					stlstm_t = (LstmStreams*)(nnet->components_[n]);
@@ -233,6 +244,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
 	LstmProjectedStreamsFast *lstm_t;
+	LstmProjectedStreamsSimple *splstm_t;
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
@@ -415,18 +427,53 @@ NnetModelSync::GetWeight(Nnet *nnet)
 				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_o_c_.Data(), size, cudaMemcpyDeviceToHost));
 				pos += size;
 
-				/*
-				size = lstm_t->peephole_i_f_.Dim()*sizeof(BaseFloat);
-				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, lstm_t->peephole_i_f_.Data(), size, cudaMemcpyDeviceToHost));
-				pos += size;
-				*/
-
 				dim = lstm_t->w_r_m_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, lstm_t->w_r_m_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
 				pos += lstm_t->w_r_m_.SizeInBytes();
+
+				break;
+			case Component::kLstmProjectedStreamsSimple:
+				splstm_t = (LstmProjectedStreamsSimple*)(nnet->components_[n]);
+
+				dim = splstm_t->w_gifo_x_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, splstm_t->w_gifo_x_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += splstm_t->w_gifo_x_.SizeInBytes();
+
+				dim = splstm_t->w_gifo_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, splstm_t->w_gifo_r_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += splstm_t->w_gifo_r_.SizeInBytes();
+
+				size = splstm_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, splstm_t->bias_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				size = splstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, splstm_t->peephole_f_c_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				size = splstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, splstm_t->peephole_o_c_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				size = splstm_t->peephole_i_f_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, splstm_t->peephole_i_f_.Data(), size, cudaMemcpyDeviceToHost));
+				pos += size;
+
+				dim = splstm_t->w_r_m_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch, splstm_t->w_r_m_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += splstm_t->w_r_m_.SizeInBytes();
 
 				break;
 			case Component::kLstmStreams:
@@ -571,6 +618,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv;
 	LstmProjectedStreamsFast *lstm_t;
+	LstmProjectedStreamsSimple *splstm_t;
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
@@ -766,6 +814,47 @@ NnetModelSync::SetWeight(Nnet *nnet)
 				width = dim.cols*sizeof(BaseFloat);
 				CU_SAFE_CALL(cudaMemcpy2D(lstm_t->w_r_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
 				pos += lstm_t->w_r_m_.SizeInBytes();
+				break;
+
+			case Component::kLstmProjectedStreamsSimple:
+				splstm_t = (LstmProjectedStreamsSimple*)(nnet->components_[n]);
+
+				dim = splstm_t->w_gifo_x_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(splstm_t->w_gifo_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += splstm_t->w_gifo_x_.SizeInBytes();
+
+				dim = splstm_t->w_gifo_r_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(splstm_t->w_gifo_r_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += splstm_t->w_gifo_r_.SizeInBytes();
+
+				size = splstm_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(splstm_t->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				size = splstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(splstm_t->peephole_f_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				size = splstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(splstm_t->peephole_o_c_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				size = splstm_t->peephole_i_f_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(splstm_t->peephole_i_f_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+				pos += size;
+
+				dim = splstm_t->w_r_m_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy2D(splstm_t->w_r_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+				pos += splstm_t->w_r_m_.SizeInBytes();
 				break;
 
 			case Component::kLstmStreams:
