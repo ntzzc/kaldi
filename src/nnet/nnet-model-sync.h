@@ -77,13 +77,17 @@ class NnetModelSync{
 public:
 	NnetModelSync(Nnet *nnet, const NnetParallelOptions *opts=NULL):
 		initialized_(false),data_(NULL),free_data_(NULL),dim_(0),nnet(nnet),
-		thread_idx_(0),data_thread_idx_(0),opts_(opts),p_merge_func_(NULL)
+		opts_(opts),p_merge_func_(NULL)
 	{
 		//Init(nnet);
 		MultiMachineInit();
 	}
 
-	~NnetModelSync(){Destory();}
+	~NnetModelSync()
+	{
+		Destory();
+		delete[] isfinished_;
+	}
 
 	void LockModel() {
 		model_mutex_.Lock();
@@ -112,16 +116,6 @@ public:
 		*(this->nnet) = *nnet;
 	}
 
-	int32 GetThreadIdx()
-	{
-		return thread_idx_++;
-	}
-
-	int32 GetDataThreadIdx()
-	{
-		return data_thread_idx_++;
-	}
-
 	ModelMergeFunction *GetModelMergeFunction()
 	{
 		return p_merge_func_;
@@ -134,12 +128,17 @@ public:
 		model_mutex_.Lock();
 		if (!initialized_)
 		{
+			isfinished_ = new bool[opts_->num_threads];
+			for (int i = 0; i < opts_->num_threads; i++)
+				isfinished_[i] = false;
 			this->GetWeight(nnet);
 			InitMergeFunction();
 			initialized_ = true;
 		}
 		model_mutex_.Unlock();
 	}
+
+	bool	*isfinished_;
 
 private:
 	friend class ModelAverageMerge;
@@ -152,14 +151,13 @@ private:
 	void InitMergeFunction();
 
 	bool	initialized_;
+
 	Mutex model_mutex_;
 	Mutex stats_mutex_;
 	BaseFloat *data_;
 	BaseFloat *free_data_;
 	int32 dim_;
 	Nnet *nnet;
-	int32 thread_idx_;
-	int32 data_thread_idx_;
 	const NnetParallelOptions *opts_;
 	ModelMergeFunction *p_merge_func_;
 

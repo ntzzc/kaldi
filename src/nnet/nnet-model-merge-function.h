@@ -47,7 +47,7 @@ public:
 	 /// Interface specification
 public:
 	 ModelMergeFunction(const NnetParallelOptions *opts, NnetModelSync *model_sync)
-		: mLeftMerge(opts->num_merge), mCurrentSamples(0), opts(opts), model_sync_(model_sync)
+		: mLeftMerge(opts->num_merge), mCurrentSamples(0),misLastMerge(false), opts(opts), model_sync_(model_sync)
 	 { }
 
 	 virtual ~ModelMergeFunction()
@@ -78,9 +78,17 @@ public:
 		 mCurrentSamples += frames;
 	 }
 
+	 int MergeStatus(int status);
+
+	 bool isLastMerge()
+	 {
+		 return misLastMerge;
+	 }
+
 protected:
 	 size_t mLeftMerge;
 	 int mCurrentSamples;
+	 bool misLastMerge;
 	 const NnetParallelOptions *opts;
 	 NnetModelSync *model_sync_;
 };

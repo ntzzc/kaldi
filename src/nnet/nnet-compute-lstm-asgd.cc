@@ -383,16 +383,24 @@ private:
 					{
 						model_sync->LockModel();
 
-						if (p_merge_func->CurrentMergeCache() + num_frames > parallel_opts->merge_size && p_merge_func->leftMerge() > 1)
+						if (p_merge_func->CurrentMergeCache() + num_frames > parallel_opts->merge_size)
 						{
-							model_sync->GetWeight(&nnet);
+							if (p_merge_func->leftMerge() <= 1 && !p_merge_func->isLastMerge())
+							{
+								p_merge_func->MergeStatus(1);
+							}
 
-							p_merge_func->Merge(0);
-							KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
-											<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
-							p_merge_func->MergeCacheReset();
+							if (p_merge_func->leftMerge() > 1 || !p_merge_func->isLastMerge())
+							{
+								model_sync->GetWeight(&nnet);
 
-							model_sync->SetWeight(&nnet);
+							    p_merge_func->Merge(0);
+							    KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
+							    				<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+							    p_merge_func->MergeCacheReset();
+
+							    model_sync->SetWeight(&nnet);
+							}
 						}
 
 						p_merge_func->AddMergeCache((int) num_frames);
@@ -434,18 +442,30 @@ private:
 
 		if (parallel_opts->num_procs > 1)
 		{
-			if (p_merge_func->leftMerge() == 1)
+			if (!p_merge_func->isLastMerge())
+				p_merge_func->MergeStatus(0);
+
+			bool last_thread = true;
+			for (int i = 0; i < opts->num_stream; i++)
 			{
+				if (!model_sync->isfinished_[i]){last_thread = false; break;}
+			}
+
+			if (last_thread)
+			{
+				p_merge_func->MergeStatus(0);
+
 				model_sync->GetWeight(&nnet);
 
 				p_merge_func->Merge(0);
 	    		KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
 	    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache();
 	    		model_sync->SetWeight(&nnet);
+
+	    		model_sync->CopyToHost(&nnet);
 			}
 
 		}
-		model_sync->CopyToHost(&nnet);
 
 		model_sync->UnlockModel();
 		}
