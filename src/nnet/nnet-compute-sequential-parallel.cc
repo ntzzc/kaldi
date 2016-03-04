@@ -452,12 +452,13 @@ private:
 		int gpuid;
 
 		model_sync->LockModel();
+		int thread_idx = this->thread_id_;
 
 	    // Select the GPU
 	#if HAVE_CUDA == 1
 	    if (parallel_opts->num_procs > 1)
 	    {
-	    	int32 thread_idx = model_sync->GetThreadIdx();
+	    	//int32 thread_idx = model_sync->GetThreadIdx();
 	    	KALDI_LOG << "MyId: " << parallel_opts->myid << "  ThreadId: " << thread_idx;
 	    	gpuid = CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
 	    	for (int i = 0; i< this->num_threads*parallel_opts->num_procs; i++)

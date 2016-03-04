@@ -53,7 +53,7 @@ int ModelMergeFunction:: MergeStatus(int status)
 {
 	MPI_Barrier(MPI_COMM_WORLD);
 	int total_status = 0;
-	MPI_Reduce(&status, (void*)(&total_status), 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&status, (void*)(&total_status), 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
 	if (total_status < opts->num_procs)
 		this->misLastMerge = true;

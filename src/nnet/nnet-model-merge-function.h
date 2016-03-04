@@ -58,7 +58,7 @@ public:
 	 /// evaluates the data, calculate global error
 	 virtual void Merge(int root) = 0;
 
-	 size_t leftMerge()
+	 int leftMerge()
 	 {
 		 return mLeftMerge;
 	 }
@@ -86,7 +86,7 @@ public:
 	 }
 
 protected:
-	 size_t mLeftMerge;
+	 int mLeftMerge;
 	 int mCurrentSamples;
 	 bool misLastMerge;
 	 const NnetParallelOptions *opts;

@@ -44,7 +44,7 @@ struct NnetParallelOptions{
 
 	NnetParallelOptions():
 									 num_threads(1),
-									 merge_size(400000),
+									 merge_size(40000),
 									 num_merge(0),
 									 num_procs(-1),
 									 myid(0),

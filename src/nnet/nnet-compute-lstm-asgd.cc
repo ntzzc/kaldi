@@ -440,33 +440,40 @@ private:
 		if (!crossvalidate){
 		model_sync->LockModel();
 
+		bool last_thread = true;
+		for (int i = 0; i < parallel_opts->num_threads; i++)
+		{
+			if (i != thread_idx && !model_sync->isfinished_[i]){
+					last_thread = false; 
+					break;
+			}
+		}
+
 		if (parallel_opts->num_procs > 1)
 		{
-			if (!p_merge_func->isLastMerge())
-				p_merge_func->MergeStatus(0);
-
-			bool last_thread = true;
-			for (int i = 0; i < opts->num_stream; i++)
-			{
-				if (!model_sync->isfinished_[i]){last_thread = false; break;}
-			}
-
 			if (last_thread)
 			{
-				p_merge_func->MergeStatus(0);
+				if (!p_merge_func->isLastMerge())
+					p_merge_func->MergeStatus(0);
 
 				model_sync->GetWeight(&nnet);
 
 				p_merge_func->Merge(0);
-	    		KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
-	    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache();
-	    		model_sync->SetWeight(&nnet);
+	    			KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
+	    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+	    			model_sync->SetWeight(&nnet);
 
-	    		model_sync->CopyToHost(&nnet);
 			}
 
 		}
 
+		if (last_thread)
+		{
+			KALDI_VLOG(1) << "Last thread upload model to host.";
+	    		model_sync->CopyToHost(&nnet);
+		}
+
+		model_sync->isfinished_[thread_idx] = true;
 		model_sync->UnlockModel();
 		}
 	}

@@ -572,9 +572,9 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       // 4. diff from f(t+1) (via peephole)
       // 5. diff from o(t)   (via peephole, not recurrent)
       d_c[t]->AddMat(1.0, *d_h[t]);
-      d_c[t]->AddMatMatElements(bptt, *d_c[t+1], *y_f[t+1], 1.0);
-      d_c[t]->AddMatDiagVec(bptt, *d_i[t+1], kNoTrans, peephole_i_c_, 1.0);
-      d_c[t]->AddMatDiagVec(bptt, *d_f[t+1], kNoTrans, peephole_f_c_, 1.0);
+      d_c[t]->AddMatMatElements(1.0, *d_c[t+1], *y_f[t+1], 1.0);
+      d_c[t]->AddMatDiagVec(1.0, *d_i[t+1], kNoTrans, peephole_i_c_, 1.0);
+      d_c[t]->AddMatDiagVec(1.0, *d_f[t+1], kNoTrans, peephole_f_c_, 1.0);
       d_c[t]->AddMatDiagVec(1.0, *d_o[t]  , kNoTrans, peephole_o_c_, 1.0);
 
       // f
