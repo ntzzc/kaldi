@@ -846,26 +846,34 @@ private:
 
 		       //multi-machine
 		       if (parallel_opts->num_procs > 1)
-		       {
-		    	   model_sync->LockModel();
+		    	{
+		    		model_sync->LockModel();
 
-		    	   if (p_merge_func->CurrentMergeCache()+num_frames > parallel_opts->merge_size && p_merge_func->leftMerge() > 1)
-		    	   {
-		    		   model_sync->GetWeight(&nnet);
+		    		if (p_merge_func->CurrentMergeCache() + num_frames > parallel_opts->merge_size)
+		    		{
+		    			if (p_merge_func->leftMerge() <= 1 && !p_merge_func->isLastMerge())
+		    			{
+		    				p_merge_func->MergeStatus(1);
+		    			}
 
-		    		   p_merge_func->Merge(0);
-		    		   KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
-		    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache() <<" frames.";
-		    		   p_merge_func->MergeCacheReset();
+		    			if (p_merge_func->leftMerge() > 1 || !p_merge_func->isLastMerge())
+		    			{
+		    				model_sync->GetWeight(&nnet);
 
-		    		   model_sync->SetWeight(&nnet);
-		    	   }
+		    			    p_merge_func->Merge(0);
+		    			    KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
+		    			    				<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+		    			    p_merge_func->MergeCacheReset();
 
-		    	   p_merge_func->AddMergeCache((int)num_frames);
+		    			    model_sync->SetWeight(&nnet);
+		    			}
+		    		}
 
-		    	   model_sync->UnlockModel();
+		    		p_merge_func->AddMergeCache((int) num_frames);
 
-		       }
+		    		model_sync->UnlockModel();
+
+		    	}
 
 			   // release the buffers we don't need anymore
 			   //feats.Resize(0,0);
@@ -916,22 +924,45 @@ private:
 		model_sync->LockModel();
 
 		//last merge
-		if (parallel_opts->num_procs > 1)
-		{
-			if (p_merge_func->leftMerge() == 1)
-			{
-				model_sync->GetWeight(&nnet);
+		if (!crossvalidate){
+			model_sync->LockModel();
 
-				p_merge_func->Merge(0);
-	    		KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
-	    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache();
-	    		model_sync->SetWeight(&nnet);
+			bool last_thread = true;
+			for (int i = 0; i < parallel_opts->num_threads; i++)
+			{
+				if (i != thread_idx && !model_sync->isfinished_[i]){
+						last_thread = false;
+						break;
+				}
 			}
 
-		}
-		model_sync->CopyToHost(&nnet);
+			if (parallel_opts->num_procs > 1)
+			{
+				if (last_thread)
+				{
+					if (!p_merge_func->isLastMerge())
+						p_merge_func->MergeStatus(0);
 
-		model_sync->UnlockModel();
+					model_sync->GetWeight(&nnet);
+
+					p_merge_func->Merge(0);
+						KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
+									   << " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+						model_sync->SetWeight(&nnet);
+
+				}
+
+			}
+
+			if (last_thread)
+			{
+				KALDI_VLOG(1) << "Last thread upload model to host.";
+					model_sync->CopyToHost(&nnet);
+			}
+
+			model_sync->isfinished_[thread_idx] = true;
+			model_sync->UnlockModel();
+		}
 	}
 
 };

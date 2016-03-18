@@ -335,19 +335,24 @@ private:
 					{
 						model_sync->LockModel();
 
-						if (p_merge_func->CurrentMergeCache() + num_frames > parallel_opts->merge_size && p_merge_func->leftMerge() > 1)
+						if (p_merge_func->CurrentMergeCache() + num_frames > parallel_opts->merge_size)
 						{
-							model_sync->GetWeight(&nnet);
+							if (p_merge_func->leftMerge() <= 1 && !p_merge_func->isLastMerge())
+							{
+								p_merge_func->MergeStatus(1);
+							}
 
-							mpi_time.Reset();
-							p_merge_func->Merge(0);
-							double gap = mpi_time.Elapsed();
-							KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
-											<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames, "
-											<< "time elapsed = " << gap << " s.";
-							p_merge_func->MergeCacheReset();
+							if (p_merge_func->leftMerge() > 1 || !p_merge_func->isLastMerge())
+							{
+								model_sync->GetWeight(&nnet);
 
-							model_sync->SetWeight(&nnet);
+							    p_merge_func->Merge(0);
+							    KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
+							    				<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+							    p_merge_func->MergeCacheReset();
+
+							    model_sync->SetWeight(&nnet);
+							}
 						}
 
 						p_merge_func->AddMergeCache((int) num_frames);
@@ -386,24 +391,43 @@ private:
 
 		//last merge
 		if (!crossvalidate){
-		model_sync->LockModel();
+			model_sync->LockModel();
 
-		if (parallel_opts->num_procs > 1)
-		{
-			if (p_merge_func->leftMerge() == 1)
+			bool last_thread = true;
+			for (int i = 0; i < parallel_opts->num_threads; i++)
 			{
-				model_sync->GetWeight(&nnet);
-
-				p_merge_func->Merge(0);
-	    		KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
-	    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache();
-	    		model_sync->SetWeight(&nnet);
+				if (i != thread_idx && !model_sync->isfinished_[i]){
+						last_thread = false;
+						break;
+				}
 			}
 
-		}
-		model_sync->CopyToHost(&nnet);
+			if (parallel_opts->num_procs > 1)
+			{
+				if (last_thread)
+				{
+					if (!p_merge_func->isLastMerge())
+						p_merge_func->MergeStatus(0);
 
-		model_sync->UnlockModel();
+					model_sync->GetWeight(&nnet);
+
+					p_merge_func->Merge(0);
+						KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
+									   << " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+						model_sync->SetWeight(&nnet);
+
+				}
+
+			}
+
+			if (last_thread)
+			{
+				KALDI_VLOG(1) << "Last thread upload model to host.";
+					model_sync->CopyToHost(&nnet);
+			}
+
+			model_sync->isfinished_[thread_idx] = true;
+			model_sync->UnlockModel();
 		}
 	}
 
