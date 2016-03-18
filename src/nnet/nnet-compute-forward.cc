@@ -125,8 +125,12 @@ public:
 	    int32 feat_dim = nnet.InputDim();
 	    int32 out_dim = nnet.OutputDim();
 	    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
-	    Matrix<BaseFloat> feat(batch_size * num_stream, feat_dim, kSetZero);
-	    Matrix<BaseFloat> nnet_out_host(batch_size * num_stream, out_dim, kSetZero);
+	    Matrix<BaseFloat> feat, nnet_out_host;
+	    if (batch_size * num_stream > 0)
+	    {
+	    	feat.Resize(batch_size * num_stream, feat_dim, kSetZero);
+	    	nnet_out_host.Resize(batch_size * num_stream, out_dim, kSetZero);
+	    }
 
 
 	    kaldi::int64 total_frames = 0;
@@ -246,7 +250,8 @@ public:
 		       for (int t = 0; t < batch_size; t++) {
 		           for (int s = 0; s < num_stream; s++) {
 		               // feat shifting & padding
-		               for (int k = 0; k < skip_frames; k++) {
+		               for (int k = 0; k < skip_frames; k++) 
+		               {
 		               		if (utt_curt[s] < lent[s]) {
 		            	   	utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
 		            	   	utt_curt[s]++;
