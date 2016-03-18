@@ -268,7 +268,7 @@ private:
 	                //feats[s] = mat;
 	                targets[s] = target;
 	                curt[s] = 0;
-			skip_beg[s] = 1;
+	                skip_beg[s] = 1;
 	                lent[s] = feats[s].NumRows();
 	                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
 	                delete example;
@@ -438,43 +438,43 @@ private:
 
 		//last merge
 		if (!crossvalidate){
-		model_sync->LockModel();
+			model_sync->LockModel();
 
-		bool last_thread = true;
-		for (int i = 0; i < parallel_opts->num_threads; i++)
-		{
-			if (i != thread_idx && !model_sync->isfinished_[i]){
-					last_thread = false; 
-					break;
+			bool last_thread = true;
+			for (int i = 0; i < parallel_opts->num_threads; i++)
+			{
+				if (i != thread_idx && !model_sync->isfinished_[i]){
+						last_thread = false;
+						break;
+				}
 			}
-		}
 
-		if (parallel_opts->num_procs > 1)
-		{
+			if (parallel_opts->num_procs > 1)
+			{
+				if (last_thread)
+				{
+					if (!p_merge_func->isLastMerge())
+						p_merge_func->MergeStatus(0);
+
+					model_sync->GetWeight(&nnet);
+
+					p_merge_func->Merge(0);
+						KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
+									   << " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
+						model_sync->SetWeight(&nnet);
+
+				}
+
+			}
+
 			if (last_thread)
 			{
-				if (!p_merge_func->isLastMerge())
-					p_merge_func->MergeStatus(0);
-
-				model_sync->GetWeight(&nnet);
-
-				p_merge_func->Merge(0);
-	    			KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
-	    						   << " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
-	    			model_sync->SetWeight(&nnet);
-
+				KALDI_VLOG(1) << "Last thread upload model to host.";
+					model_sync->CopyToHost(&nnet);
 			}
 
-		}
-
-		if (last_thread)
-		{
-			KALDI_VLOG(1) << "Last thread upload model to host.";
-	    		model_sync->CopyToHost(&nnet);
-		}
-
-		model_sync->isfinished_[thread_idx] = true;
-		model_sync->UnlockModel();
+			model_sync->isfinished_[thread_idx] = true;
+			model_sync->UnlockModel();
 		}
 	}
 
