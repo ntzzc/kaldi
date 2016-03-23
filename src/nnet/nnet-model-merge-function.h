@@ -38,7 +38,8 @@ public:
 		MER_FUN_I = 0x0400,
 		AVERAGE,
 		GLOBAL_ADAGRAD,
-		GLOBAL_SUM
+		GLOBAL_SUM,
+		GLOBAL_GRADIENT
 	} MerFunType;
 
 	/// Factory for creating objective function instances
@@ -155,6 +156,51 @@ protected:
 		float mLearningRate;
 		BaseFloat *nnet_data_;
 		BaseFloat *nnet_free_data_;
+		int32 dim_;
+};
+
+/**
+ * Model global gradient sum merge.
+ */
+class ModelGlobalGradientMerge : public ModelMergeFunction
+{
+
+public:
+	ModelGlobalGradientMerge(const NnetParallelOptions *opts, NnetModelSync *model_sync)
+		  	  : mLearningRate(1.0),mmt(0.5),nnet_data_(NULL),nnet_free_data_(NULL),gradient_data_(NULL),gradient_free_data_(NULL),
+				dim_(0),ModelMergeFunction(opts, model_sync)
+			{
+				Init();
+			}
+
+		virtual ~ModelGlobalGradientMerge()
+		{ }
+
+
+		virtual MerFunType GetTypeId()
+		{ return ModelGlobalGradientMerge::GLOBAL_GRADIENT; }
+
+		virtual void Merge(int root);
+
+		 float LearningRate()
+		 {
+		 	return mLearningRate;
+		 }
+
+		 void SetLearningRate(float lrate=1.0)
+		 {
+		 	mLearningRate = lrate;
+		 }
+
+protected:
+		 void Init();
+
+		float mLearningRate;
+		float mmt;
+		BaseFloat *nnet_data_;
+		BaseFloat *nnet_free_data_;
+		BaseFloat *gradient_data_;
+		BaseFloat *gradient_free_data_;
 		int32 dim_;
 };
 
