@@ -36,12 +36,15 @@ ModelMergeFunction::Factory(const NnetParallelOptions *opts, NnetModelSync *mode
 		type = AVERAGE;
 	else if (opts->merge_func == "globalsum")
 		type = GLOBAL_SUM;
-	else
+	else if (opts->merge_func == "globalgradient")
+		type = GLOBAL_GRADIENT;
+	else if (opts->merge_func == "globaladagrad")
 		type = GLOBAL_ADAGRAD;
 
 	switch(type) {
 	case AVERAGE:  ret = new ModelAverageMerge(opts, model_sync);  break;
 	case GLOBAL_SUM:      ret = new ModelGlobalSumMerge(opts, model_sync);     break;
+	case GLOBAL_GRADIENT:      ret = new ModelGlobalGradientMerge(opts, model_sync);     break;
 	case GLOBAL_ADAGRAD:		   ret = new ModelGlobalAdagradMerge(opts, model_sync); break;
 	default: KALDI_ERR<< "Unknown MergeFunction type";
 	break;
@@ -60,6 +63,9 @@ int ModelMergeFunction:: MergeStatus(int status)
 	return	total_status;
 }
 
+/**
+ * Model average.
+ */
 void ModelAverageMerge::Merge(int root)
 {
 
@@ -153,7 +159,103 @@ void ModelGlobalSumMerge::Merge(int root)
 
 }
 
+/**
+ * Model global gradient sum merge.
+ */
 
+void ModelGlobalGradientMerge::Init()
+{
+	if (NULL != this->nnet_free_data_)
+		return;
+
+	size_t size = 0;
+	void *nnet_data_ = NULL;
+	void *nnet_free_data_ = NULL;
+	void *gradient_data_ = NULL;
+	void *gradient_free_data_ = NULL;
+
+	this->dim_ = this->model_sync_->Dim();
+
+	size = dim_ * sizeof(BaseFloat)+16;
+	CU_SAFE_CALL(cudaHostAlloc((void**) &nnet_free_data_, size, cudaHostAllocPortable)); //cudaHostAllocDefault
+	nnet_data_ = (nnet_free_data_ ? (void *)( (((unsigned long)*(&nnet_free_data_)) + 15) & ~0xFUL ) : NULL) ;
+
+	if (NULL != nnet_data_)
+	{
+		this->nnet_data_ = static_cast<BaseFloat*> (nnet_data_);
+		this->nnet_free_data_ = static_cast<BaseFloat*> (nnet_free_data_);
+
+		CU_SAFE_CALL(cudaMemcpy(this->nnet_data_, this->model_sync_->data_, dim_*sizeof(BaseFloat), cudaMemcpyHostToHost));
+	}
+	else
+	{
+	    throw std::bad_alloc();
+	}
+
+	CU_SAFE_CALL(cudaHostAlloc((void**) &gradient_free_data_, size, cudaHostAllocPortable)); //cudaHostAllocDefault
+	gradient_data_ = (gradient_free_data_ ? (void *)( (((unsigned long)*(&gradient_free_data_)) + 15) & ~0xFUL ) : NULL) ;
+
+	if (NULL != gradient_data_)
+	{
+		this->gradient_data_ = static_cast<BaseFloat*> (gradient_data_);
+		this->gradient_free_data_ = static_cast<BaseFloat*> (gradient_free_data_);
+
+		CU_SAFE_CALL(cudaMemset(this->gradient_data_, 0, dim_*sizeof(BaseFloat)));
+	}
+	else
+	{
+	    throw std::bad_alloc();
+	}
+
+}
+
+
+void ModelGlobalGradientMerge::Merge(int root)
+{
+
+	void *srcaddr = (void *) (opts->myid==root ? MPI_IN_PLACE : this->model_sync_->data_);
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Reduce(srcaddr, (void*)(this->model_sync_->data_),
+			this->model_sync_->dim_, MPI_FLOAT, MPI_SUM, root, MPI_COMM_WORLD);
+
+	if (opts->myid == root)
+	{
+		// average W(t)
+		cblas_Xscal(model_sync_->Dim(), 1.0/opts->num_procs, model_sync_->data_, 1);
+		// global gradient G(t) = average W(t) - W(t-1)
+		cblas_Xaxpy(this->dim_, -1, this->nnet_data_, 1, model_sync->data_, 1);
+		// delta(t) = mmt * delta_(t-1) + lr * G(t)
+		mmt = 1.0 - 1.0/this->opts->num_procs;
+		cblas_Xscal(this->dim_, mmt, this->gradient_data_, 1);
+		cblas_Xaxpy(this->dim_, this->mLearningRate, model_sync->data_, 1, this->gradient_data_, 1);
+
+		// W(t) = W(t-1) + delta(t)
+		cblas_Xaxpy(this->dim_, 1.0, this->gradient_data_, 1, this->nnet_data_, 1);
+	}
+
+
+	//std::cout<<"Adagrad Reduce finished!"<<std::endl;
+			//t1 = MPI_Wtime();
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Bcast((void*)(this->nnet_data_), dim_, MPI_FLOAT, root, MPI_COMM_WORLD);
+
+	//std::memcpy(model_sync->data_, this->nnet_data_, dim_ * sizeof(BaseFloat));
+	CU_SAFE_CALL(cudaMemcpy(model_sync->data_, this->nnet_data_, dim_ * sizeof(BaseFloat), cudaMemcpyHostToHost));
+
+	//t2 = MPI_Wtime();
+			//c = (t2-t1)*1000;
+			//std::cout<<"Bcast finished!"<<std::endl;
+			//printf("ModelAdagrad ---- Reduce, Adagrad, Bcast, total time: %.2lf %.2lf %.2lf %.2lf ms.\n",a,b,c,a+b+c);
+
+	this->mLeftMerge--;
+
+}
+
+
+/**
+ * Model global adagrad merge.
+ */
 
 
 void ModelGlobalAdagradMerge::AdaGrad(int32 dim, BaseFloat eta, BaseFloat K, const BaseFloat *gradient)
