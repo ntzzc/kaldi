@@ -921,10 +921,8 @@ private:
 		stats_->num_done += num_done;
 		model_sync->UnlockStates();
 
-		model_sync->LockModel();
 
 		//last merge
-		if (!crossvalidate){
 			model_sync->LockModel();
 
 			bool last_thread = true;
@@ -962,7 +960,6 @@ private:
 
 			model_sync->isfinished_[thread_idx] = true;
 			model_sync->UnlockModel();
-		}
 	}
 
 };
