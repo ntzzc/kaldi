@@ -70,6 +70,7 @@ struct NnetParallelOptions{
 
 class ModelAverageMerge;
 class ModelGlobalSumMerge;
+class ModelGlobalGradientMerge;
 class ModelGlobalAdagradMerge;
 class ModelMergeFunction;
 
@@ -143,6 +144,7 @@ public:
 private:
 	friend class ModelAverageMerge;
 	friend class ModelGlobalSumMerge;
+	friend class ModelGlobalGradientMerge;
 	friend class ModelGlobalAdagradMerge;
 
 

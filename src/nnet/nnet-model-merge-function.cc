@@ -224,11 +224,11 @@ void ModelGlobalGradientMerge::Merge(int root)
 		// average W(t)
 		cblas_Xscal(model_sync_->Dim(), 1.0/opts->num_procs, model_sync_->data_, 1);
 		// global gradient G(t) = average W(t) - W(t-1)
-		cblas_Xaxpy(this->dim_, -1, this->nnet_data_, 1, model_sync->data_, 1);
+		cblas_Xaxpy(this->dim_, -1, this->nnet_data_, 1, model_sync_->data_, 1);
 		// delta(t) = mmt * delta_(t-1) + lr * G(t)
-		mmt = 1.0 - 1.0/this->opts->num_procs;
+		mmt = 1.0 - 1.8/this->opts->num_procs;
 		cblas_Xscal(this->dim_, mmt, this->gradient_data_, 1);
-		cblas_Xaxpy(this->dim_, this->mLearningRate, model_sync->data_, 1, this->gradient_data_, 1);
+		cblas_Xaxpy(this->dim_, this->mLearningRate, model_sync_->data_, 1, this->gradient_data_, 1);
 
 		// W(t) = W(t-1) + delta(t)
 		cblas_Xaxpy(this->dim_, 1.0, this->gradient_data_, 1, this->nnet_data_, 1);
@@ -241,7 +241,7 @@ void ModelGlobalGradientMerge::Merge(int root)
 	MPI_Bcast((void*)(this->nnet_data_), dim_, MPI_FLOAT, root, MPI_COMM_WORLD);
 
 	//std::memcpy(model_sync->data_, this->nnet_data_, dim_ * sizeof(BaseFloat));
-	CU_SAFE_CALL(cudaMemcpy(model_sync->data_, this->nnet_data_, dim_ * sizeof(BaseFloat), cudaMemcpyHostToHost));
+	CU_SAFE_CALL(cudaMemcpy(this->model_sync_->data_, this->nnet_data_, dim_ * sizeof(BaseFloat), cudaMemcpyHostToHost));
 
 	//t2 = MPI_Wtime();
 			//c = (t2-t1)*1000;
