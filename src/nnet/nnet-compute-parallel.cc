@@ -347,7 +347,8 @@ private:
 								model_sync->GetWeight(&nnet);
 
 							    p_merge_func->Merge(0);
-							    KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge - p_merge_func->leftMerge()
+							    KALDI_VLOG(1) << "Model " << parallel_opts->merge_func << " merge NO."
+										<< parallel_opts->num_merge - p_merge_func->leftMerge()
 							    				<< " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
 							    p_merge_func->MergeCacheReset();
 

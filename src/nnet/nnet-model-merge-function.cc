@@ -230,11 +230,10 @@ void ModelGlobalGradientMerge::Merge(int root)
 		cblas_Xscal(this->dim_, mmt, this->gradient_data_, 1);
 		cblas_Xaxpy(this->dim_, this->mLearningRate, model_sync_->data_, 1, this->gradient_data_, 1);
 
-		// W(t) = W(t-1) + delta(t)
-		//CBM
-		cblas_Xaxpy(this->dim_, 1.0, this->gradient_data_, 1, this->nnet_data_, 1);
-		//NBM
-		//cblas_Xaxpy(this->dim_, 1.0+mmt, this->gradient_data_, 1, this->nnet_data_, 1);
+		// CBM: W(t) = W(t-1) + delta(t)
+		//cblas_Xaxpy(this->dim_, 1.0, this->gradient_data_, 1, this->nnet_data_, 1);
+		// NBM: W(t) = W(t-1) + delta(t) + mmt*delta(t)
+		cblas_Xaxpy(this->dim_, 1.0+mmt, this->gradient_data_, 1, this->nnet_data_, 1);
 	}
 
 
