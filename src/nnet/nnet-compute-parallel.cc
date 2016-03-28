@@ -213,39 +213,42 @@ private:
 		int32 update_frames = 0, num_frames = 0, num_done = 0;
 		kaldi::int64 total_frames = 0;
 
-		while ((example = dynamic_cast<DNNNnetExample*>(repository_->ProvideExample())) != NULL)
+		while (1)
 		{
-			//time.Reset();
-			std::string utt = example->utt;
-			const Matrix<BaseFloat> &mat = example->input_frames;
-			Posterior &targets = example->targets;
-			Vector<BaseFloat> &weights = example->frames_weights;
-			//t1 = time.Elapsed();
-			//time.Reset();
+			while (!feature_randomizer.IsFull() && (example = dynamic_cast<DNNNnetExample*>(repository_->ProvideExample())) != NULL)
+			{
+				//time.Reset();
+				std::string utt = example->utt;
+				const Matrix<BaseFloat> &mat = example->input_frames;
+				Posterior &targets = example->targets;
+				Vector<BaseFloat> &weights = example->frames_weights;
+				//t1 = time.Elapsed();
+				//time.Reset();
 
-	        // apply optional feature transform
-	        nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
+		        // apply optional feature transform
+		        nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
 
-	        // pass data to randomizers
-	        KALDI_ASSERT(feats_transf.NumRows() == targets.size());
-	        feature_randomizer.AddData(feats_transf);
-	        targets_randomizer.AddData(targets);
-	        weights_randomizer.AddData(weights);
-	        num_done++;
+		        // pass data to randomizers
+		        KALDI_ASSERT(feats_transf.NumRows() == targets.size());
+		        feature_randomizer.AddData(feats_transf);
+		        targets_randomizer.AddData(targets);
+		        weights_randomizer.AddData(weights);
+		        num_done++;
 
-	        // report the speed
-	        if (num_done % 5000 == 0) {
-	          double time_now = time.Elapsed();
-	          KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
-	                        << time_now/60 << " min; processed " << total_frames/time_now
-	                        << " frames per second.";
-	        }
+		        // report the speed
+		        if (num_done % 5000 == 0) {
+		          double time_now = time.Elapsed();
+		          KALDI_VLOG(1) << "After " << num_done << " utterances: time elapsed = "
+		                        << time_now/60 << " min; processed " << total_frames/time_now
+		                        << " frames per second.";
+		        }
 
-	        // release the buffers we don't need anymore
-	       	delete example;
+		        // release the buffers we don't need anymore
+		       	delete example;
+			}
 
-	        if (!feature_randomizer.IsFull())
-	        		continue;
+	        if (feature_randomizer.Done())
+	        		break;
 
 		      // randomize
       		if (!crossvalidate && opts->randomize) {
