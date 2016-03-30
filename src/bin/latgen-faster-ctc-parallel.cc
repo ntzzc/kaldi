@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
     VectorFst<StdArc> *decode_fst = NULL; // only used if there is a single
                                           // decoding graph.
     
-    TaskSequencer<DecodeUtteranceLatticeFasterClass> sequencer(sequencer_config);
+    TaskSequencer<DecodeUtteranceLatticeFasterCtcClass> sequencer(sequencer_config);
     if (ClassifyRspecifier(fst_in_str, NULL, NULL) == kNoRspecifier) {
       SequentialBaseFloatMatrixReader loglike_reader(feature_rspecifier);
       // Input FST is just one FST, not a table of FSTs.
@@ -134,8 +134,8 @@ int main(int argc, char *argv[]) {
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
           
           /*
-          DecodeUtteranceLatticeFasterClass *task =
-              new DecodeUtteranceLatticeFasterClass(
+          DecodeUtteranceLatticeFasterCtcClass *task =
+              new DecodeUtteranceLatticeFasterCtcClass(
                   decoder, decodable, trans_model, word_syms, utt,
                   acoustic_scale, determinize, allow_partial, &alignment_writer,
                   &words_writer, &compact_lattice_writer, &lattice_writer,
@@ -146,8 +146,8 @@ int main(int argc, char *argv[]) {
 			*/
 
           double like;
-                    if (DecodeUtteranceLatticeFaster(
-                            decoder, decodable, trans_model, word_syms, utt,
+                    if (DecodeUtteranceLatticeFasterCtc(
+                            *decoder, *decodable, trans_model, word_syms, utt,
                             acoustic_scale, determinize, allow_partial, &alignment_writer,
                             &words_writer, &compact_lattice_writer, &lattice_writer,
                             &like)) {
@@ -180,8 +180,8 @@ int main(int argc, char *argv[]) {
           new LatticeFasterDecoder(fst_reader.Value(), config);
         DecodableMatrixScaledMapped *decodable = new
             DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
-        DecodeUtteranceLatticeFasterClass *task =
-            new DecodeUtteranceLatticeFasterClass(
+        DecodeUtteranceLatticeFasterCtcClass *task =
+            new DecodeUtteranceLatticeFasterCtcClass(
                 decoder, decodable, trans_model, word_syms, utt, acoustic_scale,
                 determinize, allow_partial, &alignment_writer, &words_writer,
                 &compact_lattice_writer, &lattice_writer, &tot_like,

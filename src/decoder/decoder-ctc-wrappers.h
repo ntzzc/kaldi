@@ -36,7 +36,7 @@ namespace kaldi {
 /// other obvious place to put it.  If determinize == false, it writes to
 /// lattice_writer, else to compact_lattice_writer.  The writers for
 /// alignments and words will only be written to if they are open.
-bool DecodeUtteranceLatticeFaster(
+bool DecodeUtteranceLatticeFasterCtc(
     LatticeFasterDecoder &decoder, // not const but is really an input.
     DecodableInterface &decodable, // not const but is really an input.
     const TransitionModel &trans_model,
@@ -57,12 +57,12 @@ bool DecodeUtteranceLatticeFaster(
 /// using code in ../thread/kaldi-task-sequence.h.  The main
 /// computation takes place in operator (), and the output happens
 /// in the destructor.
-class DecodeUtteranceLatticeFasterClass {
+class DecodeUtteranceLatticeFasterCtcClass {
  public:
   // Initializer sets various variables.
   // NOTE: we "take ownership" of "decoder" and "decodable".  These
   // are deleted by the destructor.  On error, "num_err" is incremented.
-  DecodeUtteranceLatticeFasterClass(
+  DecodeUtteranceLatticeFasterCtcClass(
       LatticeFasterDecoder *decoder,
       DecodableInterface *decodable,
 	  const TransitionModel &trans_model,
@@ -81,7 +81,7 @@ class DecodeUtteranceLatticeFasterClass {
       int32 *num_err,  // on failure, increments this.
       int32 *num_partial);  // If partial decode (final-state not reached), increments this.
   void operator () (); // The decoding happens here.
-  ~DecodeUtteranceLatticeFasterClass(); // Output happens here.
+  ~DecodeUtteranceLatticeFasterCtcClass(); // Output happens here.
  private:
   // The following variables correspond to inputs:
   LatticeFasterDecoder *decoder_;

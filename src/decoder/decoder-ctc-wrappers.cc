@@ -17,7 +17,7 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "decoder-ctc-wrappers.h"
+#include "decoder/decoder-ctc-wrappers.h"
 #include "decoder/faster-decoder.h"
 
 namespace kaldi {
@@ -26,7 +26,7 @@ namespace kaldi {
 
 
 // Takes care of output.  Returns true on success.
-bool DecodeUtteranceLatticeFaster(
+bool DecodeUtteranceLatticeFasterCtc(
     LatticeFasterDecoder &decoder, // not const but is really an input.
     DecodableInterface &decodable, // not const but is really an input.
     const TransitionModel &trans_model,
@@ -125,7 +125,7 @@ bool DecodeUtteranceLatticeFaster(
 
 
 
-DecodeUtteranceLatticeFasterClass::DecodeUtteranceLatticeFasterClass(
+DecodeUtteranceLatticeFasterCtcClass::DecodeUtteranceLatticeFasterCtcClass(
     LatticeFasterDecoder *decoder,
     DecodableInterface *decodable,
     const TransitionModel &trans_model,
@@ -157,7 +157,7 @@ DecodeUtteranceLatticeFasterClass::DecodeUtteranceLatticeFasterClass(
     clat_(NULL), lat_(NULL) { }
 
 
-void DecodeUtteranceLatticeFasterClass::operator () () {
+void DecodeUtteranceLatticeFasterCtcClass::operator () () {
   // Decoding and lattice determinization happens here.
   computed_ = true; // Just means this function was called-- a check on the
   // calling code.
@@ -190,7 +190,7 @@ void DecodeUtteranceLatticeFasterClass::operator () () {
   if (determinize_) {
     clat_ = new CompactLattice;
     if (!DeterminizeLatticePhonePrunedWrapper(
-    		trans_model,
+	    *trans_model_,
             lat_,
             decoder_->GetOptions().lattice_beam,
             clat_,
@@ -209,7 +209,7 @@ void DecodeUtteranceLatticeFasterClass::operator () () {
   }
 }
 
-DecodeUtteranceLatticeFasterClass::~DecodeUtteranceLatticeFasterClass() {
+DecodeUtteranceLatticeFasterCtcClass::~DecodeUtteranceLatticeFasterCtcClass() {
   if (!computed_)
     KALDI_ERR << "Destructor called without operator (), error in calling code.";
 
