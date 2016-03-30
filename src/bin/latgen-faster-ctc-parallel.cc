@@ -24,7 +24,7 @@
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 //#include "tree/context-dep.h"
-#include "hmm/transition-model.h"
+//#include "hmm/transition-model.h"
 #include "fstext/fstext-lib.h"
 #include "thread/kaldi-task-sequence.h"
 #include "decoder/decoder-ctc-wrappers.h"
@@ -51,20 +51,11 @@ int main(int argc, char *argv[]) {
     bool allow_partial = false;
     BaseFloat acoustic_scale = 0.1;
     LatticeFasterDecoderConfig config;
+    TaskSequencerConfig sequencer_config; // has --num-threads option
 
     std::string word_syms_filename;
     config.Register(&po);
-    //sequencer_config.Register(&po);
-
-    int32 num_threads, num_threads_total;
-    po.Register("num-threads", &num_threads, "Number of actively processing "
-                   "threads to run in parallel");
-    po.Register("num-threads-total", &num_threads_total, "Total number of "
-                   "threads, including those that are waiting on other threads "
-                   "to produce their output.  Controls memory use.  If <= 0, "
-                   "defaults to --num-threads plus 20.  Otherwise, must "
-                   "be >= num-threads.");
-    TaskSequencerConfig sequencer_config(num_threads, num_threads_total); // has --num-threads option
+    sequencer_config.Register(&po);
 
     po.Register("acoustic-scale", &acoustic_scale, "Scaling factor for acoustic likelihoods");
 
@@ -84,7 +75,7 @@ int main(int argc, char *argv[]) {
         words_wspecifier = po.GetOptArg(4),
         alignment_wspecifier = po.GetOptArg(5);
     
-    TransitionModel trans_model;
+    //TransitionModel trans_model;
     //ReadKaldiObject(model_in_filename, &trans_model);
           
     bool determinize = config.determinize_lattice;
@@ -133,21 +124,20 @@ int main(int argc, char *argv[]) {
           DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
           
-          /*
           DecodeUtteranceLatticeFasterCtcClass *task =
               new DecodeUtteranceLatticeFasterCtcClass(
-                  decoder, decodable, trans_model, word_syms, utt,
+                  decoder, decodable, word_syms, utt,
                   acoustic_scale, determinize, allow_partial, &alignment_writer,
                   &words_writer, &compact_lattice_writer, &lattice_writer,
                   &tot_like, &frame_count, &num_success, &num_fail, NULL);
 
           sequencer.Run(task); // takes ownership of "task",
           // and will delete it when done.
-			*/
 
+	  /*
           double like;
                     if (DecodeUtteranceLatticeFasterCtc(
-                            *decoder, *decodable, trans_model, word_syms, utt,
+                            *decoder, *decodable, word_syms, utt,
                             acoustic_scale, determinize, allow_partial, &alignment_writer,
                             &words_writer, &compact_lattice_writer, &lattice_writer,
                             &like)) {
@@ -155,6 +145,7 @@ int main(int argc, char *argv[]) {
                       frame_count += loglikes.NumRows();
                       num_success++;
                     } else num_fail++;
+	   */
         }
       }
     } else { // We have different FSTs for different utterances.

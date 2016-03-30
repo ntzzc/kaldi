@@ -1594,7 +1594,7 @@ bool DeterminizeLatticePhonePrunedCtcWrapper(
   }
   ILabelCompare<kaldi::LatticeArc> ilabel_comp;
   ArcSort(ifst, ilabel_comp);
-  ans = DeterminizeLatticePhonePruned<kaldi::LatticeWeight, kaldi::int32>(
+  ans = DeterminizeLatticePhonePrunedCtc<kaldi::LatticeWeight, kaldi::int32>(
       ifst, beam, ofst, opts);
   Connect(ofst);
   return ans;
