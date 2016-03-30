@@ -39,7 +39,6 @@ namespace kaldi {
 bool DecodeUtteranceLatticeFasterCtc(
     LatticeFasterDecoder &decoder, // not const but is really an input.
     DecodableInterface &decodable, // not const but is really an input.
-    const TransitionModel &trans_model,
     const fst::SymbolTable *word_syms,
     std::string utt,
     double acoustic_scale,
@@ -65,7 +64,6 @@ class DecodeUtteranceLatticeFasterCtcClass {
   DecodeUtteranceLatticeFasterCtcClass(
       LatticeFasterDecoder *decoder,
       DecodableInterface *decodable,
-	  const TransitionModel &trans_model,
       const fst::SymbolTable *word_syms,
       std::string utt,
       BaseFloat acoustic_scale,
@@ -86,7 +84,6 @@ class DecodeUtteranceLatticeFasterCtcClass {
   // The following variables correspond to inputs:
   LatticeFasterDecoder *decoder_;
   DecodableInterface *decodable_;
-  const TransitionModel *trans_model_;
   const fst::SymbolTable *word_syms_;
   std::string utt_;
   BaseFloat acoustic_scale_;

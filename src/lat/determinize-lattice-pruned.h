@@ -287,6 +287,20 @@ bool DeterminizeLatticePhonePrunedWrapper(
     DeterminizeLatticePhonePrunedOptions opts
       = DeterminizeLatticePhonePrunedOptions());
 
+template<class Weight, class IntType>
+bool DeterminizeLatticePhonePrunedCtc(
+    MutableFst<ArcTpl<Weight> > *ifst,
+    double prune,
+    MutableFst<ArcTpl<CompactLatticeWeightTpl<Weight, IntType> > > *ofst,
+    DeterminizeLatticePhonePrunedOptions opts
+      = DeterminizeLatticePhonePrunedOptions());
+
+bool DeterminizeLatticePhonePrunedCtcWrapper(
+    MutableFst<kaldi::LatticeArc> *ifst,
+    double prune,
+    MutableFst<kaldi::CompactLatticeArc> *ofst,
+    DeterminizeLatticePhonePrunedOptions opts
+      = DeterminizeLatticePhonePrunedOptions());
 /// @} end "addtogroup fst_extensions"
 
 } // end namespace fst

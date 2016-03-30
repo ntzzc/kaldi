@@ -29,7 +29,6 @@ namespace kaldi {
 bool DecodeUtteranceLatticeFasterCtc(
     LatticeFasterDecoder &decoder, // not const but is really an input.
     DecodableInterface &decodable, // not const but is really an input.
-    const TransitionModel &trans_model,
     const fst::SymbolTable *word_syms,
     std::string utt,
     double acoustic_scale,
@@ -96,8 +95,7 @@ bool DecodeUtteranceLatticeFasterCtc(
   fst::Connect(&lat);
   if (determinize) {
     CompactLattice clat;
-    if (!DeterminizeLatticePhonePrunedWrapper(
-    		trans_model,
+    if (!DeterminizeLatticePhonePrunedCtcWrapper(
             &lat,
             decoder.GetOptions().lattice_beam,
             &clat,
@@ -128,7 +126,6 @@ bool DecodeUtteranceLatticeFasterCtc(
 DecodeUtteranceLatticeFasterCtcClass::DecodeUtteranceLatticeFasterCtcClass(
     LatticeFasterDecoder *decoder,
     DecodableInterface *decodable,
-    const TransitionModel &trans_model,
     const fst::SymbolTable *word_syms,
     std::string utt,
     BaseFloat acoustic_scale,
@@ -143,7 +140,7 @@ DecodeUtteranceLatticeFasterCtcClass::DecodeUtteranceLatticeFasterCtcClass(
     int32 *num_done, // on success (including partial decode), increments this.
     int32 *num_err,  // on failure, increments this.
     int32 *num_partial):  // If partial decode (final-state not reached), increments this.
-    decoder_(decoder), decodable_(decodable), trans_model_(&trans_model),
+    decoder_(decoder), decodable_(decodable),
     word_syms_(word_syms), utt_(utt), acoustic_scale_(acoustic_scale),
     determinize_(determinize), allow_partial_(allow_partial),
     alignments_writer_(alignments_writer),
@@ -189,8 +186,7 @@ void DecodeUtteranceLatticeFasterCtcClass::operator () () {
   fst::Connect(lat_);
   if (determinize_) {
     clat_ = new CompactLattice;
-    if (!DeterminizeLatticePhonePrunedWrapper(
-	    *trans_model_,
+    if (!DeterminizeLatticePhonePrunedCtcWrapper(
             lat_,
             decoder_->GetOptions().lattice_beam,
             clat_,
