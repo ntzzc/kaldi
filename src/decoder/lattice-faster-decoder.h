@@ -126,6 +126,8 @@ class LatticeFasterDecoder {
   /// final state).
   bool Decode(DecodableInterface *decodable);
 
+  bool DecodeCtc(DecodableInterface *decodable);
+
 
   /// says whether a final-state was active on the last frame.  If it was not, the
   /// lattice (or traceback) will end with states that are not final-states.
@@ -167,6 +169,7 @@ class LatticeFasterDecoder {
   /// call this.  You can also call InitDecoding if you have already decoded an
   /// utterance and want to start with a new utterance.
   void InitDecoding();
+  void InitDecodingCtc();
 
   /// This will decode until there are no more frames ready in the decodable
   /// object.  You can keep calling it each time more frames become available.
@@ -174,6 +177,9 @@ class LatticeFasterDecoder {
   /// the function will decode before returning.
   void AdvanceDecoding(DecodableInterface *decodable,
                        int32 max_num_frames = -1);
+
+  void AdvanceDecodingCtc(DecodableInterface *decodable,
+                         int32 max_num_frames = -1);
 
   /// This function may be optionally called after AdvanceDecoding(), when you
   /// do not plan to decode any further.  It does an extra pruning step that
@@ -337,15 +343,19 @@ class LatticeFasterDecoder {
   /// Gets the weight cutoff.  Also counts the active tokens.
   BaseFloat GetCutoff(Elem *list_head, size_t *tok_count,
                       BaseFloat *adaptive_beam, Elem **best_elem);
+  BaseFloat GetCutoffCtc(Elem *list_head, size_t *tok_count,
+                      BaseFloat *adaptive_beam, Elem **best_elem);
 
   /// Processes emitting arcs for one frame.  Propagates from prev_toks_ to cur_toks_.
   /// Returns the cost cutoff for subsequent ProcessNonemitting() to use.
   BaseFloat ProcessEmitting(DecodableInterface *decodable);
+  void ProcessEmittingCtc(DecodableInterface *decodable);
 
   /// Processes nonemitting (epsilon) arcs for one frame.  Called after
   /// ProcessEmitting() on each frame.  The cost cutoff is computed by the
   /// preceding ProcessEmitting().
   void ProcessNonemitting(BaseFloat cost_cutoff);
+  void ProcessNonemittingCtc();
 
   // HashList defined in ../util/hash-list.h.  It actually allows us to maintain
   // more than one list (e.g. for current and previous frames), but only one of
