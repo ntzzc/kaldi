@@ -138,11 +138,10 @@ int main(int argc, char *argv[]) {
       nnet.Write(target_model_filename, opts.binary);
     }
 
-    //merge statistic data
-	stats.MergeStats(&opts, 0);
-
     KALDI_LOG << "TRAINING FINISHED; ";
+    time_now = time.Elapsed();
 
+    stats.Print(&opts, time_now);
 
 #if HAVE_CUDA==1
     CuDevice::Instantiate().PrintProfile();
@@ -154,6 +153,9 @@ int main(int argc, char *argv[]) {
      close(fd);
      clearerr(stderr);
      fsetpos(stderr, &pos);
+
+     //merge global statistic data
+     stats.MergeStats(&opts, 0);
 
      if (parallel_opts.myid == 0)
      {

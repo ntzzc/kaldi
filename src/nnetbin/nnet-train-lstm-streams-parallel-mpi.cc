@@ -158,6 +158,9 @@ int main(int argc, char *argv[]) {
      clearerr(stderr);
      fsetpos(stderr, &pos);
 
+     //merge global statistic data
+     stats.MergeStats(&opts, 0);
+
      if (parallel_opts.myid == 0)
      {
          time_now = time.Elapsed();
