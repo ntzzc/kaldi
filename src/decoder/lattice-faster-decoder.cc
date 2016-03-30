@@ -755,6 +755,8 @@ BaseFloat LatticeFasterDecoder::GetCutoffCtc(Elem *list_head, size_t *tok_count,
         min_active_cutoff = std::numeric_limits<BaseFloat>::infinity(),
         max_active_cutoff = std::numeric_limits<BaseFloat>::infinity();
 
+    if (tmp_array_.size() > static_cast<size_t>(config_.max_active)) {
+      std::nth_element(tmp_array_.begin(),
                        tmp_array_.begin() + config_.max_active,
                        tmp_array_.end());
       max_active_cutoff = tmp_array_[config_.max_active];
