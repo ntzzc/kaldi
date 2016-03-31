@@ -1,8 +1,9 @@
 // nnet2bin/nnet-align-compiled.cc
 
-// Copyright 2009-2012  Microsoft Corporation
-//                      Johns Hopkins University (author: Daniel Povey)
-//                2015  Vijayaditya Peddinti
+// Copyright 2009-2012     Microsoft Corporation
+//                         Johns Hopkins University (author: Daniel Povey)
+//                2015     Vijayaditya Peddinti
+//                2015-16  Vimal Manohar
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -41,7 +42,8 @@ int main(int argc, char *argv[]) {
 
     const char *usage =
         "Align features given nnet3 neural net model\n"
-        "Usage:   nnet3-align-compiled [options] <nnet-in> <graphs-rspecifier> <features-rspecifier> <alignments-wspecifier>\n"
+        "Usage:   nnet3-align-compiled [options] <nnet-in> <graphs-rspecifier> "
+        "<features-rspecifier> <alignments-wspecifier>\n"
         "e.g.: \n"
         " nnet3-align-compiled 1.mdl ark:graphs.fsts scp:train.scp ark:1.ali\n"
         "or:\n"
@@ -50,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     ParseOptions po(usage);
     AlignConfig align_config;
-    DecodableAmNnetSimpleOptions decodable_opts;
+    NnetSimpleComputationOptions decodable_opts;
     std::string use_gpu = "yes";
     BaseFloat acoustic_scale = 1.0;
     BaseFloat transition_scale = 1.0;
@@ -62,6 +64,9 @@ int main(int argc, char *argv[]) {
     int32 online_ivector_period = 0;
     align_config.Register(&po);
     decodable_opts.Register(&po);
+    
+    po.Register("use-gpu", &use_gpu,
+                "yes|no|optional|wait, only has effect if compiled with CUDA");
     po.Register("transition-scale", &transition_scale,
                 "Transition-probability scale [relative to acoustics]");
     po.Register("acoustic-scale", &acoustic_scale,
@@ -78,12 +83,18 @@ int main(int argc, char *argv[]) {
     po.Register("online-ivector-period", &online_ivector_period, "Number of frames "
                 "between iVectors in matrices supplied to the --online-ivectors "
                 "option");
+    po.Register("use-gpu", &use_gpu,
+                "yes|no|optional|wait, only has effect if compiled with CUDA");
     po.Read(argc, argv);
 
     if (po.NumArgs() < 4 || po.NumArgs() > 5) {
       po.PrintUsage();
       exit(1);
     }
+
+#if HAVE_CUDA==1
+    CuDevice::Instantiate().SelectGpuId(use_gpu);
+#endif
 
     std::string model_in_filename = po.GetArg(1),
         fst_rspecifier = po.GetArg(2),
@@ -183,6 +194,10 @@ int main(int argc, char *argv[]) {
                 << (num_done + num_err) << " utterances.";
       KALDI_LOG << "Done " << num_done << ", errors on " << num_err;
     }
+
+#if HAVE_CUDA==1
+    CuDevice::Instantiate().PrintProfile();
+#endif
     return (num_done != 0 ? 0 : 1);
   } catch(const std::exception &e) {
     std::cerr << e.what();

@@ -63,7 +63,10 @@ fi
 printed=false
 status=0
 
-if which apt-get >&/dev/null; then
+if which apt-get >&/dev/null && ! which zypper >/dev/null; then
+  # if we're using apt-get [but we're not OpenSuse, which uses zypper as the
+  # primary installer, but sometimes installs apt-get for some compatibility
+  # reason without it really working]...
   if [ ! -z "$debian_packages" ]; then
     echo "$0: we recommend that you run (our best guess):"
     echo " sudo apt-get install $debian_packages"
@@ -132,6 +135,13 @@ if which grep >&/dev/null && pwd | grep -E 'JOB|LMWT' >/dev/null; then
   echo "*** $0: Kaldi scripts will fail if the directory name contains"
   echo "***  either of the strings 'JOB' or 'LMWT'."
   status=1;
+fi
+
+if [ -f /usr/lib64/libfst.so.1 ]; then
+  echo "*** $0: Kaldi cannot be installed (for now) if you have OpenFst"
+  echo "***   installed in system space (version mismatches, etc.)"
+  echo "***   Please try to uninstall it."
+  status=1
 fi
 
 if ! $printed && [ $status -eq 0 ]; then

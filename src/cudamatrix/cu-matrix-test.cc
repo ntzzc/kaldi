@@ -755,6 +755,25 @@ static void UnitTestCuMatrixApplyHeaviside() {
 
 
 template<typename Real>
+static void UnitTestCuMatrixHeaviside() {
+
+  for (int32 i = 0; i < 1; i++) {
+    Matrix<Real> H(10 + Rand() % 60, 10 + Rand() % 20);
+    H.SetRandn();
+    H.Row(0).Set(0.0);
+    if (i == 2) { Matrix<Real> tmp(H, kTrans); H = tmp; }
+
+    CuMatrix<Real> cH(H);
+    CuMatrix<Real> cH2(H.NumRows(), H.NumCols(), kUndefined);
+    cH2.Heaviside(cH);
+    H.ApplyHeaviside();
+    Matrix<Real> H2(cH2);
+    AssertEqual(H, H2);
+  }
+}
+
+
+template<typename Real>
 static void UnitTestCuMatrixMulElements() {
   for (int32 i = 0; i < 2; i++) {
     MatrixIndexT dimM = 100 + Rand() % 256, dimN = 100 + Rand() % 256;
@@ -1323,6 +1342,30 @@ static void UnitTestCuMatrixAddMatMat() {
 
   AssertEqual(Hc1,Hc1a);
   AssertEqual(Hc2,Hc2a);
+}
+
+
+template<typename Real>
+static void UnitTestCuMatrixAddVecVec() {
+  Vector<Real> x(100);
+  Vector<Real> y(200);
+  x.SetRandn();
+  y.SetRandn();
+
+  CuVector<Real> Cux(100);
+  CuVector<Real> Cuy(200);
+  Cux.CopyFromVec(x);
+  Cuy.CopyFromVec(y);
+
+  Matrix<Real> A(100,200);
+  CuMatrix<Real> CuA(100,200);
+
+  A.AddVecVec(0.5f, x, y);
+  CuA.AddVecVec(0.5f, Cux, Cuy);
+  Matrix<Real> A2(100, 200);
+  CuA.CopyToMat(&A2);
+
+  AssertEqual(A,A2);
 }
 
 
@@ -2421,6 +2464,7 @@ template<typename Real> void CudaMatrixUnitTest() {
   UnitTestCuMatrixApplyFloor<Real>();
   UnitTestCuMatrixApplyCeiling<Real>();
   UnitTestCuMatrixApplyHeaviside<Real>();
+  UnitTestCuMatrixHeaviside<Real>();
   UnitTestCuMatrixMulElements<Real>();
   UnitTestCuMatrixDivElements<Real>();
   UnitTestCuMatrixMax<Real>();
@@ -2433,6 +2477,7 @@ template<typename Real> void CudaMatrixUnitTest() {
   UnitTestCuMatrixAddVecToCols<Real>();
   UnitTestCuMatrixAddVecToRows<Real>();
   UnitTestCuMatrixAddMatMat<Real>();
+  UnitTestCuMatrixAddVecVec<Real>();
   UnitTestCuMatrixSymAddMat2<Real>();
   UnitTestCuMatrixAddMatMatBatched<Real>();
   UnitTestCuMatrixSymInvertPosDef<Real>();
