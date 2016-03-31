@@ -36,27 +36,29 @@ namespace nnet1 {
 
 /**
  * Helper function of Xent::Eval,
- * calculates number of matching elemente in 'hyp', 'ref' weighted by 'weights'.
+ * calculates number of matching elemente in 'v1', 'v2' weighted by 'weights'.
  */
 template <typename T>
-inline void CountCorrectFramesWeighted(const CuArray<T> &hyp, 
-                                       const CuArray<T> &ref, 
+inline void CountCorrectFramesWeighted(const CuArray<T> &v1, 
+                                       const CuArray<T> &v2, 
                                        const CuVectorBase<BaseFloat> &weights, 
-                                       Vector<double> *correct) {
-  KALDI_ASSERT(hyp.Dim() == ref.Dim());
-  KALDI_ASSERT(hyp.Dim() == weights.Dim());
-  int32 dim = hyp.Dim();
+                                       double *correct) {
+  KALDI_ASSERT(v1.Dim() == v2.Dim());
+  KALDI_ASSERT(v1.Dim() == weights.Dim());
+  int32 dim = v1.Dim();
   // Get GPU data to host,
-  std::vector<T> hyp_h(dim), ref_h(dim);
-  hyp.CopyToVec(&hyp_h);
-  ref.CopyToVec(&ref_h);
+  std::vector<T> v1_h(dim), v2_h(dim);
+  v1.CopyToVec(&v1_h);
+  v2.CopyToVec(&v2_h);
   Vector<BaseFloat> w(dim);
   weights.CopyToVec(&w);
-  // Accumulate weighted counts of correct frames,
+  // Get correct frame count (weighted),
+  double corr = 0.0;
   for (int32 i=0; i<dim; i++) {
-    KALDI_ASSERT(ref_h[i] < correct->Dim());
-    (*correct)(ref_h[i]) += w(i) * (hyp_h[i] == ref_h[i] ? 1.0 : 0.0);
+   corr += w(i) * (v1_h[i] == v2_h[i] ? 1.0 : 0.0);
   }
+  // Return,
+  (*correct) = corr;
 }
 
 
@@ -73,15 +75,6 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   KALDI_ASSERT(KALDI_ISFINITE(net_out.Sum()));
   KALDI_ASSERT(KALDI_ISFINITE(targets.Sum()));
 
-  // buffer initialization,
-  int32 num_classes = targets.NumCols();
-  if (frames_.Dim() == 0) {
-    frames_.Resize(num_classes);
-    xentropy_.Resize(num_classes);
-    entropy_.Resize(num_classes);
-    correct_.Resize(num_classes);
-  }
-
   // get frame_weights to GPU,
   frame_weights_ = frame_weights;
 
@@ -93,36 +86,44 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   target_sum_.AddColSumMat(1.0, targets, 0.0);
   frame_weights_.MulElements(target_sum_);
 
+  // get the number of frames after the masking,
+  double num_frames = frame_weights_.Sum();
+  KALDI_ASSERT(num_frames >= 0.0);
+
   // compute derivative wrt. activations of last layer of neurons,
   *diff = net_out;
   diff->AddMat(-1.0, targets);
   diff->MulRowsVec(frame_weights_); // weighting,
 
-  // count frames per class,
-  frames_aux_ = targets;
-  frames_aux_.MulRowsVec(frame_weights_);
-  frames_.AddRowSumMat(1.0, CuMatrix<double>(frames_aux_));
-
   // evaluate the frame-level classification,
+  double correct; 
   net_out.FindRowMaxId(&max_id_out_); // find max in nn-output
   targets.FindRowMaxId(&max_id_tgt_); // find max in targets
-  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct_);
+  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct);
 
   // calculate cross_entropy (in GPU),
   xentropy_aux_ = net_out; // y
   xentropy_aux_.Add(1e-20); // avoid log(0)
   xentropy_aux_.ApplyLog(); // log(y)
   xentropy_aux_.MulElements(targets); // t*log(y)
-  xentropy_aux_.MulRowsVec(frame_weights_); // w*t*log(y)
-  xentropy_.AddRowSumMat(-1.0, CuMatrix<double>(xentropy_aux_));
+  xentropy_aux_.MulRowsVec(frame_weights_); // w*t*log(y) 
+  double cross_entropy = -xentropy_aux_.Sum();
   
   // caluculate entropy (in GPU),
   entropy_aux_ = targets; // t
   entropy_aux_.Add(1e-20); // avoid log(0)
   entropy_aux_.ApplyLog(); // log(t)
   entropy_aux_.MulElements(targets); // t*log(t)
-  entropy_aux_.MulRowsVec(frame_weights_); // w*t*log(t)
-  entropy_.AddRowSumMat(-1.0, CuMatrix<double>(entropy_aux_)); 
+  entropy_aux_.MulRowsVec(frame_weights_); // w*t*log(t) 
+  double entropy = -entropy_aux_.Sum();
+
+  KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));
+  KALDI_ASSERT(KALDI_ISFINITE(entropy));
+
+  loss_ += cross_entropy;
+  entropy_ += entropy;
+  correct_ += correct;
+  frames_ += num_frames;
 
   // progressive loss reporting
   {
@@ -138,10 +139,10 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store
-      loss_vec_.push_back((xentropy_progress_-entropy_progress_)/frames_progress_);
+      loss_vec_.push_back((loss_progress_-entropy_progress_)/frames_progress_);
       // reset
       frames_progress_ = 0;
-      xentropy_progress_ = 0.0;
+      loss_progress_ = 0.0;
       entropy_progress_ = 0.0;
       correct_progress_ = 0.0;
     }
@@ -167,38 +168,18 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 std::string Xent::Report() {
   std::ostringstream oss;
-  oss << "AvgLoss: " << (xentropy_.Sum()-entropy_.Sum())/frames_.Sum() << " (Xent), "
-      << "[AvgXent: " << xentropy_.Sum()/frames_.Sum() 
-      << ", AvgTargetEnt: " << entropy_.Sum()/frames_.Sum() << "]" << std::endl;
-  
-  oss << "progress: [";
-  std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
-  oss << "]" << std::endl;
-  
-  oss << "FRAME_ACCURACY >> " << 100.0*correct_.Sum()/frames_.Sum() << "% <<" << std::endl;
-  
-  return oss.str(); 
-}
-
-
-std::string Xent::ReportPerClass() {
-  std::ostringstream oss;
-  oss << "PER-CLASS PERFORMANCE:" << std::endl;
-  oss << "@@@ Frames per-class:" << frames_;
-  // get inverted counts,
-  CuVector<double> inv_frames(frames_);
-  inv_frames.ApplyPow(-1.0);
-  // loss, kl = xentropy-entropy,
-  CuVector<double> loss(xentropy_);
-  loss.AddVec(-1.0, entropy_);
-  loss.MulElements(inv_frames);
-  oss << "@@@ Loss per-class:" << loss;
-  // frame accuracy (assuming targets are binary),
-  CuVector<double> frm_accu(correct_);
-  frm_accu.MulElements(inv_frames);
-  frm_accu.Scale(100.0);
-  oss << "@@@ Frame-accuracy per-class:" << frm_accu;
-  // 
+  oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
+      << "[AvgXent " << loss_/frames_ 
+      << ", AvgTargetEnt " << entropy_/frames_ 
+      << ", frames " << frames_ << "]" << std::endl;
+  if (loss_vec_.size() > 0) {
+     oss << "progress: [";
+     std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
+     oss << "]" << std::endl;
+  }
+  if (correct_ >= 0.0) {
+    oss << "FRAME_ACCURACY >> " << 100.0*correct_/frames_ << "% <<" << std::endl;
+  }
   return oss.str(); 
 }
 

@@ -51,7 +51,12 @@ inline CuSubMatrix<Real>::CuSubMatrix(const Real *data,
                                       const MatrixIndexT num_rows,
                                       const MatrixIndexT num_cols,
                                       const MatrixIndexT stride):
-    CuMatrixBase<Real>(const_cast<Real*>(data), num_rows, num_cols, stride) {
+#if HAVE_CUDA == 1
+    CuMatrixBase<Real>(const_cast<Real*>(data), num_rows, num_cols, stride, this->GetLocalCublasHandle()) 
+#else
+    CuMatrixBase<Real>(const_cast<Real*>(data), num_rows, num_cols, stride) 
+#endif
+{
   // in general if you use SubMatrix or CuSubMatrix, const-correctness is not
   // preserved (preserving it would require us duplicating the class and it
   // would have been a hassle).
