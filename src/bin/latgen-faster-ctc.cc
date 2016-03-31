@@ -1,4 +1,4 @@
-// bin/latgen-faster-ctc-parallel.cc
+// bin/latgen-faster-ctc.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
  
@@ -23,7 +23,6 @@
 //#include "tree/context-dep.h"
 //#include "hmm/transition-model.h"
 #include "fstext/fstext-lib.h"
-#include "thread/kaldi-task-sequence.h"
 #include "decoder/decoder-ctc-wrappers.h"
 #include "decoder/decodable-matrix.h"
 #include "base/timer.h"
@@ -35,8 +34,6 @@ int main(int argc, char *argv[]) {
     using fst::SymbolTable;
     using fst::VectorFst;
     using fst::StdArc;
-    using kaldi::TaskSequencer;
-    using kaldi::TaskSequencerConfig;
 
     const char *usage =
         "Generate lattices, reading log-likelihoods as matrices, using multiple decoding threads\n"
@@ -48,11 +45,9 @@ int main(int argc, char *argv[]) {
     bool allow_partial = false;
     BaseFloat acoustic_scale = 0.1;
     LatticeFasterDecoderConfig config;
-    TaskSequencerConfig sequencer_config; // has --num-threads option
 
     std::string word_syms_filename;
     config.Register(&po);
-    sequencer_config.Register(&po);
 
     po.Register("acoustic-scale", &acoustic_scale, "Scaling factor for acoustic likelihoods");
 
@@ -100,7 +95,6 @@ int main(int argc, char *argv[]) {
     VectorFst<StdArc> *decode_fst = NULL; // only used if there is a single
                                           // decoding graph.
     
-    TaskSequencer<DecodeUtteranceLatticeFasterCtcClass> sequencer(sequencer_config);
     if (ClassifyRspecifier(fst_in_str, NULL, NULL) == kNoRspecifier) {
       SequentialBaseFloatMatrixReader loglike_reader(feature_rspecifier);
       // Input FST is just one FST, not a table of FSTs.
@@ -108,11 +102,13 @@ int main(int argc, char *argv[]) {
 
       {
           LatticeFasterDecoder *decoder = new LatticeFasterDecoder(*decode_fst, config);
-        for (; !loglike_reader.Done(); loglike_reader.Next()) {
+        for (; !loglike_reader.Done(); loglike_reader.Next())
+        {
           std::string utt = loglike_reader.Key();
           Matrix<BaseFloat> loglikes (loglike_reader.Value());
           loglike_reader.FreeCurrent();
-          if (loglikes.NumRows() == 0) {
+          if (loglikes.NumRows() == 0)
+          {
             KALDI_WARN << "Zero-length utterance: " << utt;
             num_fail++;
             continue;
@@ -121,17 +117,6 @@ int main(int argc, char *argv[]) {
           DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
           //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
           
-          DecodeUtteranceLatticeFasterCtcClass *task =
-              new DecodeUtteranceLatticeFasterCtcClass(
-                  decoder, decodable, word_syms, utt,
-                  acoustic_scale, determinize, allow_partial, &alignment_writer,
-                  &words_writer, &compact_lattice_writer, &lattice_writer,
-                  &tot_like, &frame_count, &num_success, &num_fail, NULL);
-
-          sequencer.Run(task); // takes ownership of "task",
-          // and will delete it when done.
-
-	  /*
           double like;
                     if (DecodeUtteranceLatticeFasterCtc(
                             *decoder, *decodable, word_syms, utt,
@@ -142,60 +127,54 @@ int main(int argc, char *argv[]) {
                       frame_count += loglikes.NumRows();
                       num_success++;
                     } else num_fail++;
-	   */
         }
       }
+      delete decode_fst; // delete this only after decoder goes out of scope.
+
     } else { // We have different FSTs for different utterances.
-/*      SequentialTableReader<fst::VectorFstHolder> fst_reader(fst_in_str);
-      RandomAccessBaseFloatMatrixReader loglike_reader(feature_rspecifier);          
-      for (; !fst_reader.Done(); fst_reader.Next()) {
-        std::string utt = fst_reader.Key();
-        if (!loglike_reader.HasKey(utt)) {
-          KALDI_WARN << "Not decoding utterance " << utt
-                     << " because no loglikes available.";
-          num_fail++;
-          continue;
-        }
-        const Matrix<BaseFloat> *loglikes = 
-          new Matrix<BaseFloat>(loglike_reader.Value(utt));
-        if (loglikes->NumRows() == 0) {
-          KALDI_WARN << "Zero-length utterance: " << utt;
-          num_fail++;
-          delete loglikes;
-          continue;
-        }
-        LatticeFasterDecoder *decoder = 
-          new LatticeFasterDecoder(fst_reader.Value(), config);
-        DecodableMatrixScaledMapped *decodable = new
-            DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
-        DecodeUtteranceLatticeFasterCtcClass *task =
-            new DecodeUtteranceLatticeFasterCtcClass(
-                decoder, decodable, trans_model, word_syms, utt, acoustic_scale,
-                determinize, allow_partial, &alignment_writer, &words_writer,
-                &compact_lattice_writer, &lattice_writer, &tot_like,
-                &frame_count, &num_success, &num_fail, NULL);
-        sequencer.Run(task); // takes ownership of "task",
-        // and will delete it when done.
-      }
-      */
+    	/*      SequentialTableReader<fst::VectorFstHolder> fst_reader(fst_in_str);
+    	      RandomAccessBaseFloatMatrixReader loglike_reader(feature_rspecifier);
+    	      for (; !fst_reader.Done(); fst_reader.Next()) {
+    	        std::string utt = fst_reader.Key();
+    	        if (!loglike_reader.HasKey(utt)) {
+    	          KALDI_WARN << "Not decoding utterance " << utt
+    	                     << " because no loglikes available.";
+    	          num_fail++;
+    	          continue;
+    	        }
+    	        const Matrix<BaseFloat> &loglikes = loglike_reader.Value(utt);
+    	        if (loglikes.NumRows() == 0) {
+    	          KALDI_WARN << "Zero-length utterance: " << utt;
+    	          num_fail++;
+    	          continue;
+    	        }
+    	        LatticeFasterDecoder decoder(fst_reader.Value(), config);
+    	        DecodableMatrixScaledMapped decodable(trans_model, loglikes, acoustic_scale);
+    	        double like;
+    	        if (DecodeUtteranceLatticeFaster(
+    	                decoder, decodable, trans_model, word_syms, utt, acoustic_scale,
+    	                determinize, allow_partial, &alignment_writer, &words_writer,
+    	                &compact_lattice_writer, &lattice_writer, &like)) {
+    	          tot_like += like;
+    	          frame_count += loglikes.NumRows();
+    	          num_success++;
+    	        } else num_fail++;
+    	      }
+    	    */
     }
-    sequencer.Wait();
-
-    delete decode_fst;
       
-    double elapsed = timer.Elapsed();
-    KALDI_LOG << "Decoded with " << sequencer_config.num_threads << " threads.";
-    KALDI_LOG << "Time taken "<< elapsed
-              << "s: real-time factor per thread assuming 100 frames/sec is "
-              << (sequencer_config.num_threads*elapsed*100.0/frame_count);
-    KALDI_LOG << "Done " << num_success << " utterances, failed for "
-              << num_fail;
-    KALDI_LOG << "Overall log-likelihood per frame is " << (tot_like/frame_count) << " over "
-              << frame_count<<" frames.";
+    	double elapsed = timer.Elapsed();
+        KALDI_LOG << "Time taken "<< elapsed
+                  << "s: real-time factor assuming 100 frames/sec is "
+                  << (elapsed*100.0/frame_count);
+        KALDI_LOG << "Done " << num_success << " utterances, failed for "
+                  << num_fail;
+        KALDI_LOG << "Overall log-likelihood per frame is " << (tot_like/frame_count) << " over "
+                  << frame_count<<" frames.";
 
-    if (word_syms) delete word_syms;
-    if (num_success != 0) return 0;
-    else return 1;
+        if (word_syms) delete word_syms;
+        if (num_success != 0) return 0;
+        else return 1;
   } catch(const std::exception &e) {
     std::cerr << e.what();
     return -1;
