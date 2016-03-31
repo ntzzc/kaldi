@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
                       frame_count += loglikes.NumRows();
                       num_success++;
                     } else num_fail++;
-	   */
+          */
         }
       }
     } else { // We have different FSTs for different utterances.
