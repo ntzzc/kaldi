@@ -64,6 +64,11 @@ class TrainingGraphCompiler {
                         const std::vector<int32> &disambig_syms, // disambig symbols in phone symbol table.
                         const TrainingGraphCompilerOptions &opts);
 
+  TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *lex_fst,  // Takes ownership of this object.
+                        // It should not contain disambiguation symbols or subsequential symbol,
+                        // but it should contain optional silence.
+                        const std::vector<int32> &disambig_syms, // disambig symbols in phone symbol table.
+                        const TrainingGraphCompilerOptions &opts);
 
   /// CompileGraph compiles a single training graph its input is a
   // weighted acceptor (G) at the word level, its output is HCLG.
@@ -73,6 +78,10 @@ class TrainingGraphCompiler {
   bool CompileGraph(const fst::VectorFst<fst::StdArc> &word_grammar,
                     fst::VectorFst<fst::StdArc> *out_fst);
   
+  bool CompileGraphsCTC(
+      const std::vector<const fst::VectorFst<fst::StdArc> *> &word_fsts,
+      std::vector<fst::VectorFst<fst::StdArc> *> *out_fsts);
+
   // CompileGraphs allows you to compile a number of graphs at the same
   // time.  This consumes more memory but is faster.
   bool CompileGraphs(
@@ -88,6 +97,9 @@ class TrainingGraphCompiler {
       const std::vector<std::vector<int32> >  &word_grammar,
       std::vector<fst::VectorFst<fst::StdArc> *> *out_fsts);
   
+  bool CompileGraphsFromTextCTC(
+      const std::vector<std::vector<int32> >  &word_grammar,
+      std::vector<fst::VectorFst<fst::StdArc> *> *out_fsts);
   
   ~TrainingGraphCompiler() { delete lex_fst_; }
  private:

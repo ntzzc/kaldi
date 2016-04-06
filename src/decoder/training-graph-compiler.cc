@@ -59,6 +59,19 @@ TrainingGraphCompiler::TrainingGraphCompiler(const TransitionModel &trans_model,
   }
 }
 
+TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *lex_fst,
+                                             const std::vector<int32> &disambig_syms,
+                                             const TrainingGraphCompilerOptions &opts):
+    trans_model_(trans_model), ctx_dep_(ctx_dep), lex_fst_(lex_fst),
+    disambig_syms_(disambig_syms), opts_(opts) {
+  using namespace fst;
+
+  {  // make sure lexicon is olabel sorted.
+    fst::OLabelCompare<fst::StdArc> olabel_comp;
+    fst::ArcSort(lex_fst_, olabel_comp);
+  }
+}
+
 bool TrainingGraphCompiler::CompileGraphFromText(
     const std::vector<int32> &transcript,
     fst::VectorFst<fst::StdArc> *out_fst) {
@@ -247,5 +260,56 @@ bool TrainingGraphCompiler::CompileGraphs(
   return true;
 }
 
+bool TrainingGraphCompiler::CompileGraphsFromTextCTC(
+    const std::vector<std::vector<int32> > &transcripts,
+    std::vector<fst::VectorFst<fst::StdArc>*> *out_fsts) {
+  using namespace fst;
+  std::vector<const VectorFst<StdArc>* > word_fsts(transcripts.size());
+  for (size_t i = 0; i < transcripts.size(); i++) {
+    VectorFst<StdArc> *word_fst = new VectorFst<StdArc>();
+    MakeLinearAcceptor(transcripts[i], word_fst);
+    word_fsts[i] = word_fst;
+  }
+  bool ans = CompileGraphsCTC(word_fsts, out_fsts);
+  for (size_t i = 0; i < transcripts.size(); i++)
+    delete word_fsts[i];
+  return ans;
+}
+
+bool TrainingGraphCompiler::CompileGraphsCTC(
+    const std::vector<const fst::VectorFst<fst::StdArc>*> &word_fsts,
+    std::vector<fst::VectorFst<fst::StdArc>* > *out_fsts) {
+
+    using namespace fst;
+    KALDI_ASSERT(lex_fst_ !=NULL);
+    KALDI_ASSERT(out_fsts != NULL && out_fsts->empty());
+    out_fsts->resize(word_fsts.size(), NULL);
+    if (word_fsts.empty()) return true;
+
+    for (size_t i = 0; i < word_fsts.size(); i++) {
+      VectorFst<StdArc> phone2word_fst;
+      // TableCompose more efficient than compose.
+      TableCompose(*lex_fst_, *(word_fsts[i]), &phone2word_fst, &lex_cache_);
+
+      KALDI_ASSERT(phone2word_fst.Start() != kNoStateId &&
+                 "Perhaps you have words missing in your lexicon?");
+      (*out_fsts)[i] = phone2word_fst.Copy();  // For now this contains the FST with symbols
+    // representing phones-in-context.
+    }
+
+     for (size_t i = 0; i < out_fsts->size(); i++) {
+
+       VectorFst<StdArc> &phone2word_fst = *((*out_fsts)[i]);
+       DeterminizeNorm(&phone2word_fst);
+       MinimizeEncoded(&phone2word_fst);
+
+        KALDI_ASSERT(phone2word_fst.Start() != kNoStateId);
+
+
+     }
+
+  return true;
+
+}
 
 }  // end namespace kaldi
