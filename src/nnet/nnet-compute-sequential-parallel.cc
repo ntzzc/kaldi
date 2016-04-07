@@ -167,8 +167,43 @@ private:
 	  }
 	}
 
+	void LatticeAcousticRescoreCTC(const Matrix<BaseFloat> &log_like,
+	                            const std::vector<int32> &state_times,
+	                            Lattice *lat) {
+	  kaldi::uint64 props = lat->Properties(fst::kFstProperties, false);
+	  if (!(props & fst::kTopSorted))
+	    KALDI_ERR << "Input lattice must be topologically sorted.";
+
+	  KALDI_ASSERT(!state_times.empty());
+	  std::vector<std::vector<int32> > time_to_state(log_like.NumRows());
+	  for (size_t i = 0; i < state_times.size(); i++) {
+	    KALDI_ASSERT(state_times[i] >= 0);
+	    if (state_times[i] < log_like.NumRows())  // end state may be past this..
+	      time_to_state[state_times[i]].push_back(i);
+	    else
+	      KALDI_ASSERT(state_times[i] == log_like.NumRows()
+	                   && "There appears to be lattice/feature mismatch.");
+	  }
+
+	  for (int32 t = 0; t < log_like.NumRows(); t++) {
+	    for (size_t i = 0; i < time_to_state[t].size(); i++) {
+	      int32 state = time_to_state[t][i];
+	      for (fst::MutableArcIterator<Lattice> aiter(lat, state); !aiter.Done();
+	           aiter.Next()) {
+	        LatticeArc arc = aiter.Value();
+	        int32 trans_id = arc.ilabel;
+	        if (trans_id != 0) {  // Non-epsilon input label on arc
+	          int32 pdf_id = trans_id -1; //trans_model.TransitionIdToPdf(trans_id);
+	          arc.weight.SetValue2(-log_like(t, pdf_id) + arc.weight.Value2());
+	          aiter.SetValue(arc);
+	        }
+	      }
+	    }
+	  }
+	}
+
 	void inline MPEObj(Matrix<BaseFloat> &nnet_out_h, MatrixBase<BaseFloat> &nnet_diff_h,
-				TransitionModel &trans_model, SequentialNnetExample *example,
+				TransitionModel *trans_model, SequentialNnetExample *example,
 				std::vector<int32> &silence_phones, double &total_frame_acc, int32 num_done,
 				CuMatrix<BaseFloat> *soft_nnet_out, CuMatrix<BaseFloat> *si_nnet_out=NULL)
 	{
@@ -211,24 +246,46 @@ private:
 		}
 
 		// 4) rescore the latice
-		LatticeAcousticRescore(nnet_out_h, trans_model, state_times, &den_lat);
+		if (trans_model != NULL)
+			LatticeAcousticRescore(nnet_out_h, *trans_model, state_times, &den_lat);
+		else
+			LatticeAcousticRescoreCTC(nnet_out_h, state_times, &den_lat);
+
 		if (acoustic_scale != 1.0 || lm_scale != 1.0)
 			fst::ScaleLattice(fst::LatticeScale(lm_scale, acoustic_scale), &den_lat);
 
 	      kaldi::Posterior post;
-
+	    if (trans_model != NULL)
+	    {
 	      if (this->criterion == "smbr") {  // use state-level accuracies, i.e. sMBR estimation
 	        utt_frame_acc = LatticeForwardBackwardMpeVariants(
-	            trans_model, silence_phones, den_lat, num_ali, "smbr",
+	            *trans_model, silence_phones, den_lat, num_ali, "smbr",
 	            one_silence_class, &post);
 	      } else {  // use phone-level accuracies, i.e. MPFE (minimum phone frame error)
 	        utt_frame_acc = LatticeForwardBackwardMpeVariants(
-	            trans_model, silence_phones, den_lat, num_ali, "mpfe",
+	            *trans_model, silence_phones, den_lat, num_ali, "mpfe",
 	            one_silence_class, &post);
 	      }
+	    }
+	    else
+	    {
+		      if (this->criterion == "smbr") {  // use state-level accuracies, i.e. sMBR estimation
+		        utt_frame_acc = LatticeForwardBackwardMpeVariantsCTC(
+		            silence_phones, den_lat, num_ali, "smbr",
+		            one_silence_class, &post);
+		      } else {  // use phone-level accuracies, i.e. MPFE (minimum phone frame error)
+		        utt_frame_acc = LatticeForwardBackwardMpeVariantsCTC(
+		            silence_phones, den_lat, num_ali, "mpfe",
+		            one_silence_class, &post);
+		      }
+	    }
 
 	      // 6) convert the Posterior to a matrix,
-	      PosteriorToMatrixMapped(post, trans_model, &nnet_diff);
+	    if (trans_model != NULL)
+	    	PosteriorToMatrixMapped(post, *trans_model, &nnet_diff);
+	    else
+	    	PosteriorToMatrixMappedCTC(post, &nnet_diff);
+
 	      nnet_diff.Scale(-1.0); // need to flip the sign of derivative,
 
 	      nnet_diff.CopyToMat(&nnet_diff_h);
@@ -237,7 +294,7 @@ private:
 	      if (this->frame_smooth > 0)
 	      {
 	    	  for(int32 t=0; t<nnet_diff_h.NumRows(); t++) {
-	    		  int32 pdf = trans_model.TransitionIdToPdf(num_ali[t]);
+	    		  int32 pdf = trans_model!=NULL ? trans_model->TransitionIdToPdf(num_ali[t]) : num_ali[t]-1;
 	    	  	  soft_nnet_out_h(t, pdf) -= 1.0;
 	    	  }
 
@@ -270,7 +327,7 @@ private:
 
 
 	void inline MMIObj(Matrix<BaseFloat> &nnet_out_h, MatrixBase<BaseFloat> &nnet_diff_h,
-				TransitionModel &trans_model, SequentialNnetExample *example,
+				TransitionModel *trans_model, SequentialNnetExample *example,
 				double &total_mmi_obj, double &total_post_on_ali, int32 &num_frm_drop, int32 num_done,
 				CuMatrix<BaseFloat> *soft_nnet_out, CuMatrix<BaseFloat> *si_nnet_out=NULL)
 	{
@@ -313,7 +370,11 @@ private:
 
 
 		// 4) rescore the latice
-		LatticeAcousticRescore(nnet_out_h, trans_model, state_times, &den_lat);
+		if (trans_model != NULL)
+			LatticeAcousticRescore(nnet_out_h, *trans_model, state_times, &den_lat);
+		else
+			LatticeAcousticRescoreCTC(nnet_out_h, state_times, &den_lat);
+
 		if (acoustic_scale != 1.0 || lm_scale != 1.0)
 			fst::ScaleLattice(fst::LatticeScale(lm_scale, acoustic_scale), &den_lat);
 
@@ -326,7 +387,7 @@ private:
 	       //nnet_diff_h.Resize(num_frames, num_pdfs, kSetZero);
 	       for (int32 t = 0; t < post.size(); t++) {
 	         for (int32 arc = 0; arc < post[t].size(); arc++) {
-	           int32 pdf = trans_model.TransitionIdToPdf(post[t][arc].first);
+	           int32 pdf = trans_model != NULL ? trans_model->TransitionIdToPdf(post[t][arc].first) : post[t][arc].first-1;
 	           nnet_diff_h(t, pdf) += post[t][arc].second;
 			tmp = post[t][arc].second;
 	         }
@@ -338,7 +399,7 @@ private:
 	       // the denominator likelihood is the total likelihood of the lattice.
 	       double path_ac_like = 0.0;
 	       for(int32 t=0; t<num_frames; t++) {
-	         int32 pdf = trans_model.TransitionIdToPdf(num_ali[t]);
+	         int32 pdf = trans_model != NULL ? trans_model->TransitionIdToPdf(num_ali[t]) : num_ali[t]-1;
 	         path_ac_like += nnet_out_h(t,pdf);
 	       }
 	       path_ac_like *= acoustic_scale;
@@ -353,7 +414,7 @@ private:
 	       // Sum the den-posteriors under the correct path:
 	       post_on_ali = 0.0;
 	       for(int32 t=0; t<num_frames; t++) {
-	         int32 pdf = trans_model.TransitionIdToPdf(num_ali[t]);
+	         int32 pdf = trans_model != NULL ? trans_model->TransitionIdToPdf(num_ali[t]) : num_ali[t]-1;
 	         double posterior = nnet_diff_h(t, pdf);
 	         post_on_ali += posterior;
 	       }
@@ -373,7 +434,7 @@ private:
 	       int32 frm_drop = 0;
 	       std::vector<int32> frm_drop_vec;
 	       for(int32 t=0; t<num_frames; t++) {
-	         int32 pdf = trans_model.TransitionIdToPdf(num_ali[t]);
+	         int32 pdf = trans_model != NULL ? trans_model->TransitionIdToPdf(num_ali[t]) : num_ali[t]-1;
 	         double posterior = nnet_diff_h(t, pdf);
 	         if(posterior < 1e-20) {
 	           frm_drop++;
@@ -383,7 +444,7 @@ private:
 
 	       // 8) subtract the pdf-Viterbi-path
 	       for(int32 t=0; t<nnet_diff_h.NumRows(); t++) {
-	         int32 pdf = trans_model.TransitionIdToPdf(num_ali[t]);
+	         int32 pdf = trans_model != NULL ? trans_model->TransitionIdToPdf(num_ali[t]) : num_ali[t]-1;
 	         nnet_diff_h(t, pdf) -= 1.0;
 
 	         //frame-smoothing
@@ -479,8 +540,12 @@ private:
 	    PdfPrior log_prior(*prior_opts);
 
 	    // Read transition model
-	    TransitionModel trans_model;
-	    ReadKaldiObject(transition_model_filename, &trans_model);
+	    TransitionModel *trans_model = NULL;
+	    if (transition_model_filename != "")
+	    {
+	    	trans_model = new TransitionModel();
+	    	ReadKaldiObject(transition_model_filename, trans_model);
+	    }
 
 		int32 time_shift = opts->targets_delay;
 		const PdfPriorOptions *prior_opts = opts->prior_opts;

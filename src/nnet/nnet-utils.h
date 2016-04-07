@@ -225,6 +225,32 @@ void PosteriorToMatrixMapped(const Posterior &post, const TransitionModel &model
 }
 
 
+/**
+ * Convert Posterior to CuMatrix, while mapping to PDFs.
+ * The Posterior outer-dim defines number of matrix-rows,
+ * number of matrix-colmuns is set by 'TransitionModel::NumPdfs'.
+ */
+template <typename Real>
+void PosteriorToMatrixMappedCTC(const Posterior &post, CuMatrix<Real> *mat) {
+  // Make a host-matrix,
+  int32 num_rows = post.size(),
+        num_cols = mat->NumCols();
+  Matrix<Real> m(num_rows, num_cols, kSetZero); // zero-filled
+  // Fill from Posterior,
+  for (int32 t = 0; t < post.size(); t++) {
+    for (int32 i = 0; i < post[t].size(); i++) {
+      int32 col = post[t][i].first-1;
+      if (col >= num_cols) {
+        KALDI_ERR << "Out-of-bound Posterior element with index " << col
+                  << ", higher than number of columns " << num_cols;
+      }
+      m(t, col) += post[t][i].second; // sum,
+    }
+  }
+  // Copy to output GPU matrix,
+  (*mat) = m;
+}
+
 } // namespace nnet1
 } // namespace kaldi
 

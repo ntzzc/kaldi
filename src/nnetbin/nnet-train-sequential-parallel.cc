@@ -79,19 +79,34 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 6) {
+    if (po.NumArgs() >= 5) {
       po.PrintUsage();
       exit(1);
     }
 
-    std::string model_filename = po.GetArg(1),
-        transition_model_filename = po.GetArg(2),
-        feature_rspecifier = po.GetArg(3),
-        den_lat_rspecifier = po.GetArg(4),
-        num_ali_rspecifier = po.GetArg(5);
+    std::string model_filename, transition_model_filename,
+				feature_rspecifier, den_lat_rspecifier,
+				num_ali_rspecifier, target_model_filename;
+    transition_model_filename = "";
 
-    std::string target_model_filename;
-    target_model_filename = po.GetArg(6);
+    if (po.NumArgs() == 6)
+    {
+    	model_filename = po.GetArg(1),
+    	transition_model_filename = po.GetArg(2),
+    	feature_rspecifier = po.GetArg(3),
+    	den_lat_rspecifier = po.GetArg(4),
+    	num_ali_rspecifier = po.GetArg(5);
+    	target_model_filename = po.GetArg(6);
+    }
+
+    if (po.NumArgs() == 5)
+    {
+    	model_filename = po.GetArg(1),
+    	feature_rspecifier = po.GetArg(2),
+    	den_lat_rspecifier = po.GetArg(3),
+    	num_ali_rspecifier = po.GetArg(4);
+    	target_model_filename = po.GetArg(5);
+    }
 
     using namespace kaldi;
     using namespace kaldi::nnet1;
