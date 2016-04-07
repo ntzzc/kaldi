@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
           transcripts.push_back(transcript_reader.Value());
         }
         std::vector<fst::VectorFst<fst::StdArc>* > fsts;
-        if (!gc.CompileGraphsFromText(transcripts, &fsts)) {
+        if (!gc.CompileGraphsFromTextCTC(transcripts, &fsts)) {
           KALDI_ERR << "Not expecting CompileGraphs to fail.";
         }
         KALDI_ASSERT(fsts.size() == keys.size());

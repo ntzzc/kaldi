@@ -62,8 +62,7 @@ TrainingGraphCompiler::TrainingGraphCompiler(const TransitionModel &trans_model,
 TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *lex_fst,
                                              const std::vector<int32> &disambig_syms,
                                              const TrainingGraphCompilerOptions &opts):
-    trans_model_(trans_model), ctx_dep_(ctx_dep), lex_fst_(lex_fst),
-    disambig_syms_(disambig_syms), opts_(opts) {
+    lex_fst_(lex_fst), disambig_syms_(disambig_syms), opts_(opts) {
   using namespace fst;
 
   {  // make sure lexicon is olabel sorted.
@@ -260,6 +259,7 @@ bool TrainingGraphCompiler::CompileGraphs(
   return true;
 }
 
+// tx078
 bool TrainingGraphCompiler::CompileGraphsFromTextCTC(
     const std::vector<std::vector<int32> > &transcripts,
     std::vector<fst::VectorFst<fst::StdArc>*> *out_fsts) {
@@ -276,6 +276,7 @@ bool TrainingGraphCompiler::CompileGraphsFromTextCTC(
   return ans;
 }
 
+// tx078
 bool TrainingGraphCompiler::CompileGraphsCTC(
     const std::vector<const fst::VectorFst<fst::StdArc>*> &word_fsts,
     std::vector<fst::VectorFst<fst::StdArc>* > *out_fsts) {
@@ -300,7 +301,7 @@ bool TrainingGraphCompiler::CompileGraphsCTC(
      for (size_t i = 0; i < out_fsts->size(); i++) {
 
        VectorFst<StdArc> &phone2word_fst = *((*out_fsts)[i]);
-       DeterminizeNorm(&phone2word_fst);
+       //DeterminizeNorm(&phone2word_fst);
        MinimizeEncoded(&phone2word_fst);
 
         KALDI_ASSERT(phone2word_fst.Start() != kNoStateId);

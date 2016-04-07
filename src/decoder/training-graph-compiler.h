@@ -78,13 +78,13 @@ class TrainingGraphCompiler {
   bool CompileGraph(const fst::VectorFst<fst::StdArc> &word_grammar,
                     fst::VectorFst<fst::StdArc> *out_fst);
   
-  bool CompileGraphsCTC(
-      const std::vector<const fst::VectorFst<fst::StdArc> *> &word_fsts,
-      std::vector<fst::VectorFst<fst::StdArc> *> *out_fsts);
-
   // CompileGraphs allows you to compile a number of graphs at the same
   // time.  This consumes more memory but is faster.
   bool CompileGraphs(
+      const std::vector<const fst::VectorFst<fst::StdArc> *> &word_fsts,
+      std::vector<fst::VectorFst<fst::StdArc> *> *out_fsts);
+
+  bool CompileGraphsCTC(
       const std::vector<const fst::VectorFst<fst::StdArc> *> &word_fsts,
       std::vector<fst::VectorFst<fst::StdArc> *> *out_fsts);
 

@@ -1,6 +1,5 @@
 
 all:
-	-rm -f arpa2fst
 EXTRA_CXXFLAGS = -Wno-sign-compare
 include ../kaldi.mk
 
@@ -24,7 +23,7 @@ BINFILES = align-equal align-equal-compiled acc-tree-stats \
         matrix-logprob matrix-sum latgen-tracking-mapped \
         build-pfile-from-ali get-post-on-ali tree-info am-info \
         vector-sum matrix-sum-rows est-pca sum-lda-accs sum-mllt-accs \
-        transform-vec align-text matrix-dim copy-align latgen-faster-ctc
+        transform-vec align-text matrix-dim copy-align latgen-faster-ctc compile-train-graphs-ctc align-compiled-mapped-ctc
 
 
 OBJFILES =
