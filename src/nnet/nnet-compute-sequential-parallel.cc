@@ -284,7 +284,7 @@ private:
 	    if (trans_model != NULL)
 	    	PosteriorToMatrixMapped(post, *trans_model, &nnet_diff);
 	    else
-	    	PosteriorToMatrixMappedCTC(post, &nnet_diff);
+	    	PosteriorToMatrixMappedCTC(post, num_pdfs, &nnet_diff);
 
 	      nnet_diff.Scale(-1.0); // need to flip the sign of derivative,
 

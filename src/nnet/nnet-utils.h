@@ -231,10 +231,9 @@ void PosteriorToMatrixMapped(const Posterior &post, const TransitionModel &model
  * number of matrix-colmuns is set by 'TransitionModel::NumPdfs'.
  */
 template <typename Real>
-void PosteriorToMatrixMappedCTC(const Posterior &post, CuMatrix<Real> *mat) {
+void PosteriorToMatrixMappedCTC(const Posterior &post, int32 num_cols, CuMatrix<Real> *mat) {
   // Make a host-matrix,
-  int32 num_rows = post.size(),
-        num_cols = mat->NumCols();
+  int32 num_rows = post.size();
   Matrix<Real> m(num_rows, num_cols, kSetZero); // zero-filled
   // Fill from Posterior,
   for (int32 t = 0; t < post.size(); t++) {

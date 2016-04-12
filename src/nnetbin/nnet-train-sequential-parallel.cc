@@ -51,10 +51,10 @@ int main(int argc, char *argv[]) {
         "Perform one iteration of DNN-MMI training by stochastic "
         "gradient descent.\n"
         "The network weights are updated on each utterance.\n"
-        "Usage:  nnet-train-mmi-sequential [options] <model-in> <transition-model-in> "
+        "Usage:  nnet-compute-sequential-parallel [options] <model-in> <transition-model-in>(optional) "
         "<feature-rspecifier> <den-lat-rspecifier> <ali-rspecifier> [<model-out>]\n"
         "e.g.: \n"
-        " nnet-train-mmi-sequential nnet.init trans.mdl scp:train.scp scp:denlats.scp ark:train.ali "
+        " nnet-compute-sequential-parallel nnet.init trans.mdl(optional) scp:train.scp scp:denlats.scp ark:train.ali "
         "nnet.iter1\n";
 
     ParseOptions po(usage);
@@ -79,10 +79,6 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() >= 5) {
-      po.PrintUsage();
-      exit(1);
-    }
 
     std::string model_filename, transition_model_filename,
 				feature_rspecifier, den_lat_rspecifier,
@@ -98,14 +94,18 @@ int main(int argc, char *argv[]) {
     	num_ali_rspecifier = po.GetArg(5);
     	target_model_filename = po.GetArg(6);
     }
-
-    if (po.NumArgs() == 5)
+    else if (po.NumArgs() == 5)
     {
     	model_filename = po.GetArg(1),
     	feature_rspecifier = po.GetArg(2),
     	den_lat_rspecifier = po.GetArg(3),
     	num_ali_rspecifier = po.GetArg(4);
     	target_model_filename = po.GetArg(5);
+    }
+    else
+    {
+      po.PrintUsage();
+      exit(1);
     }
 
     using namespace kaldi;
