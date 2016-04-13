@@ -62,7 +62,21 @@ TrainingGraphCompiler::TrainingGraphCompiler(const TransitionModel &trans_model,
 TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *lex_fst,
                                              const std::vector<int32> &disambig_syms,
                                              const TrainingGraphCompilerOptions &opts):
-    lex_fst_(lex_fst), disambig_syms_(disambig_syms), opts_(opts) {
+		token_fst_(NULL), ctx_fst_(NULL), lex_fst_(lex_fst), disambig_syms_(disambig_syms), opts_(opts) {
+  using namespace fst;
+
+  {  // make sure lexicon is olabel sorted.
+    fst::OLabelCompare<fst::StdArc> olabel_comp;
+    fst::ArcSort(lex_fst_, olabel_comp);
+  }
+}
+
+TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *token_fst,
+											fst::VectorFst<fst::StdArc> *ctx_fst,
+											 fst::VectorFst<fst::StdArc> *lex_fst,
+                                             const std::vector<int32> &disambig_syms,
+                                             const TrainingGraphCompilerOptions &opts):
+		token_fst_(token_fst), ctx_fst_(ctx_fst), lex_fst_(lex_fst), disambig_syms_(disambig_syms), opts_(opts) {
   using namespace fst;
 
   {  // make sure lexicon is olabel sorted.
@@ -288,13 +302,25 @@ bool TrainingGraphCompiler::CompileGraphsCTC(
     if (word_fsts.empty()) return true;
 
     for (size_t i = 0; i < word_fsts.size(); i++) {
-      VectorFst<StdArc> phone2word_fst;
+      VectorFst<StdArc> phone2word_fst, clw_fst, tclw_fst;
       // TableCompose more efficient than compose.
       TableCompose(*lex_fst_, *(word_fsts[i]), &phone2word_fst, &lex_cache_);
 
-      KALDI_ASSERT(phone2word_fst.Start() != kNoStateId &&
+      if (NULL != ctx_fst_)
+      {
+    	  TableCompose(*ctx_fst_, phone2word_fst, &clw_fst, &lex_cache_);
+    	  TableCompose(*token_fst_, clw_fst, &tclw_fst, &lex_cache_);
+
+          KALDI_ASSERT(tclw_fst.Start() != kNoStateId &&
+                     "Perhaps you have words missing in your lexicon?");
+          (*out_fsts)[i] = tclw_fst.Copy();  // For now this contains the FST with symbols
+      }
+      else
+      {
+    	  KALDI_ASSERT(phone2word_fst.Start() != kNoStateId &&
                  "Perhaps you have words missing in your lexicon?");
-      (*out_fsts)[i] = phone2word_fst.Copy();  // For now this contains the FST with symbols
+    	  (*out_fsts)[i] = phone2word_fst.Copy();  // For now this contains the FST with symbols
+      }
     // representing phones-in-context.
     }
 

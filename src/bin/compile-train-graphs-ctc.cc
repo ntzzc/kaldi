@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Creates training graphs (without transition-probabilities, by default)\n"
         "\n"
-        "Usage:   compile-train-graphs-ctc [options] <lexicon-fst-in> <transcriptions-rspecifier> <graphs-wspecifier>\n"
+        "Usage:   compile-train-graphs-ctc [options] <token-fst-in(optional)> <context-fst-in(optional)> <lexicon-fst-in> <transcriptions-rspecifier> <graphs-wspecifier>\n"
         "e.g.: \n"
         " compile-train-graphs  lex.fst ark:train.tra ark:graphs.fsts\n";
     ParseOptions po(usage);
@@ -58,25 +58,48 @@ int main(int argc, char *argv[]) {
     
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 3) {
-      po.PrintUsage();
-      exit(1);
+    std::string token_rxfilename, ctx_rxfilename, lex_rxfilename, transcript_rspecifier, fsts_wspecifier;
+
+    VectorFst<StdArc> *lex_fst, *ctx_fst, *token_fst;
+    TrainingGraphCompiler *gc;
+
+    if (po.NumArgs() == 3)
+    {
+        lex_rxfilename = po.GetArg(1);
+        transcript_rspecifier = po.GetArg(2);
+        fsts_wspecifier = po.GetArg(3);
+
+        // need VectorFst because we will change it by adding subseq symbol.
+        lex_fst = fst::ReadFstKaldi(lex_rxfilename);
+        gc = new TrainingGraphCompiler(lex_fst, disambig_syms, gopts);
+    }
+    else if (po.NumArgs() == 5)
+    {
+    	token_rxfilename = po.GetArg(1);
+    	ctx_rxfilename = po.GetArg(2);
+        lex_rxfilename = po.GetArg(3);
+        transcript_rspecifier = po.GetArg(4);
+        fsts_wspecifier = po.GetArg(5);
+
+        // need VectorFst because we will change it by adding subseq symbol.
+        lex_fst = fst::ReadFstKaldi(lex_rxfilename);
+        ctx_fst = fst::ReadFstKaldi(ctx_rxfilename);
+        token_fst = fst::ReadFstKaldi(token_rxfilename);
+        gc = new TrainingGraphCompiler(token_fst, ctx_fst, lex_fst, disambig_syms, gopts);
+    }
+    else
+    {
+    	po.PrintUsage();
+    	exit(1);
     }
 
-    std::string lex_rxfilename = po.GetArg(1);
-    std::string transcript_rspecifier = po.GetArg(2);
-    std::string fsts_wspecifier = po.GetArg(3);
 
-    // need VectorFst because we will change it by adding subseq symbol.
-    VectorFst<StdArc> *lex_fst = fst::ReadFstKaldi(lex_rxfilename);
 
     std::vector<int32> disambig_syms;
     if (disambig_rxfilename != "")
       if (!ReadIntegerVectorSimple(disambig_rxfilename, &disambig_syms))
         KALDI_ERR << "fstcomposecontext: Could not read disambiguation symbols from "
                   << disambig_rxfilename;
-    
-    TrainingGraphCompiler gc(lex_fst, disambig_syms, gopts);
 
     lex_fst = NULL;  // we gave ownership to gc.
 
@@ -92,7 +115,7 @@ int main(int argc, char *argv[]) {
         const std::vector<int32> &transcript = transcript_reader.Value();
         VectorFst<StdArc> decode_fst;
 
-        if (!gc.CompileGraphFromText(transcript, &decode_fst)) {
+        if (!gc.CompileGraphsFromTextCTC(transcript, &decode_fst)) {
           decode_fst.DeleteStates();  // Just make it empty.
         }
         if (decode_fst.Start() != fst::kNoStateId) {

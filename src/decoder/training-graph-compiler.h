@@ -64,6 +64,14 @@ class TrainingGraphCompiler {
                         const std::vector<int32> &disambig_syms, // disambig symbols in phone symbol table.
                         const TrainingGraphCompilerOptions &opts);
 
+  TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *token_fst,
+		  	  	  	  	fst::VectorFst<fst::StdArc> *ctx_fst,
+		  	  	  	  	fst::VectorFst<fst::StdArc> *lex_fst, // Takes ownership of this object.
+                        // It should not contain disambiguation symbols or subsequential symbol,
+                        // but it should contain optional silence.
+                        const std::vector<int32> &disambig_syms, // disambig symbols in phone symbol table.
+                        const TrainingGraphCompilerOptions &opts);
+
   TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *lex_fst,  // Takes ownership of this object.
                         // It should not contain disambiguation symbols or subsequential symbol,
                         // but it should contain optional silence.
@@ -105,6 +113,8 @@ class TrainingGraphCompiler {
  private:
   const TransitionModel &trans_model_;
   const ContextDependency &ctx_dep_;
+  fst::VectorFst<fst::StdArc> *ctx_fst_;
+  fst::VectorFst<fst::StdArc> *token_fst_;
   fst::VectorFst<fst::StdArc> *lex_fst_; // lexicon FST (an input; we take
   // ownership as we need to modify it).
   std::vector<int32> disambig_syms_; // disambig symbols (if any) in the phone
