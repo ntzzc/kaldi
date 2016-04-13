@@ -113,12 +113,14 @@ class TrainingGraphCompiler {
  private:
   const TransitionModel &trans_model_;
   const ContextDependency &ctx_dep_;
-  fst::VectorFst<fst::StdArc> *ctx_fst_;
   fst::VectorFst<fst::StdArc> *token_fst_;
+  fst::VectorFst<fst::StdArc> *ctx_fst_;
   fst::VectorFst<fst::StdArc> *lex_fst_; // lexicon FST (an input; we take
   // ownership as we need to modify it).
   std::vector<int32> disambig_syms_; // disambig symbols (if any) in the phone
   // symbol table.
+  fst::TableComposeCache<fst::Fst<fst::StdArc> > token_cache_;  // stores matcher..
+  fst::TableComposeCache<fst::Fst<fst::StdArc> > ctx_cache_;  // stores matcher..
   fst::TableComposeCache<fst::Fst<fst::StdArc> > lex_cache_;  // stores matcher..
   // this is one of Dan's extensions.
 

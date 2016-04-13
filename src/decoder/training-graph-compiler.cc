@@ -72,8 +72,8 @@ TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *lex_fs
 }
 
 TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *token_fst,
-											fst::VectorFst<fst::StdArc> *ctx_fst,
-											 fst::VectorFst<fst::StdArc> *lex_fst,
+					     fst::VectorFst<fst::StdArc> *ctx_fst,
+					     fst::VectorFst<fst::StdArc> *lex_fst,
                                              const std::vector<int32> &disambig_syms,
                                              const TrainingGraphCompilerOptions &opts):
 		token_fst_(token_fst), ctx_fst_(ctx_fst), lex_fst_(lex_fst), disambig_syms_(disambig_syms), opts_(opts) {
@@ -82,6 +82,8 @@ TrainingGraphCompiler::TrainingGraphCompiler(fst::VectorFst<fst::StdArc> *token_
   {  // make sure lexicon is olabel sorted.
     fst::OLabelCompare<fst::StdArc> olabel_comp;
     fst::ArcSort(lex_fst_, olabel_comp);
+    fst::ArcSort(token_fst, olabel_comp);
+    fst::ArcSort(ctx_fst, olabel_comp);
   }
 }
 
@@ -308,8 +310,8 @@ bool TrainingGraphCompiler::CompileGraphsCTC(
 
       if (NULL != ctx_fst_)
       {
-    	  TableCompose(*ctx_fst_, phone2word_fst, &clw_fst, &lex_cache_);
-    	  TableCompose(*token_fst_, clw_fst, &tclw_fst, &lex_cache_);
+    	  TableCompose(*ctx_fst_, phone2word_fst, &clw_fst, &ctx_cache_);
+    	  TableCompose(*token_fst_, clw_fst, &tclw_fst, &token_cache_);
 
           KALDI_ASSERT(tclw_fst.Start() != kNoStateId &&
                      "Perhaps you have words missing in your lexicon?");

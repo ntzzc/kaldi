@@ -63,6 +63,12 @@ int main(int argc, char *argv[]) {
     VectorFst<StdArc> *lex_fst, *ctx_fst, *token_fst;
     TrainingGraphCompiler *gc;
 
+    std::vector<int32> disambig_syms;
+    if (disambig_rxfilename != "")
+      if (!ReadIntegerVectorSimple(disambig_rxfilename, &disambig_syms))
+        KALDI_ERR << "fstcomposecontext: Could not read disambiguation symbols from "
+                  << disambig_rxfilename;
+
     if (po.NumArgs() == 3)
     {
         lex_rxfilename = po.GetArg(1);
@@ -93,14 +99,6 @@ int main(int argc, char *argv[]) {
     	exit(1);
     }
 
-
-
-    std::vector<int32> disambig_syms;
-    if (disambig_rxfilename != "")
-      if (!ReadIntegerVectorSimple(disambig_rxfilename, &disambig_syms))
-        KALDI_ERR << "fstcomposecontext: Could not read disambiguation symbols from "
-                  << disambig_rxfilename;
-
     lex_fst = NULL;  // we gave ownership to gc.
 
     SequentialInt32VectorReader transcript_reader(transcript_rspecifier);
@@ -115,7 +113,7 @@ int main(int argc, char *argv[]) {
         const std::vector<int32> &transcript = transcript_reader.Value();
         VectorFst<StdArc> decode_fst;
 
-        if (!gc.CompileGraphsFromTextCTC(transcript, &decode_fst)) {
+        if (!gc->CompileGraphFromText(transcript, &decode_fst)) {
           decode_fst.DeleteStates();  // Just make it empty.
         }
         if (decode_fst.Start() != fst::kNoStateId) {
@@ -140,7 +138,7 @@ int main(int argc, char *argv[]) {
           transcripts.push_back(transcript_reader.Value());
         }
         std::vector<fst::VectorFst<fst::StdArc>* > fsts;
-        if (!gc.CompileGraphsFromTextCTC(transcripts, &fsts)) {
+        if (!gc->CompileGraphsFromTextCTC(transcripts, &fsts)) {
           KALDI_ERR << "Not expecting CompileGraphs to fail.";
         }
         KALDI_ASSERT(fsts.size() == keys.size());
