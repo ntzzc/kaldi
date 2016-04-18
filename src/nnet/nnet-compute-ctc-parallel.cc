@@ -210,9 +210,9 @@ private:
 
 		int32 num_stream = opts->num_stream;
 		int32 frame_limit = opts->max_frames;
-        	int32 targets_delay = opts->targets_delay;
+		int32 targets_delay = opts->targets_delay;
 		int32 batch_size = opts->batch_size;
-        	int32 skip_frames = opts->skip_frames;
+        int32 skip_frames = opts->skip_frames;
 
 	    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
 	    std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
@@ -297,10 +297,11 @@ private:
 			  for (int r = 0; r < frame_num_utt[s]; r++) {
 				  //feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(mat_tmp.Row(r));
 				  if (r + targets_delay < frame_num_utt[s]) {
-					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(r*skip_frames+targets_delay));
+					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row((r+targets_delay)*skip_frames));
 				  }
 				  else{
-					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(frame_num_utt[s]-1));
+					  int last = (frame_num_utt[s]-1)*skip_frames; // frame_num_utt[s]-1
+					  feat_mat_host.Row(r*cur_stream_num + s).CopyFromVec(feats_utt[s].Row(last));
 				  }
 				  //ce label
 				  if (this->objective_function == "xent")

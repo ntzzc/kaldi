@@ -66,6 +66,7 @@ struct NnetSequentialUpdateOptions {
   int32 num_stream;
   int32 dump_interval;
   int32 frame_limit;
+  int32 skip_frames;
   //lstm
 
   const NnetTrainOptions *trn_opts;
@@ -81,7 +82,7 @@ struct NnetSequentialUpdateOptions {
   	  	  	  	  	  	  	  	 use_gpu("yes"),
 								 si_model_filename(""),
 								 use_psgd(false),
-								 targets_delay(0), batch_size(0), num_stream(0), dump_interval(0),frame_limit(10000),
+								 targets_delay(0), batch_size(0), num_stream(0), dump_interval(0),frame_limit(10000),skip_frames(1),
 								 trn_opts(trn_opts),
 								 prior_opts(prior_opts),
 								 parallel_opts(parallel_opts){ }
@@ -133,6 +134,8 @@ struct NnetSequentialUpdateOptions {
       po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
       
       po->Register("frame-limit", &frame_limit, "Max number of frames to be processed in lstm");
+
+      po->Register("skip-frames", &skip_frames, "LSTM based model skip frames for next input");
       //</jiayu>
 
   }
