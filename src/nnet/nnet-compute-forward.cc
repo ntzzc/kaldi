@@ -115,6 +115,7 @@ public:
 	    std::vector<Posterior> targets(num_stream);
 	    std::vector<int> curt(num_stream, 0);
 	    std::vector<int> lent(num_stream, 0);
+	    std::vector<int> frame_num_utt(num_stream, 0);
 	    std::vector<int> new_utt_flags(num_stream, 0);
 
 	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
@@ -181,7 +182,9 @@ public:
 	                lent[s] = feats[s].NumRows();
 	                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
 
-	                utt_feats[s].Resize(lent[s], out_dim, kUndefined);
+	                frame_num_utt[s] = (lent[s]+skip_frames-1)/skip_frames;
+	                int32 utt_frames = opts->copy_posterior ? lent[s]:frame_num_utt[s];
+	                utt_feats[s].Resize(utt_frames, out_dim, kUndefined);
 	                utt_copied[s] = false;
 	                utt_curt[s] = 0;
 
@@ -205,13 +208,14 @@ public:
 		        for (int t = 0; t < batch_size; t++) {
 		           for (int s = 0; s < num_stream; s++) {
 		               // feat shifting & padding
-		               if (curt[s] + time_shift < lent[s]) {
-		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]+time_shift));
+		               if (curt[s] + time_shift*skip_frames < lent[s]) {
+		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]+time_shift*skip_frames));
 		               } else {
-		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(lent[s]-1));
+		            	   int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
+		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
 		               }
 
-		               curt[s] += skip_frames;
+		               curt[s]+=skip_frames;
 		           }
 		       }
 
@@ -250,13 +254,22 @@ public:
 		       for (int t = 0; t < batch_size; t++) {
 		           for (int s = 0; s < num_stream; s++) {
 		               // feat shifting & padding
-		               for (int k = 0; k < skip_frames; k++) 
-		               {
-		               		if (utt_curt[s] < lent[s]) {
-		            	   	utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
-		            	   	utt_curt[s]++;
-				}
-		               }
+		        	   if (opts->copy_posterior)
+		        	   {
+		        		   for (int k = 0; k < skip_frames; k++){
+		        		   		if (utt_curt[s] < lent[s]) {
+		        		   			utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
+		        		   			utt_curt[s]++;
+		        		   		}
+		        		   }
+		        	   }
+		        	   else
+		        	   {
+		        		   if (utt_curt[s] < frame_num_utt[s]) {
+		        			   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * num_stream + s));
+		        			   utt_curt[s]++;
+		        		   }
+		        	   }
 		           }
 		       }
 

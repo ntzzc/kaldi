@@ -33,6 +33,7 @@ struct NnetForwardOptions {
     std::string feature_transform;
     bool no_softmax;
     bool apply_log;
+    bool copy_posterior;
     std::string use_gpu;
     int32 num_threads;
 
@@ -45,7 +46,7 @@ struct NnetForwardOptions {
     const PdfPriorOptions *prior_opts;
 
     NnetForwardOptions(const PdfPriorOptions *prior_opts)
-    	:feature_transform(""),no_softmax(false),apply_log(false),use_gpu("no"),num_threads(1),
+    	:feature_transform(""),no_softmax(false),apply_log(false),copy_posterior(true),use_gpu("no"),num_threads(1),
 		 	 	 	 	 	 	 time_shift(0),batch_size(20),num_stream(0),dump_interval(0), skip_frames(1), prior_opts(prior_opts)
     {
 
@@ -56,6 +57,7 @@ struct NnetForwardOptions {
     	po->Register("feature-transform", &feature_transform, "Feature transform in front of main network (in nnet format)");
     	po->Register("no-softmax", &no_softmax, "No softmax on MLP output (or remove it if found), the pre-softmax activations will be used as log-likelihoods, log-priors will be subtracted");
     	po->Register("apply-log", &apply_log, "Transform MLP output to logscale");
+    	po->Register("copy-posterior", &copy_posterior, "Copy posterior for skip frames output");
     	po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
 
 
@@ -67,7 +69,7 @@ struct NnetForwardOptions {
         po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
         po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
         po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
-	po->Register("skip-frames", &skip_frames, "LSTM model skip frames for next input");
+        po->Register("skip-frames", &skip_frames, "LSTM model skip frames for next input");
         //</jiayu>
 
     }
