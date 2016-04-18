@@ -129,10 +129,13 @@ bool SequentialNnetExample::PrepareData()
 		      // 1) get the features, numerator alignment
 		      input_frames = feature_reader->Value();
 		      num_ali = num_ali_reader->Value(utt);
+		      int32 skip_frames = opts->skip_frames;
+		      int32 utt_frames = (input_frames.NumRows()+skip_frames-1)/skip_frames; // utt_frames=input_frames.NumRows()
+
 		      // check for temporal length of numerator alignments
-		      if ((int32)num_ali.size() != input_frames.NumRows()) {
+		      if ((int32)num_ali.size() != utt_frames){
 		        KALDI_WARN << "Numerator alignment has wrong length "
-		                   << num_ali.size() << " vs. "<< input_frames.NumRows();
+		                   << num_ali.size() << " vs. "<< utt_frames;
 		        model_sync->LockStates();
 		        stats->num_other_error++;
 		        model_sync->UnlockStates();
@@ -168,9 +171,9 @@ bool SequentialNnetExample::PrepareData()
 		      // get the lattice length and times of states
 		      int32 max_time = kaldi::LatticeStateTimes(den_lat, &state_times);
 		      // check for temporal length of denominator lattices
-		      if (max_time != input_frames.NumRows()) {
+		      if (max_time != utt_frames) {
 		        KALDI_WARN << "Denominator lattice has wrong length "
-		                   << max_time << " vs. " << input_frames.NumRows();
+		                   << max_time << " vs. " << utt_frames;
 		        model_sync->LockStates();
 		        stats->num_other_error++;
 		        model_sync->UnlockStates();
