@@ -49,7 +49,7 @@ class AffineTransform : public UpdatableComponent {
   
   void InitData(std::istream &is) {
     // define options
-    float bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1;
+    float bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1, param_range = 0.0;
     float learn_rate_coef = 1.0, bias_learn_rate_coef = 1.0;
     float max_norm = 0.0;
     // parse config
@@ -57,6 +57,7 @@ class AffineTransform : public UpdatableComponent {
     while (!is.eof()) {
       ReadToken(is, false, &token); 
       /**/ if (token == "<ParamStddev>") ReadBasicType(is, false, &param_stddev);
+      else if (token == "<ParamRange>")   ReadBasicType(is, false, &param_range);
       else if (token == "<BiasMean>")    ReadBasicType(is, false, &bias_mean);
       else if (token == "<BiasRange>")   ReadBasicType(is, false, &bias_range);
       else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef);
@@ -73,7 +74,10 @@ class AffineTransform : public UpdatableComponent {
     Matrix<BaseFloat> mat(output_dim_, input_dim_);
     for (int32 r=0; r<output_dim_; r++) {
       for (int32 c=0; c<input_dim_; c++) {
-        mat(r,c) = param_stddev * RandGauss(); // 0-mean Gauss with given std_dev
+        if (param_range == 0.0)
+        	mat(r,c) = param_stddev * RandGauss(); // 0-mean Gauss with given std_dev
+	else
+		mat(r,c) = param_range * (RandUniform() - 0.5) * 2;
       }
     }
     linearity_ = mat;

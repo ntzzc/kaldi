@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
         "\n"
         "Usage:  nnet-forward-evaluate [options] <model-in> \n"
         "e.g.: \n"
-        " nnet-forward-evaluate --batch-size=16 --num-iteration=500 nnet\n";
+        " nnet-forward-evaluate --verbose=1 --batch-size=16 --num-iteration=500 --no-softmax=true --feature-transform=final.feature_transform final.nnet\n";
 
     ParseOptions po(usage);
 
