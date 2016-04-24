@@ -1067,12 +1067,15 @@ void NnetSequentialUpdateParallel(const NnetSequentialUpdateOptions *opts,
 	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    	example = new SequentialNnetExample(&feature_reader, &den_lat_reader, &num_ali_reader, &model_sync, stats, opts);
-    		examples = example->PrepareData();
-    		for (int i = 0; i < examples.size(); i++)
-    			repository.AcceptExample(examples[i]);
-
-    		if (examples[0] != example)
-    			delete example;
+	    	if (example->PrepareData(examples))
+	    	{
+	    		for (int i = 0; i < examples.size(); i++)
+	    			repository.AcceptExample(examples[i]);
+	    		if (examples[0] != example)
+	    			delete example;
+	    	}
+	    	else
+	    		delete example;
 	    }
 	    repository.ExamplesDone();
 	  }

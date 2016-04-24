@@ -40,7 +40,7 @@ struct NnetExample{
 
 	virtual ~NnetExample(){}
 
-	virtual std::vector<NnetExample*> PrepareData() = 0;
+	virtual bool PrepareData(std::vector<NnetExample*> &examples) = 0;
 
 
 };
@@ -70,7 +70,7 @@ struct DNNNnetExample : NnetExample
 	NnetExample(feature_reader), targets_reader(targets_reader), weights_reader(weights_reader),
 	model_sync(model_sync), stats(stats), opts(opts) {}
 
-	std::vector<NnetExample*> PrepareData();
+	bool PrepareData(std::vector<NnetExample*> &examples);
 };
 
 struct CTCNnetExample : NnetExample
@@ -93,7 +93,7 @@ struct CTCNnetExample : NnetExample
 	model_sync(model_sync), stats(stats), opts(opts){}
 
 
-	std::vector<NnetExample*> PrepareData();
+	bool PrepareData(std::vector<NnetExample*> &examples);
 };
 
 struct SequentialNnetExample : NnetExample
@@ -122,7 +122,7 @@ struct SequentialNnetExample : NnetExample
 
 							}
 
-	std::vector<NnetExample*> PrepareData();
+	bool PrepareData(std::vector<NnetExample*> &examples);
 
 };
 
@@ -142,7 +142,7 @@ struct LstmNnetExample: NnetExample
     	feat = ft;
     	new_utt_flags = flags;
     }
-    std::vector<NnetExample*> PrepareData();
+    bool PrepareData(std::vector<NnetExample*> &examples);
 };
 
 struct FeatureExample: NnetExample
@@ -150,13 +150,13 @@ struct FeatureExample: NnetExample
 	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader)
 	:NnetExample(feature_reader){}
 
-	std::vector<NnetExample*> PrepareData()
+	bool PrepareData(std::vector<NnetExample*> &examples)
 	{
-		std::vector<NnetExample*> examples(0);
+		examples.resize(1);
 		utt = feature_reader->Key();
 		input_frames = feature_reader->Value();
 		examples[0] = this;
-		return examples;
+		return true;
 	}
 
 };

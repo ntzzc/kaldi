@@ -23,9 +23,8 @@
 namespace kaldi {
 namespace nnet1 {
 
-std::vector<NnetExample*> DNNNnetExample::PrepareData()
+bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {
-
 	        utt = feature_reader->Key();
 	        KALDI_VLOG(3) << "Reading " << utt;
 	        // check that we have targets
@@ -84,9 +83,9 @@ std::vector<NnetExample*> DNNNnetExample::PrepareData()
 
 
 	        // split feature
-	        int32 skip_frames, lent, cur;
-	        skip_frames = opts->skip_frames;
-	        std::vector<NnetExample*> examples(skip_frames);
+	        int32 skip_frames = opts->skip_frames;
+	        int32 lent, cur;
+	        examples.resize(skip_frames);
 
 	        if (skip_frames <= 1)
 	        {
@@ -113,10 +112,10 @@ std::vector<NnetExample*> DNNNnetExample::PrepareData()
 	        	examples[i] = example;
 	        }
 
-	return examples;
+	        return true;
 }
 
-std::vector<NnetExample*> CTCNnetExample::PrepareData()
+bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {
     utt = feature_reader->Key();
     KALDI_VLOG(3) << "Reading " << utt;
@@ -134,9 +133,9 @@ std::vector<NnetExample*> CTCNnetExample::PrepareData()
     targets = targets_reader->Value(utt);
 
     // split feature
-    int32 skip_frames, lent, cur;
-    skip_frames = opts->skip_frames;
-    std::vector<NnetExample*> examples(skip_frames);
+    int32 skip_frames = opts->skip_frames;
+    int32 lent, cur;
+    examples.resize(skip_frames);
 
     if (skip_frames <= 1)
     {
@@ -164,11 +163,11 @@ std::vector<NnetExample*> CTCNnetExample::PrepareData()
     	examples[i] = example;
     }
 
-    return examples;
+    return true;
 }
 
 
-std::vector<NnetExample*> SequentialNnetExample::PrepareData()
+bool SequentialNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {
 			  utt = feature_reader->Key();
 		      if (!den_lat_reader->HasKey(utt)) {
@@ -243,9 +242,8 @@ std::vector<NnetExample*> SequentialNnetExample::PrepareData()
 
 
 		        // split feature
-		        int32 lent, cur;
-		        skip_frames = opts->skip_frames;
-		        std::vector<NnetExample*> examples(1);
+		      int32 lent, cur;
+		      examples.resize(skip_frames);
 
 		        if (skip_frames <= 1)
 		        {
@@ -275,15 +273,14 @@ std::vector<NnetExample*> SequentialNnetExample::PrepareData()
 		        	examples[i] = example;
 		        }
 
-		      return examples;
+		      return true;
 }
 
-std::vector<NnetExample*> LstmNnetExample::PrepareData()
+bool LstmNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {
-
-	std::vector<NnetExample*> examples(0);
+	examples.resize(1);
 	examples[0] = this;
-	return examples;
+	return true;
 }
 
 void ExamplesRepository::AcceptExample(
