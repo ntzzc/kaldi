@@ -23,7 +23,7 @@
 namespace kaldi {
 namespace nnet1 {
 
-bool DNNNnetExample::PrepareData()
+std::vector<NnetExample*> DNNNnetExample::PrepareData()
 {
 
 	        utt = feature_reader->Key();
@@ -83,10 +83,40 @@ bool DNNNnetExample::PrepareData()
 	        }
 
 
-	return true;
+	        // split feature
+	        int32 skip_frames, lent, cur;
+	        skip_frames = opts->skip_frames;
+	        std::vector<NnetExample*> examples(skip_frames);
+
+	        if (skip_frames <= 1)
+	        {
+	        	examples[0] = this;
+	        	return examples;
+	        }
+
+	        DNNNnetExample *example = NULL;
+	        for (int i = 0; i < skip_frames; i++)
+	        {
+	        	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
+	        	example->utt = utt;
+	        	lent = input_frames.NumRows()/skip_frames;
+	        	lent += input_frames%skip_frames > i ? 1 : 0;
+	        	example->input_frames.Resize(lent, input_frames.NumCols());
+	        	cur = i;
+	        	for (int j = 0; j < example->input_frames.NumRows(); j++)
+	        	{
+	        		example->input_frames.Row(j).CopyFromVec(input_frames.Row(cur));
+	        		example->targets[j] = targets[cur];
+	        		example->frames_weights(j) = frames_weights(cur);
+	        		cur += skip_frames;
+	        	}
+	        	examples[i] = example;
+	        }
+
+	return examples;
 }
 
-bool CTCNnetExample::PrepareData()
+std::vector<NnetExample*> CTCNnetExample::PrepareData()
 {
     utt = feature_reader->Key();
     KALDI_VLOG(3) << "Reading " << utt;
@@ -103,11 +133,42 @@ bool CTCNnetExample::PrepareData()
     input_frames = feature_reader->Value();
     targets = targets_reader->Value(utt);
 
-    return true;
+    // split feature
+    int32 skip_frames, lent, cur;
+    skip_frames = opts->skip_frames;
+    std::vector<NnetExample*> examples(skip_frames);
+
+    if (skip_frames <= 1)
+    {
+    	examples[0] = this;
+    	return examples;
+    }
+
+    CTCNnetExample *example = NULL;
+    for (int i = 0; i < skip_frames; i++)
+    {
+    	example = new CTCNnetExample(feature_reader, targets_reader, model_sync, stats, opts);
+    	example->utt = utt;
+    	example->targets = targets;
+
+    	lent = input_frames.NumRows()/skip_frames;
+    	lent += input_frames%skip_frames > i ? 1 : 0;
+    	example->input_frames.Resize(lent, input_frames.NumCols());
+    	cur = i;
+    	for (int j = 0; j < example->input_frames.NumRows(); j++)
+    	{
+    		example->input_frames.Row(j).CopyFromVec(input_frames.Row(cur));
+    		cur += skip_frames;
+    	}
+
+    	examples[i] = example;
+    }
+
+    return examples;
 }
 
 
-bool SequentialNnetExample::PrepareData()
+std::vector<NnetExample*> SequentialNnetExample::PrepareData()
 {
 			  utt = feature_reader->Key();
 		      if (!den_lat_reader->HasKey(utt)) {
@@ -180,13 +241,49 @@ bool SequentialNnetExample::PrepareData()
 		        return false;
 		      }
 
-		      return true;
+
+		        // split feature
+		        int32 lent, cur;
+		        skip_frames = opts->skip_frames;
+		        std::vector<NnetExample*> examples(1);
+
+		        if (skip_frames <= 1)
+		        {
+		        	examples[0] = this;
+		        	return examples;
+		        }
+
+		        SequentialNnetExample *example = NULL;
+		        for (int i = 0; i < 1; i++)
+		        {
+		        	example = new SequentialNnetExample(feature_reader, den_lat_reader, num_ali_reader, model_sync, stats, opts);
+		        	example->utt = utt;
+		        	example->den_lat = den_lat;
+		        	example->num_ali = num_ali;
+		        	example->state_times = state_times;
+
+		        	lent = input_frames.NumRows()/skip_frames;
+		        	lent += input_frames%skip_frames > i ? 1 : 0;
+		        	example->input_frames.Resize(lent, input_frames.NumCols());
+		        	cur = i;
+		        	for (int j = 0; j < example->input_frames.NumRows(); j++)
+		        	{
+		        		example->input_frames.Row(j).CopyFromVec(input_frames.Row(cur));
+		        		cur += skip_frames;
+		        	}
+
+		        	examples[i] = example;
+		        }
+
+		      return examples;
 }
 
-bool LstmNnetExample::PrepareData()
+std::vector<NnetExample*> LstmNnetExample::PrepareData()
 {
 
-	return true;
+	std::vector<NnetExample*> examples(0);
+	examples[0] = this;
+	return examples;
 }
 
 void ExamplesRepository::AcceptExample(

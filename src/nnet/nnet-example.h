@@ -37,9 +37,10 @@ struct NnetExample{
 
 	NnetExample(SequentialBaseFloatMatrixReader *feature_reader):
 		feature_reader(feature_reader){}
+
 	virtual ~NnetExample(){}
 
-	virtual bool PrepareData() = 0;
+	virtual std::vector<NnetExample*> PrepareData() = 0;
 
 
 };
@@ -67,11 +68,9 @@ struct DNNNnetExample : NnetExample
 					NnetStats *stats,
 					const NnetUpdateOptions *opts):
 	NnetExample(feature_reader), targets_reader(targets_reader), weights_reader(weights_reader),
-	model_sync(model_sync), stats(stats), opts(opts)
-	{
+	model_sync(model_sync), stats(stats), opts(opts) {}
 
-	}
-	bool PrepareData();
+	std::vector<NnetExample*> PrepareData();
 };
 
 struct CTCNnetExample : NnetExample
@@ -91,11 +90,10 @@ struct CTCNnetExample : NnetExample
 					NnetCtcStats *stats,
 					const NnetUpdateOptions *opts):
 	NnetExample(feature_reader), targets_reader(targets_reader),
-	model_sync(model_sync), stats(stats), opts(opts)
-	{
+	model_sync(model_sync), stats(stats), opts(opts){}
 
-	}
-	bool PrepareData();
+
+	std::vector<NnetExample*> PrepareData();
 };
 
 struct SequentialNnetExample : NnetExample
@@ -109,7 +107,6 @@ struct SequentialNnetExample : NnetExample
 	 /// The numerator alignment
 	std::vector<int32> num_ali;
 	Lattice den_lat;
-
 	std::vector<int32> state_times;
 
 
@@ -125,7 +122,7 @@ struct SequentialNnetExample : NnetExample
 
 							}
 
-	bool PrepareData();
+	std::vector<NnetExample*> PrepareData();
 
 };
 
@@ -145,7 +142,7 @@ struct LstmNnetExample: NnetExample
     	feat = ft;
     	new_utt_flags = flags;
     }
-    bool PrepareData();
+    std::vector<NnetExample*> PrepareData();
 };
 
 struct FeatureExample: NnetExample
@@ -153,11 +150,13 @@ struct FeatureExample: NnetExample
 	FeatureExample(SequentialBaseFloatMatrixReader *feature_reader)
 	:NnetExample(feature_reader){}
 
-	bool PrepareData()
+	std::vector<NnetExample*> PrepareData()
 	{
+		std::vector<NnetExample*> examples(0);
 		utt = feature_reader->Key();
 		input_frames = feature_reader->Value();
-		return true;
+		examples[0] = this;
+		return examples;
 	}
 
 };
