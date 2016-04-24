@@ -47,11 +47,10 @@ struct NnetLstmUpdateOptions : public NnetUpdateOptions {
     int32 batch_size;
     int32 num_stream;
     int32 dump_interval;
-    int32 skip_frames;
     //lstm
 
     NnetLstmUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), targets_delay(5), batch_size(20), num_stream(4), dump_interval(0), skip_frames(1) { }
+    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), targets_delay(5), batch_size(20), num_stream(4), dump_interval(0) { }
 
   	  void Register(OptionsItf *po)
   	  {
@@ -66,7 +65,6 @@ struct NnetLstmUpdateOptions : public NnetUpdateOptions {
 
 	      po->Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
 
-	      po->Register("skip-frames", &skip_frames, "LSTM model skip frames for next input");
 	      //</jiayu>
 
   	  }

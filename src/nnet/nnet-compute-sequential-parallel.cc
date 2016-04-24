@@ -552,7 +552,7 @@ private:
 		int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
 		int32 frame_limit = opts->frame_limit;
-		int32 skip_frames = opts->skip_frames;
+		int32 skip_frames = 1;
 
 
 	    int32 num_done = 0, num_no_num_ali = 0, num_no_den_lat = 0,
@@ -1064,12 +1064,15 @@ void NnetSequentialUpdateParallel(const NnetSequentialUpdateOptions *opts,
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<SeqTrainParallelClass> m(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
+	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    	example = new SequentialNnetExample(&feature_reader, &den_lat_reader, &num_ali_reader, &model_sync, stats, opts);
-	    	if (example->PrepareData())
-	    		repository.AcceptExample(example);
-	    	else
-	    		delete example;
+    		examples = example->PrepareData();
+    		for (int i = 0; i < examples.size(); i++)
+    			repository.AcceptExample(examples[i]);
+
+    		if (examples[0] != example)
+    			delete example;
 	    }
 	    repository.ExamplesDone();
 	  }

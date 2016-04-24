@@ -209,7 +209,7 @@ private:
 		int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
 		int32 targets_delay = opts->targets_delay;
-		int32 skip_frames = opts->skip_frames;
+		int32 skip_frames = 1;
 
 	    //  book-keeping for multi-streams
 	    std::vector<std::string> keys(num_stream);
@@ -511,12 +511,15 @@ void NnetLstmUpdateAsgd(const NnetLstmUpdateOptions *opts,
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainLstmAsgdClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
+	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
-	    	if (example->PrepareData())
-	    		repository.AcceptExample(example);
-	    	else
-	    		delete example;
+    		examples = example->PrepareData();
+    		for (int i = 0; i < examples.size(); i++)
+    			repository.AcceptExample(examples[i]);
+
+    		if (examples[0] != example)
+    			delete example;
 	    }
 	    repository.ExamplesDone();
 	  }

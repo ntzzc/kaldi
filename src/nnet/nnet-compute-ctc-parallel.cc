@@ -212,7 +212,7 @@ private:
 		int32 frame_limit = opts->max_frames;
 		int32 targets_delay = opts->targets_delay;
 		int32 batch_size = opts->batch_size;
-        int32 skip_frames = opts->skip_frames;
+        int32 skip_frames = 1;
 
 	    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
 	    std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
@@ -499,11 +499,14 @@ void NnetCtcUpdateParallel(const NnetCtcUpdateOptions *opts,
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainCtcParallelClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
+	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    		example = new CTCNnetExample(&feature_reader, &targets_reader, &model_sync, stats, opts);
-	    	if (example->PrepareData())
-	    		repository.AcceptExample(example);
-	    	else
+	    		examples = example->PrepareData();
+	    	for (int i = 0; i < examples.size(); i++)
+	    		repository.AcceptExample(examples[i]);
+
+	    	if (examples[0] != example)
 	    		delete example;
 	    }
 	    repository.ExamplesDone();
@@ -536,11 +539,14 @@ void NnetCEUpdateParallel(const NnetCtcUpdateOptions *opts,
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainCtcParallelClass> mc(opts->parallel_opts->num_threads, c);
 	    NnetExample *example;
+	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 				example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
-	    	if (example->PrepareData())
-	    		repository.AcceptExample(example);
-	    	else
+	    		examples = example->PrepareData();
+	    	for (int i = 0; i < examples.size(); i++)
+	    		repository.AcceptExample(examples[i]);
+
+	    	if (examples[0] != example)
 	    		delete example;
 	    }
 	    repository.ExamplesDone();

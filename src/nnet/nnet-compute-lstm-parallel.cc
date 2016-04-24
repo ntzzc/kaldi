@@ -549,12 +549,15 @@ void NnetLstmUpdateParallel(const NnetLstmUpdateOptions *opts,
 	    MultiThreader<DataLstmParallelClass>  md(opts->parallel_opts->num_threads, d);
 
 	    NnetExample *example;
+	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
 	    	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
-	    	if (example->PrepareData())
-	    		repository.AcceptExample(example);
-	    	else
-	    		delete example;
+    		examples = example->PrepareData();
+    		for (int i = 0; i < examples.size(); i++)
+    			repository.AcceptExample(examples[i]);
+
+    		if (examples[0] != example)
+    			delete example;
 	    }
 	    repository.ExamplesDone();
 	  }

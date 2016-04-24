@@ -46,6 +46,7 @@ struct NnetUpdateOptions {
     bool use_psgd;
 
     BaseFloat kld_scale;
+    int32 skip_frames;
 
     std::string feature_transform;
     std::string objective_function;
@@ -63,7 +64,7 @@ struct NnetUpdateOptions {
     const NnetParallelOptions *parallel_opts;
 
     NnetUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: binary(true),crossvalidate(false),randomize(true),use_psgd(false),kld_scale(-1.0),
+    	: binary(true),crossvalidate(false),randomize(true),use_psgd(false),kld_scale(-1.0),skip_frames(1),
 		  objective_function("xent"),frame_weights(""),use_gpu("yes"),
 		  length_tolerance(5),update_frames(-1),dropout_retention(0.0),
 		  trn_opts(trn_opts),rnd_opts(rnd_opts),parallel_opts(parallel_opts){ }
@@ -90,8 +91,9 @@ struct NnetUpdateOptions {
 
 	      po->Register("si-model",&si_model_filename, "kld speaker independent model filename");
 
-	      po->Register("kld-scale", &kld_scale,
-	                  "KLD regularization weight to the original training criterion");
+	      po->Register("kld-scale", &kld_scale, "KLD regularization weight to the original training criterion");
+
+	      po->Register("skip-frames", &skip_frames, "Model skip frames for next input");
 
 	      po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
 
