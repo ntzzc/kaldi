@@ -90,17 +90,19 @@ bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 	        if (skip_frames <= 1)
 	        {
 	        	examples[0] = this;
-	        	return examples;
+	        	return true;
 	        }
 
 	        DNNNnetExample *example = NULL;
 	        for (int i = 0; i < skip_frames; i++)
 	        {
-	        	example = new DNNNnetExample(&feature_reader, &targets_reader, &weights_reader, &model_sync, stats, opts);
+	        	example = new DNNNnetExample(feature_reader, targets_reader, weights_reader, model_sync, stats, opts);
 	        	example->utt = utt;
 	        	lent = input_frames.NumRows()/skip_frames;
-	        	lent += input_frames%skip_frames > i ? 1 : 0;
+	        	lent += input_frames.NumRows()%skip_frames > i ? 1 : 0;
 	        	example->input_frames.Resize(lent, input_frames.NumCols());
+			example->targets.resize(lent);
+			example->frames_weights.Resize(lent);
 	        	cur = i;
 	        	for (int j = 0; j < example->input_frames.NumRows(); j++)
 	        	{
@@ -140,7 +142,7 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     if (skip_frames <= 1)
     {
     	examples[0] = this;
-    	return examples;
+    	return true;
     }
 
     CTCNnetExample *example = NULL;
@@ -151,7 +153,7 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     	example->targets = targets;
 
     	lent = input_frames.NumRows()/skip_frames;
-    	lent += input_frames%skip_frames > i ? 1 : 0;
+    	lent += input_frames.NumRows()%skip_frames > i ? 1 : 0;
     	example->input_frames.Resize(lent, input_frames.NumCols());
     	cur = i;
     	for (int j = 0; j < example->input_frames.NumRows(); j++)
@@ -248,7 +250,7 @@ bool SequentialNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 		        if (skip_frames <= 1)
 		        {
 		        	examples[0] = this;
-		        	return examples;
+		        	return true;
 		        }
 
 		        SequentialNnetExample *example = NULL;
@@ -261,7 +263,7 @@ bool SequentialNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 		        	example->state_times = state_times;
 
 		        	lent = input_frames.NumRows()/skip_frames;
-		        	lent += input_frames%skip_frames > i ? 1 : 0;
+		        	lent += input_frames.NumRows()%skip_frames > i ? 1 : 0;
 		        	example->input_frames.Resize(lent, input_frames.NumCols());
 		        	cur = i;
 		        	for (int j = 0; j < example->input_frames.NumRows(); j++)
