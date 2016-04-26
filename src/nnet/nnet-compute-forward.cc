@@ -393,10 +393,16 @@ void NnetForwardParallel(const NnetForwardOptions *opts,
 
     	    // iterate over all feature files
     	    NnetExample *example;
+    	    std::vector<NnetExample*> examples;
     	    for (; !feature_reader.Done(); feature_reader.Next()) {
     	    	example = new FeatureExample(&feature_reader);
-    	    	if (example->PrepareData())
-    	    		repository.AcceptExample(example);
+    	    	if (example->PrepareData(examples))
+    	    	{
+    	    		for (int i = 0; i < examples.size(); i++)
+    	    			repository.AcceptExample(examples[i]);
+    	    		if (examples[0] != example)
+    	    		    			delete example;
+    	    	}
     	    	else
     	    		delete example;
     	    }
