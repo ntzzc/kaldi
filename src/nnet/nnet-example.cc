@@ -84,25 +84,33 @@ bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
 	        // split feature
 	        int32 skip_frames = opts->skip_frames;
+	        int32 sweep_time = opts->sweep_time;
 	        int32 lent, cur;
-	        examples.resize(skip_frames);
 
-	        if (skip_frames <= 1)
+	        if (sweep_time>skip_frames)
+	        {
+	        	KALDI_WARN << "sweep time for each utterance should less than skip frames (it reset to skip frames)";
+	        	sweep_time = skip_frames;
+	        }
+
+	        examples.resize(sweep_time);
+
+	        if (sweep_time <= 1)
 	        {
 	        	examples[0] = this;
 	        	return true;
 	        }
 
 	        DNNNnetExample *example = NULL;
-	        for (int i = 0; i < skip_frames; i++)
+	        for (int i = 0; i < sweep_time; i++)
 	        {
 	        	example = new DNNNnetExample(feature_reader, targets_reader, weights_reader, model_sync, stats, opts);
 	        	example->utt = utt;
 	        	lent = input_frames.NumRows()/skip_frames;
 	        	lent += input_frames.NumRows()%skip_frames > i ? 1 : 0;
 	        	example->input_frames.Resize(lent, input_frames.NumCols());
-			example->targets.resize(lent);
-			example->frames_weights.Resize(lent);
+	        	example->targets.resize(lent);
+	        	example->frames_weights.Resize(lent);
 	        	cur = i;
 	        	for (int j = 0; j < example->input_frames.NumRows(); j++)
 	        	{
@@ -136,17 +144,25 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
     // split feature
     int32 skip_frames = opts->skip_frames;
+    int32 sweep_time = opts->sweep_time;
     int32 lent, cur;
-    examples.resize(skip_frames);
 
-    if (skip_frames <= 1)
+    if (sweep_time>skip_frames)
+    {
+    	KALDI_WARN << "sweep time for each utterance should less than skip frames (it reset to skip frames)";
+    	sweep_time = skip_frames;
+    }
+
+    examples.resize(sweep_time);
+
+    if (sweep_time <= 1)
     {
     	examples[0] = this;
     	return true;
     }
 
     CTCNnetExample *example = NULL;
-    for (int i = 0; i < skip_frames; i++)
+    for (int i = 0; i < sweep_time; i++)
     {
     	example = new CTCNnetExample(feature_reader, targets_reader, model_sync, stats, opts);
     	example->utt = utt;

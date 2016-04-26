@@ -47,6 +47,7 @@ struct NnetUpdateOptions {
 
     BaseFloat kld_scale;
     int32 skip_frames;
+    int32 sweep_time;
 
     std::string feature_transform;
     std::string objective_function;
@@ -64,7 +65,7 @@ struct NnetUpdateOptions {
     const NnetParallelOptions *parallel_opts;
 
     NnetUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: binary(true),crossvalidate(false),randomize(true),use_psgd(false),kld_scale(-1.0),skip_frames(1),
+    	: binary(true),crossvalidate(false),randomize(true),use_psgd(false),kld_scale(-1.0),skip_frames(1),sweep_time(1),
 		  objective_function("xent"),frame_weights(""),use_gpu("yes"),
 		  length_tolerance(5),update_frames(-1),dropout_retention(0.0),
 		  trn_opts(trn_opts),rnd_opts(rnd_opts),parallel_opts(parallel_opts){ }
@@ -93,12 +94,15 @@ struct NnetUpdateOptions {
 
 	      po->Register("kld-scale", &kld_scale, "KLD regularization weight to the original training criterion");
 
-	      po->Register("skip-frames", &skip_frames, "Model skip frames for next input");
+	      po->Register("skip-frames", &skip_frames, "Compute model on selected frames(one frame out of every skip frames)");
+
+	      po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training");
 
 	      po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
 
 	      po->Register("use-psgd",&use_psgd, "use preconditional sgd instead of sgd, it always true while training with multi-machine");
 
+	      sweep_time = skip_frames;
   	  }
 };
 
