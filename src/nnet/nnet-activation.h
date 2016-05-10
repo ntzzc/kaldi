@@ -57,6 +57,74 @@ class Softmax : public Component {
   }
 };
 
+class CBSoftmax : public Component {
+ public:
+	CBSoftmax(int32 dim_in, int32 dim_out)
+    : Component(dim_in, dim_out)
+  { }
+	~CBSoftmax()
+  { }
+
+  Component* Copy() const { return new CBSoftmax(*this); }
+  ComponentType GetType() const { return kCBSoftmax; }
+
+  void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
+    // y = e^x_j/sum_j(e^x_j)
+    int size = updateclass_id_.size();
+    int beg, cid, clen;
+
+    input_patches_.clear();
+    output_patches_.clear();
+    for (int i = 1; i <= size; i++)
+    {
+    	if (i == size || updateclass_id_[i] != updateclass_id_[i-1])
+    	{
+    		cid = updateclass_id_[i-1];
+    		clen = class_boundary_[cid+1] - class_boundary_[cid];
+    		input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.Range(beg, i-beg, class_boundary_[cid], clen)));
+    		output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->Range(beg, i-beg, class_boundary_[cid], clen)));
+    		beg = i;
+    	}
+    }
+
+    // class
+    clen = output_dim_ - class_boundary_[size-1];
+    input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.ColRange(class_boundary_[size-1], clen)));
+    output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_[size-1], clen)));
+
+	//for (int i = 0; i < output_patches_.size(); i++)
+		//output_patches_[i].ApplySoftMaxPerRow(input_patches_[i]);
+
+	ApplySoftMaxPerRowStreamed(output_patches_, input_patches_);
+
+  }
+
+  void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
+                        const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
+    // simply copy the error derivative
+    // (ie. assume crossentropy error function,
+    // while in_diff contains (net_output-target) :
+    // this is already derivative of the error with
+    // respect to activations of last layer neurons)
+    in_diff->CopyFromMat(out_diff);
+  }
+
+  void SetClassBoundary(const std::vector<int32>& class_boundary)
+  {
+	  class_boundary_ = class_boundary;
+  }
+
+  void SetUpdateClassId(const std::vector<int32>& updateclass_id)
+  {
+	  updateclass_id_ = updateclass_id;
+  }
+
+ private:
+  std::vector<int32>& class_boundary_;
+  std::vector<int32>& updateclass_id_;
+  std::vector<CuSubMatrix<BaseFloat>* > input_patches_;
+  std::vector<CuSubMatrix<BaseFloat>* > output_patches_;
+};
 
 
 class BlockSoftmax : public Component {

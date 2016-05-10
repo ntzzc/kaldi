@@ -114,6 +114,70 @@ class Xent : public LossItf {
 };
 
 
+class CBXent {
+ public:
+	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0),
+           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0) { }
+  ~CBXent() { }
+
+  void SetClassBoundary(const std::vector<int32>& class_boundary);
+
+  /// Evaluate cross entropy using target-matrix (supports soft labels),
+  void Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
+  	  	  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_netout,
+  		  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_target,
+  				  std::vector<CuSubMatrix<BaseFloat>* > &class_diff);
+
+  /// Evaluate cross entropy using target-posteriors (supports soft labels),
+  void Eval(const VectorBase<BaseFloat> &frame_weights,
+            const CuMatrixBase<BaseFloat> &net_out,
+			const std::vector<int32> &target,
+            CuMatrix<BaseFloat> *diff);
+
+  /// Generate string with error report,
+  std::string Report();
+
+  /// Get loss value (frame average),
+  BaseFloat AvgLoss() {
+    return (loss_ - entropy_) / frames_;
+  }
+
+  /// Merge statistic data
+  void Add(CBXent *xent);
+  void Merge(int myid, int root);
+
+ private:
+  double frames_;
+  double correct_;
+  double loss_;
+  double entropy_;
+
+  // partial results during training
+  double frames_progress_;
+  double loss_progress_;
+  double entropy_progress_;
+  double correct_progress_;
+  std::vector<float> loss_vec_;
+
+  // weigting buffer,
+  CuVector<BaseFloat> frame_weights_;
+  CuVector<BaseFloat> target_sum_;
+
+  // loss computation buffers
+  Matrix<BaseFloat> hos_tgt_mat_;
+  std::vector<int32> class_boundary_;
+  std::vector<int32> word2class_;
+
+  CuMatrix<BaseFloat> tgt_mat_;
+  CuMatrix<BaseFloat> xentropy_aux_;
+  CuMatrix<BaseFloat> entropy_aux_;
+
+  // frame classification buffers,
+  CuArray<int32> max_id_out_;
+  CuArray<int32> max_id_tgt_;
+};
+
+
 class Mse : public LossItf {
  public:
   Mse() : frames_(0.0), loss_(0.0), 

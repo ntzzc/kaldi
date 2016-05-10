@@ -1,6 +1,6 @@
-	// nnet/nnet-affine-transform.h
+	// nnet/nnet-class-affine-transform.h
 
-// Copyright 2011-2014  Brno University of Technology (author: Karel Vesely)
+// Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -18,8 +18,8 @@
 // limitations under the License.
 
 
-#ifndef KALDI_NNET_NNET_AFFINE_TRANSFORM_H_
-#define KALDI_NNET_NNET_AFFINE_TRANSFORM_H_
+#ifndef KALDI_NNET_NNET_CLASS_AFFINE_TRANSFORM_H_
+#define KALDI_NNET_NNET_CLASS_AFFINE_TRANSFORM_H_
 
 
 #include "nnet/nnet-component.h"
@@ -30,28 +30,30 @@
 namespace kaldi {
 namespace nnet1 {
 
-class AffineTransform : public UpdatableComponent {
+class ClassAffineTransform : public UpdatableComponent {
 
 	friend class NnetModelSync;
 
  public:
-  AffineTransform(int32 dim_in, int32 dim_out) 
+	ClassAffineTransform(int32 dim_in, int32 dim_out)
     : UpdatableComponent(dim_in, dim_out), 
       linearity_(dim_out, dim_in), bias_(dim_out),
       linearity_corr_(dim_out, dim_in), bias_corr_(dim_out),
-      learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0) 
+      learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0),
+	  max_norm_(0.0), num_class_(0)
   { }
-  ~AffineTransform()
+  ~ClassAffineTransform()
   { }
 
-  Component* Copy() const { return new AffineTransform(*this); }
-  ComponentType GetType() const { return kAffineTransform; }
+  Component* Copy() const { return new ClassAffineTransform(*this); }
+  ComponentType GetType() const { return kClassAffineTransform; }
   
   void InitData(std::istream &is) {
     // define options
     float bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1, param_range = 0.0;
     float learn_rate_coef = 1.0, bias_learn_rate_coef = 1.0;
     float max_norm = 0.0;
+    int32 num_class = 0;
     // parse config
     std::string token; 
     while (!is.eof()) {
@@ -63,6 +65,7 @@ class AffineTransform : public UpdatableComponent {
       else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef);
       else if (token == "<BiasLearnRateCoef>") ReadBasicType(is, false, &bias_learn_rate_coef);
       else if (token == "<MaxNorm>") ReadBasicType(is, false, &max_norm);
+      else if (token == "<Class>") ReadBasicType(is, false, &num_class);
       else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
                      << " (ParamStddev|BiasMean|BiasRange|LearnRateCoef|BiasLearnRateCoef)";
       is >> std::ws; // eat-up whitespace
@@ -88,11 +91,15 @@ class AffineTransform : public UpdatableComponent {
       vec(i) = bias_mean + (RandUniform() - 0.5) * bias_range; 
     }
     bias_ = vec;
+
     //
     learn_rate_coef_ = learn_rate_coef;
     bias_learn_rate_coef_ = bias_learn_rate_coef;
     max_norm_ = max_norm;
+    num_class_ = num_class;
     //
+
+    class_boundary_.Resize(num_class_+1);
   }
 
   void ReadData(std::istream &is, bool binary) {
@@ -106,6 +113,8 @@ class AffineTransform : public UpdatableComponent {
     if ('<' == Peek(is, binary)) {
       ExpectToken(is, binary, "<MaxNorm>");
       ReadBasicType(is, binary, &max_norm_);
+      ExpectToken(is, binary, "<ClassSize>");
+      ReadBasicType(is, binary, &num_class_);
     }
     // weights
     linearity_.Read(is, binary);
@@ -123,6 +132,8 @@ class AffineTransform : public UpdatableComponent {
     WriteBasicType(os, binary, bias_learn_rate_coef_);
     WriteToken(os, binary, "<MaxNorm>");
     WriteBasicType(os, binary, max_norm_);
+    WriteToken(os, binary, "<ClassSize>");
+    WriteBasicType(os, binary, num_class_);
     // weights
     linearity_.Write(os, binary);
     bias_.Write(os, binary);
@@ -141,6 +152,7 @@ class AffineTransform : public UpdatableComponent {
     return std::string("\n  linearity") + MomentStatistics(linearity_) +
            "\n  bias" + MomentStatistics(bias_);
   }
+
   std::string InfoGradient() const {
     return std::string("\n  linearity_grad") + MomentStatistics(linearity_corr_) + 
            ", lr-coef " + ToString(learn_rate_coef_) +
@@ -153,15 +165,86 @@ class AffineTransform : public UpdatableComponent {
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
     // precopy bias
-    out->AddVecToRows(1.0, bias_, 0.0);
+    // out->AddVecToRows(1.0, bias_, 0.0);
     // multiply by weights^t
-    out->AddMatMat(1.0, in, kNoTrans, linearity_, kTrans, 1.0);
+    // out->AddMatMat(1.0, in, kNoTrans, linearity_, kTrans, 1.0);
+
+    CuArray<int32> idx(sortedclass_id_);
+    input_sorted_.Resize(in.NumRows(), in.NumCols(), kUndefined);
+
+	input_sorted_.CopyRows(in, idx);
+
+    int size = idx.Dim();
+    int beg = 0, cid, clen;
+    input_patches_.clear();
+    output_patches_.clear();
+    updateclass_linearity_.clear();
+    updateclass_bias_.clear();
+
+    for (int i = 1; i <= size; i++)
+    {
+    	if (i == size || sortedclass_id_[i] != sortedclass_id_[i-1])
+    	{
+    		cid = sortedclass_id_[i-1];
+    		clen = class_boundary_[cid+1] - class_boundary_[cid];
+    		input_patches_.push_back(new CuSubMatrix<BaseFloat>(input_sorted_.RowRange(beg, i-beg)));
+    		updateclass_linearity_.push_back(class_linearity_[cid]);
+    		updateclass_bias_.push_back(class_bias_[cid]);
+    		output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->Range(beg, i-beg, class_boundary_[cid], clen)));
+    		beg = i;
+    	}
+    }
+
+    AddVecToRowsStreamed(1.0, output_patches_, updateclass_bias_, 0.0);
+    AddMatMatStreamed(static_cast<BaseFloat>(1.0f), output_patches_, input_patches_, kNoTrans,
+    									updateclass_linearity_, kTrans, static_cast<BaseFloat>(1.0f));
+
+    // class
+    clen = output_dim_ - class_boundary_[size-1];
+    CuSubMatrix<BaseFloat> *output_class = new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_[size-1], clen));
+    output_class->AddMatMat(1.0, input_sorted_, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
                         const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
     // multiply error derivative by weights
-	in_diff->AddMatMat(1.0, out_diff, kNoTrans, linearity_, kNoTrans, 0.0);
+	// in_diff->AddMatMat(1.0, out_diff, kNoTrans, linearity_, kNoTrans, 0.0);
+
+	  input_diff_sorted_.Resize(in_diff->NumRows(), in_diff->NumCols(), kUndefined);
+	  in_diff_patches_.clear();
+	  out_diff_patches_.clear();
+	  updateclass_linearity_corr_.clear();
+	  updateclass_bias_corr_.clear();
+
+	    CuArray<int32> idx(sortedclass_id_);
+
+	    int size = idx.Dim();
+	    int beg = 0, cid, clen;
+
+	    for (int i = 1; i <= size; i++)
+	    {
+	    	if (i == size || sortedclass_id_[i] != sortedclass_id_[i-1])
+	    	{
+	    		cid = sortedclass_id_[i-1];
+	    		clen = class_boundary_[cid+1] - class_boundary_[cid];
+	    		in_diff_patches_.push_back(new CuSubMatrix<BaseFloat>(input_diff_sorted_.RowRange(beg, i-beg)));
+	    		updateclass_linearity_corr_.push_back(class_linearity_corr_[cid]);
+	    		updateclass_bias_corr_.push_back(class_bias_corr_[cid]);
+	    		out_diff_patches_.push_back(new CuSubMatrix<BaseFloat>(out_diff->Range(beg, i-beg, class_boundary_[cid], clen)));
+	    		beg = i;
+	    	}
+	    }
+
+	    AddMatMatStreamed(static_cast<BaseFloat>(1.0f), in_diff_patches_, out_diff_patches_, kNoTrans,
+	    												updateclass_linearity_, kTrans, static_cast<BaseFloat>(0.0f));
+
+	    // class
+	    clen = output_dim_ - class_boundary_[size-1];
+	    CuSubMatrix<BaseFloat> *out_diff_class = new CuSubMatrix<BaseFloat>(out_diff->ColRange(class_boundary_[size-1], clen));
+	    input_diff_sorted_->AddMatMat(1.0, out_diff_class, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
+
+	    in_diff->CopyRows(input_diff_sorted_, sortedclass_id_index_);
+
   }
 
   void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
@@ -178,36 +261,22 @@ class AffineTransform : public UpdatableComponent {
 		local_lrate_bias = -lr_bias;
 
 	    // compute gradient (incl. momentum)
-	    linearity_corr_.AddMatMat(1.0, diff, kTrans, input, kNoTrans, mmt);
-	    bias_corr_.AddRowSumMat(1.0, diff, mmt);
-	    // l2 regularization
-	    if (l2 != 0.0) {
-	      linearity_.AddMat(-lr*l2*num_frames, linearity_);
-	    }
-	    // l1 regularization
-	    if (l1 != 0.0) {
-	      cu::RegularizeL1(&linearity_, &linearity_corr_, lr*l1*num_frames, lr);
-	    }
+	    // linearity_corr_.AddMatMat(1.0, diff, kTrans, input, kNoTrans, mmt);
+	    // bias_corr_.AddRowSumMat(1.0, diff, mmt);
+
+		AddMatMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_linearity_corr_, out_diff_patches_, kTrans,
+																input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
+		for (int32 i = 0; i < updateclass_linearity_corr_.size(); i++)
+				updateclass_bias_corr_[i]->AddRowSumMat(1.0, out_diff_patches_[i], mmt);
   }
 
   void UpdateGradient()
   {
 	    	// update
-	      linearity_.AddMat(local_lrate, linearity_corr_);
-	      bias_.AddVec(local_lrate_bias, bias_corr_);
-	      // max-norm
-	      if (max_norm_ > 0.0) {
-	        CuMatrix<BaseFloat> lin_sqr(linearity_);
-	        lin_sqr.MulElements(linearity_);
-	        CuVector<BaseFloat> l2(OutputDim());
-	        l2.AddColSumMat(1.0, lin_sqr, 0.0);
-	        l2.ApplyPow(0.5); // we have per-neuron L2 norms
-	        CuVector<BaseFloat> scl(l2);
-	        scl.Scale(1.0/max_norm_);
-	        scl.ApplyFloor(1.0);
-	        scl.InvertElements();
-	        linearity_.MulRowsVec(scl); // shink to sphere!
-	      }
+	      //linearity_.AddMat(local_lrate, linearity_corr_);
+	      //bias_.AddVec(local_lrate_bias, bias_corr_);
+	  	  AddMatStreamed(local_lrate, updateclass_linearity_, updateclass_linearity_corr_);
+	  	  AddVecStreamed(local_lrate_bias, updateclass_bias_, updateclass_bias_corr_);
   }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
@@ -222,6 +291,7 @@ class AffineTransform : public UpdatableComponent {
     // compute gradient (incl. momentum)
     linearity_corr_.AddMatMat(1.0, diff, kTrans, input, kNoTrans, mmt);
     bias_corr_.AddRowSumMat(1.0, diff, mmt);
+
     // l2 regularization
     if (l2 != 0.0) {
       linearity_.AddMat(-lr*l2*num_frames, linearity_);
@@ -233,19 +303,6 @@ class AffineTransform : public UpdatableComponent {
     // update
     linearity_.AddMat(-lr, linearity_corr_);
     bias_.AddVec(-lr_bias, bias_corr_);
-    // max-norm
-    if (max_norm_ > 0.0) {
-      CuMatrix<BaseFloat> lin_sqr(linearity_);
-      lin_sqr.MulElements(linearity_);
-      CuVector<BaseFloat> l2(OutputDim());
-      l2.AddColSumMat(1.0, lin_sqr, 0.0);
-      l2.ApplyPow(0.5); // we have per-neuron L2 norms
-      CuVector<BaseFloat> scl(l2);
-      scl.Scale(1.0/max_norm_);
-      scl.ApplyFloor(1.0);
-      scl.InvertElements();
-      linearity_.MulRowsVec(scl); // shink to sphere!
-    }
   }
 
   /// Accessors to the component parameters
@@ -276,77 +333,65 @@ class AffineTransform : public UpdatableComponent {
     return linearity_corr_;
   }
 
-  /// This function is for getting a low-rank approximations of this
-   /// AffineComponent by two AffineComponents.
-  virtual void LimitRank(BaseFloat threshold, int min_rank, int max_rank,
-		  AffineTransform **a, AffineTransform **b) const {
-    int32 d = 0;
-    BaseFloat sum = 0;
-    bool transed = false;
+  void SetClassBoundary(const std::vector<int32>& class_boundary)
+  {
+	  class_boundary_ = class_boundary;
 
-    // We'll limit the rank of just the linear part, keeping the bias vector full.
-    Matrix<BaseFloat> M (linearity_);
-    if (M.NumRows() < M.NumCols())
-    {
-    	M.Transpose();
-    	transed = true;
-    }
-    int32 rows = M.NumRows(), cols = M.NumCols(), rc_min = std::min(rows, cols);
-    Vector<BaseFloat> s(rc_min);
-    Matrix<BaseFloat> U(rows, rc_min), Vt(rc_min, cols);
-    // Do the destructive svd M = U diag(s) V^T.  It actually outputs the transpose of V.
-    M.DestructiveSvd(&s, &U, &Vt);
-    SortSvd(&s, &U, &Vt); // Sort the singular values from largest to smallest.
-    BaseFloat old_svd_sum = s.Sum();
+	  int size = class_boundary_.size(), len;
+	  class_linearity_.resize(size);
 
-    for (d = 0; d < s.Dim(); d++)
-    {
-    	sum += s(d);
-    	if (sum >= old_svd_sum*threshold) break;
-    }
-
-    KALDI_ASSERT(d <= InputDim());
-    d = d < min_rank ? min_rank : d;
-    d = max_rank < d ? max_rank : d;
-
-    U.Resize(rows, d, kCopyData);
-    s.Resize(d, kCopyData);
-    Vt.Resize(d, cols, kCopyData);
-    BaseFloat new_svd_sum = s.Sum();
-    KALDI_LOG << "Reduced rank from "
-              << rows << "x" << cols <<  " to "
-              << rows << "x" << d << " and " << d << "x" << cols
-	          << ", SVD sum reduced from " << old_svd_sum << " to " << new_svd_sum;
-
-    if (transed)
-    {
-	U.Transpose();
-	Vt.Transpose();
-	U.Swap(&Vt);
-    }
-    s.ApplySqrt();
-    U.MulColsVec(s); // U <-- U diag(s)
-    Vt.MulRowsVec(s); // Vt <-- diag(s) Vt.
-
-    //*a = dynamic_cast<AffineTransform*>(this->Copy());
-    //*b = dynamic_cast<AffineTransform*>(this->Copy());
-    *a = new AffineTransform(Vt.NumCols(), Vt.NumRows());
-    *b = new AffineTransform(U.NumCols(), U.NumRows());
-
-    (*a)->bias_.Resize(d, kSetZero);
-    (*a)->linearity_ = Vt;
-
-    (*b)->bias_ = this->bias_;
-    (*b)->linearity_ = U;
+	  for (int i = 0; i < size; i++)
+	  {
+		  len = (i==size-1) ? output_dim_ - class_boundary_[size-1] : class_boundary_[i+1] - class_boundary_[i];
+		  class_linearity_[i] = new CuSubMatrix<BaseFloat>(linearity_.RowRange(class_boundary_[i], len));
+		  class_linearity_corr_[i] = new CuSubMatrix<BaseFloat>(linearity_corr_.RowRange(class_boundary_[i], len));
+		  class_bias_[i] = new CuSubMatrix<BaseFloat>(bias_.RowRange(class_boundary_[i], len));
+		  class_bias_corr_[i] = new CuSubMatrix<BaseFloat>(bias_corr_.RowRange(class_boundary_[i], len));
+	  }
   }
 
+  void SetUpdateClassId(const std::vector<int32>& sortedclass_id, const std::vector<int32>& sortedclass_id_index)
+  {
+	  sortedclass_id_ = sortedclass_id;
+	  sortedclass_id_index_ = sortedclass_id_index;
+  }
+
+
 protected:
-  friend class AffinePreconditionedOnlineTransform;
+
   CuMatrix<BaseFloat> linearity_;
   CuVector<BaseFloat> bias_;
 
   CuMatrix<BaseFloat> linearity_corr_;
   CuVector<BaseFloat> bias_corr_;
+
+  CuMatrix<BaseFloat> input_sorted_;
+  CuMatrix<BaseFloat> input_diff_sorted_;
+
+  std::vector<CuSubMatrix<BaseFloat>* > class_linearity_;
+  std::vector<CuSubVector<BaseFloat>* > class_bias_;
+
+  std::vector<CuSubMatrix<BaseFloat>* > class_linearity_corr_;
+  std::vector<CuSubVector<BaseFloat>* > class_bias_corr_;
+
+  std::vector<CuSubMatrix<BaseFloat>* > updateclass_linearity_;
+  std::vector<CuSubVector<BaseFloat>* > updateclass_bias_;
+
+  std::vector<CuSubMatrix<BaseFloat>* > updateclass_linearity_corr_;
+  std::vector<CuSubVector<BaseFloat>* > updateclass_bias_corr_;
+
+  std::vector<CuSubMatrix<BaseFloat>* > input_patches_;
+  std::vector<CuSubMatrix<BaseFloat>* > output_patches_;
+
+  std::vector<CuSubMatrix<BaseFloat>* > in_diff_patches_;
+  std::vector<CuSubMatrix<BaseFloat>* > out_diff_patches_;
+
+  std::vector<int32> class_boundary_;
+  //std::vector<int32> updateclass_id_;
+  std::vector<int32> sortedclass_id_;
+  std::vector<int32> sortedclass_id_index_;
+
+  int32 num_class_;
 
   BaseFloat learn_rate_coef_;
   BaseFloat bias_learn_rate_coef_;

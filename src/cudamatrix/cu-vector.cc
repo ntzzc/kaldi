@@ -78,6 +78,68 @@ template float VecVec(const CuVectorBase<float> &A, const CuVectorBase<double> &
 template double VecVec(const CuVectorBase<double> &A, const CuVectorBase<float> &B);
 
 template<typename Real>
+void AddVecStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des,
+		const std::vector<CuSubVector<Real>* > &src, Real beta = 1.0)
+{
+	  KALDI_ASSERT(src.size() == des.size());
+	  int32 size = src.size();
+
+	  if (size == 0) return;
+
+	  for (int32 i = 0; i < size; i++) {
+		  KALDI_ASSERT(src[i]->Dim() == des[i]->Dim());
+	  }
+
+#if HAVE_CUDA == 1
+	  if (CuDevice::Instantiate().Enabled()) {
+	    Timer tim;
+
+	    for (int32 i = 0; i < size; i++) {
+		    int32 dim = des[i]->dim_;
+		    Real *data = des[i]->data_;
+		    const Real *src_data = src[i]->data_;
+		    cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream())
+		    if (beta != 1.0) cuda_scal(des[i]->GetLocalCublasHandle(), dim, beta, data, 1);
+		    if (alpha != 0.0) cuda_axpy(des[i]->GetLocalCublasHandle(), dim, alpha, src_data, 1, data, 1);
+	    }
+	    CU_SAFE_CALL(cudaGetLastError());
+
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	  } else
+#endif
+	  {
+		  for (int32 i = 0; i < size; i++) {
+			if (beta != 1.0) des[i]->Scale(beta);
+			des[i]->AddVec(alpha, src[i]);
+		  }
+	  }
+}
+
+template
+void AddVecStreamed(float alpha, std::vector<CuSubVector<float>* > &des,
+		const std::vector<CuSubVector<float>* > &src, float beta = 1.0);
+
+template
+void AddVecStreamed(double alpha, std::vector<CuSubVector<double>* > &des,
+		const std::vector<CuSubVector<double>* > &src, double beta = 1.0);
+
+
+template<typename Real>
+void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
+		const std::vector<CuMatrixBase<Real>* > &src_mat, Real beta = 1.0)
+{
+
+}
+
+template
+void AddRowSumMatStreamed(float alpha, std::vector<CuSubVector<float>* > &des_vec,
+		const std::vector<CuMatrixBase<float>* > &src_mat, Real beta = 1.0);
+
+template
+void AddRowSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_vec,
+		const std::vector<CuMatrixBase<double>* > &src_mat, double beta = 1.0);
+
+template<typename Real>
 void CuVectorBase<Real>::CopyColFromMat(const CuMatrixBase<Real> &mat, MatrixIndexT col) {
   KALDI_ASSERT(col < mat.NumCols());
   KALDI_ASSERT(dim_ == mat.NumRows());

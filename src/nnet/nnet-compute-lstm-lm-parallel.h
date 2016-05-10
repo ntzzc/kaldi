@@ -1,4 +1,4 @@
-// nnet/nnet-compute-ctc-parallel.h
+// nnet/nnet-compute-lstm-lm-parallel.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -17,8 +17,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef KALDI_NNET_NNET_COMPUTE_LSTM_H_
-#define KALDI_NNET_NNET_COMPUTE_LSTM_H_
+#ifndef KALDI_NNET_NNET_COMPUTE_LSTM_LM_PARALLEL_H_
+#define KALDI_NNET_NNET_COMPUTE_LSTM_LM_PARALLEL_H_
 
 #include "nnet2/am-nnet.h"
 #include "hmm/transition-model.h"
@@ -35,40 +35,35 @@
 
 #include "cudamatrix/cu-device.h"
 
-#include "nnet/nnet-compute-parallel.h"
+#include "nnet/nnet-compute-lstm-asgd.h"
 
 namespace kaldi {
 namespace nnet1 {
 
-struct NnetCtcUpdateOptions : public NnetUpdateOptions {
+struct NnetLstmLmUpdateOptions : public NnetLstmUpdateOptions {
 
+	std::string class_boundary;
+	int32 num_class;
 
-    int32 num_stream;
-    int32 max_frames;
-    int32 batch_size;
-    int32 targets_delay;
-
-
-    NnetCtcUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), num_stream(4), max_frames(25000), batch_size(0), targets_delay(0) { }
+    NnetLstmLmUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
+    	: NnetLstmUpdateOptions(trn_opts, rnd_opts, parallel_opts), class_boundary(""), num_class(0) { }
 
   	  void Register(OptionsItf *po)
   	  {
-  	  	NnetUpdateOptions::Register(po);
+  		  NnetLstmUpdateOptions::Register(po);
 
-	      	po->Register("num-stream", &num_stream, "---CTC--- BPTT multi-stream training");
-	      	po->Register("max-frames", &max_frames, "Max number of frames to be processed");
-	        po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
-	        po->Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay");
+	      //lm
+  		  po->Register("class-boundary", &class_boundary, "The fist index of each class(and final class class) in class based language model");
+  		  po->Register("num-class", &num_class, "The number of class that the language model output");
   	  }
 };
 
 
-struct NnetCtcStats: NnetStats {
+struct NnetLmStats: NnetStats {
 
-    Ctc ctc;
+    CBXent cbxent;
 
-    NnetCtcStats() { }
+    NnetLmStats() { }
 
     void MergeStats(NnetUpdateOptions *opts, int root)
     {
@@ -88,10 +83,7 @@ struct NnetCtcStats: NnetStats {
         MPI_Reduce(addr, (void*)(&this->num_other_error), 1, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 
         if (opts->objective_function == "xent") {
-                        xent.Merge(myid, 0); 
-        }
-        else if (opts->objective_function == "ctc") {
-        		ctc.Merge(myid, 0);
+                        cbxent.Merge(myid, 0);
         }
         else {
         		KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
@@ -110,30 +102,28 @@ struct NnetCtcStats: NnetStats {
                   << "]";
 
         if (opts->objective_function == "xent") {
-                KALDI_LOG << xent.Report();
+                KALDI_LOG << cbxent.Report();
         }
-        else if (opts->objective_function == "ctc") {
-        	KALDI_LOG << ctc.Report();
-        } else {
+        else {
         	KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
         }
     }
 };
 
 
-void NnetCtcUpdateParallel(const NnetCtcUpdateOptions *opts,
-		std::string	model_filename,
-		std::string feature_rspecifier,
-		std::string targets_rspecifier,
-		Nnet *nnet,
-		NnetCtcStats *stats);
+typedef struct ClassIdMap_
+{
+	  int32  idx;
+	  int32  classid;
+}ClassIdMap;
 
-void NnetCEUpdateParallel(const NnetCtcUpdateOptions *opts,
+void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,
 		Nnet *nnet,
 		NnetStats *stats);
+
 
 } // namespace nnet1
 } // namespace kaldi

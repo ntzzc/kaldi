@@ -58,6 +58,9 @@ namespace nnet1 {
 
 const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kAffineTransform,"<AffineTransform>" },
+  { Component::kWordVectorTransform,"<WordVectorTransform>" },
+  { Component::kClassAffineTransform,"<ClassAffineTransform>" },
+  { Component::kCBSoftmax,"<CBSoftmax>" },
   { Component::kBatchNormTransform,"<BatchNormTransform>" },
   { Component::kAffinePreconditionedOnlineTransform,"<kAffinePreconditionedOnlineTransform>" },
   { Component::kLinearTransform,"<LinearTransform>" },
@@ -126,6 +129,15 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
   switch (comp_type) {
     case Component::kAffineTransform :
       ans = new AffineTransform(input_dim, output_dim); 
+      break;
+    case Component::kWordVectorTransform :
+      ans = new WordVectorTransform(input_dim, output_dim);
+      break;
+    case Component::kClassAffineTransform :
+      ans = new ClassAffineTransform(input_dim, output_dim);
+      break;
+    case Component::kCBSoftmax :
+      ans = new CBSoftmax(input_dim, output_dim);
       break;
     case Component::kBatchNormTransform :
       ans = new BatchNormTransform(input_dim, output_dim);

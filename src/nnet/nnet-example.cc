@@ -294,6 +294,56 @@ bool SequentialNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 		      return true;
 }
 
+bool LmNnetExample::PrepareData(std::vector<NnetExample*> &examples)
+{
+    utt = wordid_reader->Key();
+    KALDI_VLOG(3) << "Reading " << utt;
+
+    // get feature
+    input_wordids = wordid_reader->Value();
+
+    // split feature
+    int32 skip_frames = opts->skip_frames;
+    int32 sweep_time = opts->sweep_time;
+    int32 lent, cur;
+
+    if (sweep_time>skip_frames)
+    {
+    	KALDI_WARN << "sweep time for each utterance should less than skip frames (it reset to skip frames)";
+    	sweep_time = skip_frames;
+    }
+
+    examples.resize(sweep_time);
+
+    if (sweep_time <= 1)
+    {
+    	examples[0] = this;
+    	return true;
+    }
+
+    LmNnetExample *example = NULL;
+    for (int i = 0; i < sweep_time; i++)
+    {
+    	example = new LmNnetExample(wordid_reader, model_sync, stats, opts);
+    	example->utt = utt;
+    	example->input_wordids = input_wordids;
+
+    	lent = input_wordids.size()/skip_frames;
+    	lent += input_wordids.size()%skip_frames > i ? 1 : 0;
+    	example->input_wordids.resize(lent);
+    	cur = i;
+    	for (int j = 0; j < example->input_wordids.size(); j++)
+    	{
+    		example->input_wordids[j] = input_wordids[cur];
+    		cur += skip_frames;
+    	}
+
+    	examples[i] = example;
+    }
+
+    return true;
+}
+
 bool LstmNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {
 	examples.resize(1);

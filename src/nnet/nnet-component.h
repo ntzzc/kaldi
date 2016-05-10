@@ -50,6 +50,8 @@ class Component {
      
     kUpdatableComponent = 0x0100, 
     kAffineTransform,
+	kWordVectorTransform,
+	kClassAffineTransform,
 	kBatchNormTransform,
 	kAffinePreconditionedOnlineTransform,
     kLinearTransform,
@@ -66,6 +68,7 @@ class Component {
 
     kActivationFunction = 0x0200, 
     kSoftmax, 
+	kCBSoftmax,
     kRelu,
     kBlockSoftmax, 
     kSigmoid,

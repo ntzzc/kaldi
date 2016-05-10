@@ -41,6 +41,16 @@ Real VecVec(const CuVectorBase<Real> &v1, const CuVectorBase<Real> &v2);
 template<typename Real, typename OtherReal>
 Real VecVec(const CuVectorBase<Real> &v1, const CuVectorBase<OtherReal> &v2);
 
+/// des = alpha * src + beta * des
+template<typename Real>
+void AddVecStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des,
+		const std::vector<CuSubVector<Real>* > &src, Real beta = 1.0);
+
+/// Sum the rows of the matrix, add to vector
+template<typename Real>
+void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
+		const std::vector<CuMatrixBase<Real>* > &src_mat, Real beta = 1.0);
+
 /**
  * Vector for CUDA computing
  */

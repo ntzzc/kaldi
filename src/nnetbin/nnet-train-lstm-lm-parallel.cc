@@ -1,4 +1,4 @@
-// nnet/nnet-train-lstm-streams-asgd.cc
+// nnet/nnet-train-lstm-lm-parallel.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -25,7 +25,7 @@
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "cudamatrix/cu-device.h"
-#include "nnet/nnet-compute-lstm-asgd.h"
+#include "nnet/nnet-compute-lstm-lm-parallel.h"
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform one iteration of Neural Network training by mini-batch Stochastic Gradient Descent.\n"
         "This version use pdf-posterior as targets, prepared typically by ali-to-post.\n"
-        "Usage:  nnet-train-frmshuff [options] <feature-rspecifier> <targets-rspecifier> <model-in> [<model-out>]\n"
+        "Usage:  nnet-train-lstm-lm-parallel [options] <feature-rspecifier> <model-in> [<model-out>]\n"
         "e.g.: \n"
-        " nnet-train-frmshuff scp:feature.scp ark:posterior.ark nnet.init nnet.iter1\n";
+        " nnet-train-lstm-lm-parallel scp:feature.scp ark:posterior.ark nnet.init nnet.iter1\n";
 
     ParseOptions po(usage);
 
@@ -51,19 +51,18 @@ int main(int argc, char *argv[]) {
     NnetParallelOptions parallel_opts;
     parallel_opts.Register(&po);
 
-    NnetLstmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
+    NnetLstmLmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
     opts.Register(&po);
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 4-(opts.crossvalidate?1:0)) {
+    if (po.NumArgs() != 3-(opts.crossvalidate?1:0)) {
       po.PrintUsage();
       exit(1);
     }
 
     std::string feature_rspecifier = po.GetArg(1),
-      targets_rspecifier = po.GetArg(2),
-      model_filename = po.GetArg(3);
+      model_filename = po.GetArg(2);
         
     std::string target_model_filename;
     if (!opts.crossvalidate) {
@@ -89,10 +88,9 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "TRAINING STARTED";
 
 
-    NnetLstmUpdateAsgd(&opts,
+    NnetLstmLmUpdateParallel(&opts,
 					model_filename,
 					feature_rspecifier,
-					targets_rspecifier,
 								&nnet,
 								&stats);
 

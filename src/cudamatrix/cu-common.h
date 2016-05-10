@@ -44,6 +44,16 @@
   cudaDeviceSynchronize(); \
 }
 
+#define CU_SAFE_STREAM_CALL(fun) \
+{ \
+  int32 ret; \
+  if ((ret = (fun)) != 0) { \
+    KALDI_ERR << "cudaError_t " << ret << " : \"" << cudaGetErrorString((cudaError_t)ret) << "\" returned from '" << #fun << "'"; \
+  } \
+  cudaDeviceSynchronize(); \
+  cudaDeviceReset(); \
+}
+
 #define KALDI_CUDA_ERR(ret, msg) \
 { \
   if (ret != 0) { \

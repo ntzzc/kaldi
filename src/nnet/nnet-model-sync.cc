@@ -28,6 +28,8 @@
 #include "nnet/nnet-gru-streams.h"
 #include "nnet/nnet-blstm-projected-streams.h"
 #include "nnet/nnet-blstm-streams.h"
+#include "nnet/nnet-class-affine-transform.h"
+#include "nnet/nnet-word-vector-transform.h"
 
 #include "nnet/nnet-model-sync.h"
 #include "nnet-model-merge-function.h"
@@ -114,6 +116,8 @@ NnetModelSync::GetDim(Nnet *nnet)
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
 	GruStreams *gru_t;
+    ClassAffineTransform *class_affine;
+    WordVectorTransform *word_transf;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++)
 	{
@@ -218,6 +222,15 @@ NnetModelSync::GetDim(Nnet *nnet)
 					dim += aff_t->linearity_.SizeInBytes()/sizeof(BaseFloat);
 					dim += aff_t->bias_.Dim();
 					break;
+				case Component::kClassAffineTransform:
+					class_affine = (ClassAffineTransform*)(nnet->components_[n]);
+					dim += class_affine->linearity_.SizeInBytes()/sizeof(BaseFloat);
+					dim += class_affine->bias_.Dim();
+					break;
+				case Component::kWordVectorTransform:
+					word_transf = (WordVectorTransform*)(nnet->components_[n]);
+					dim += word_transf->wordvector_.SizeInBytes()/sizeof(BaseFloat);
+					break;
 				default:
 						KALDI_ERR<< "Unimplemented access to parameters "
 						<< "of updatable component "
@@ -249,6 +262,8 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
 	GruStreams *gru_t;
+    ClassAffineTransform *class_affine;
+    WordVectorTransform *word_transf;
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
@@ -595,6 +610,37 @@ NnetModelSync::GetWeight(Nnet *nnet)
 
 				pos += size;
 			}break;
+			case Component::kClassAffineTransform:
+				class_affine = (ClassAffineTransform*)(nnet->components_[n]);
+				dim = class_affine->linearity_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch,
+										class_affine->linearity_.Data(), src_pitch, width, dim.rows,
+										cudaMemcpyDeviceToHost));
+
+				pos += class_affine->linearity_.SizeInBytes();
+
+				size = class_affine->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, class_affine->bias_.Data(), size, cudaMemcpyDeviceToHost));
+
+				pos += size;
+				break;
+			case Component::kWordVectorTransform:
+				word_transf = (WordVectorTransform*)(nnet->components_[n]);
+				dim = word_transf->wordvector_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch,
+										word_transf->wordvector_.Data(), src_pitch, width, dim.rows,
+										cudaMemcpyDeviceToHost));
+
+				pos += word_transf->wordvector_.SizeInBytes();
+				break;
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "
 				<< "of updatable component "
@@ -623,6 +669,8 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
 	GruStreams *gru_t;
+    ClassAffineTransform *class_affine;
+    WordVectorTransform *word_transf;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
@@ -980,6 +1028,37 @@ NnetModelSync::SetWeight(Nnet *nnet)
 
 				pos += size;
 			}break;
+			case Component::kClassAffineTransform:
+				class_affine = (ClassAffineTransform*)(nnet->components_[n]);
+				dim = class_affine->linearity_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(lass_affine->linearity_.Data(), dst_pitch,
+										host_data_+pos, src_pitch, width, dim.rows,
+										cudaMemcpyHostToDevice));
+
+				pos += class_affine->linearity_.SizeInBytes();
+
+				size = class_affine->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(class_affine->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+
+				pos += size;
+				break;
+			case Component::kWordVectorTransform:
+				word_transf = (WordVectorTransform*)(nnet->components_[n]);
+				dim = word_transf->wordvector_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(word_transf->wordvector_.Data()(), dst_pitch,
+										host_data_+pos, src_pitch, width, dim.rows,
+										cudaMemcpyHostToDevice));
+
+				pos += word_transf->wordvector_.SizeInBytes();
+				break;
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "
 				<< "of updatable component "

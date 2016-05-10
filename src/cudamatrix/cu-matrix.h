@@ -56,6 +56,34 @@ void AddMatMatBatched(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 		const std::vector<CuSubMatrix<Real>* > &B, MatrixTransposeType transB,
 		const Real beta);
 
+template<typename Real>
+void AddMatMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
+		const std::vector<CuSubMatrix<Real>* > &A, MatrixTransposeType transA,
+		const std::vector<CuSubMatrix<Real>* > &B, MatrixTransposeType transB,
+		const Real beta);
+
+/// C[i] += alpha * A[i]
+template<typename Real>
+void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
+		const std::vector<CuSubMatrix<Real>* > &A, MatrixTransposeType transA = kNoTrans);
+
+/// Softmax nonlinearity
+/// Y = Softmax(X) : Yij = e^Xij / sum_k(e^Xik), done to each row
+/// for each row, the max value is first subtracted for good numerical stability
+template<typename Real>
+void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
+		const std::vector<CuSubMatrix<Real>* > &src);
+
+/// (for each row r of *this), r = alpha * row + beta * r
+template<typename Real>
+void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
+		const std::vector<CuSubVector<Real>* > &src_vec, Real beta);
+
+template<class Real>
+template<class OtherReal>
+void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
+		std::vector<CuSubMatrix<Real>* > &des, MatrixTransposeType trans);
+
 /**
  * Matrix for CUDA computing.
  * Does the computation on the CUDA card when CUDA is compiled in and
@@ -398,6 +426,9 @@ class CuMatrixBase {
   void AddMat(Real alpha, const CuMatrixBase<Real> &A,
               MatrixTransposeType trans = kNoTrans);
   
+  /////////////////////////////////////////////////////
+  /////  CNN Training
+  /////////////////////////////////////////////////////
   void ConvolutionForwardExpandWorkspace(const CuMatrixBase<Real> &A, int num_input_fmaps, int fmap_x_len_, int fmap_y_len_,
   		int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap);
 
@@ -408,6 +439,16 @@ class CuMatrixBase {
 
   void MaxPoolingBackward(const CuMatrixBase<Real> &in, const CuMatrixBase<Real> &out, const CuMatrixBase<Real> &out_diff,
 		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_);
+
+  /////////////////////////////////////////////////////
+  /////  RNN LSTM Training
+  /////////////////////////////////////////////////////
+  void CopyRowToVecId(const CuArray<int32> &indexes);
+
+  /// *this += alpha * A * indexes
+  void AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
+		  	  	  const CuArray<int32> &indexes,
+				  MatrixTransposeType trans = kNoTrans);
 
   /////////////////////////////////////////////////////
   /////  CTC Training
@@ -659,6 +700,14 @@ class CuMatrixBase {
 		  CreateCublasHandle(&handle_);
 	  return handle_;
   }
+
+  inline cudaStream_t GetLocalCudaStream()
+  {
+	  if (cuda_stream_ == NULL)
+		  cudaStreamCreateWithFlags(&cuda_stream_, cudaStreamNonBlocking);
+		  //cudaStreamCreate(&cuda_stream_);
+	  return cuda_stream_;
+  }
 #endif
 
  protected:
@@ -670,6 +719,7 @@ class CuMatrixBase {
   {
 #if HAVE_CUDA == 1
 	  handle_ = NULL;
+	  cuda_stream_ = NULL;
 #endif
   }
 
@@ -680,8 +730,9 @@ class CuMatrixBase {
                MatrixIndexT num_rows,
                MatrixIndexT num_cols,
                MatrixIndexT stride,
-	       cublasHandle_t handle):
-  data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride), handle_(handle){}
+	       cublasHandle_t handle
+		   cudaStream_t cuda_stream):
+  data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride), handle_(handle), cuda_stream_(cuda_stream){}
 #else
   CuMatrixBase(Real *data,
                MatrixIndexT num_rows,
@@ -704,6 +755,7 @@ class CuMatrixBase {
 
 #if HAVE_CUDA == 1
   cublasHandle_t handle_;
+  cudaStream_t cuda_stream_;
 #endif
 
  private:
@@ -847,7 +899,7 @@ class CuSubMatrix: public CuMatrixBase<Real> {
   inline CuSubMatrix<Real> (const CuSubMatrix &other):
 #if HAVE_CUDA == 1
   CuMatrixBase<Real> (other.data_, other.num_rows_, other.num_cols_,
-                      other.stride_, other.handle_) {}
+                      other.stride_, other.handle_, other.cuda_stream_) {}
 #else
   CuMatrixBase<Real> (other.data_, other.num_rows_, other.num_cols_,
                       other.stride_) {}
@@ -859,7 +911,12 @@ class CuSubMatrix: public CuMatrixBase<Real> {
     {    
         DestroyCublasHandle(this->handle_);
         this->handle_ = NULL;
-    }    	 
+    }
+    if (this->cuda_stream_ != NULL)
+    {
+    	cudaStreamDestroy(this->cuda_stream_);
+    	this->cuda_stream_ = NULL;
+    }
   }
  private:
   /// Disallow assignment.

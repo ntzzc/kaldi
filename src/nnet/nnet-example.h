@@ -23,6 +23,7 @@
 #include "nnet/nnet-compute-parallel.h"
 #include "nnet/nnet-compute-sequential-parallel.h"
 #include "nnet/nnet-compute-ctc-parallel.h"
+#include "nnet/nnet-compute-lstm-lm-parallel.h"
 
 namespace kaldi {
 namespace nnet1 {
@@ -124,6 +125,27 @@ struct SequentialNnetExample : NnetExample
 
 	bool PrepareData(std::vector<NnetExample*> &examples);
 
+};
+
+struct LmNnetExample : NnetExample
+{
+	SequentialInt32VectorReader *wordid_reader;
+
+	NnetModelSync *model_sync;
+	NnetLmStats *stats;
+	const NnetUpdateOptions *opts;
+
+	std::vector<int32> input_wordids;
+
+	LmNnetExample(SequentialInt32VectorReader *wordid_reader,
+					NnetModelSync *model_sync,
+					NnetCtcStats *stats,
+					const NnetUpdateOptions *opts):
+	NnetExample(NULL), wordid_reader(wordid_reader),
+	model_sync(model_sync), stats(stats), opts(opts){}
+
+
+	bool PrepareData(std::vector<NnetExample*> &examples);
 };
 
 
