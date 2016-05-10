@@ -217,8 +217,6 @@ private:
 		//Matrix<BaseFloat>  nnet_out_h, nnet_diff_h;
 		CuMatrix<BaseFloat> nnet_diff;
 		int num_frames, num_pdfs;
-	    double lat_like; // total likelihood of the lattice
-	    double lat_ac_like; // acoustic likelihood weighted by posterior.
 	    double utt_frame_acc;
 
 
@@ -882,6 +880,13 @@ private:
 				// push to gpu
 				nnet_diff = *p_nnet_diff_h;
 
+                if (model_sync->reset_gradient_[thread_idx] && parallel_opts->merge_func == "globalgradient")
+                {
+                    nnet.ResetGradient();
+                    model_sync->reset_gradient_[thread_idx] = false;
+                }
+
+
 		       if (parallel_opts->num_threads > 1 && update_frames >= opts->update_frames)
 		       {
 		    	   nnet.Backpropagate(nnet_diff, NULL, false);
@@ -937,6 +942,7 @@ private:
 		    			    p_merge_func->MergeCacheReset();
 
 		    			    model_sync->SetWeight(&nnet);
+                            model_sync->ResetGradient();
 		    			}
 		    		}
 
@@ -1018,9 +1024,7 @@ private:
 						KALDI_VLOG(1) << "Model merge NO." << parallel_opts->num_merge-p_merge_func->leftMerge()
 									   << " Current mergesize = " << p_merge_func->CurrentMergeCache() << " frames.";
 						model_sync->SetWeight(&nnet);
-
 				}
-
 			}
 
 			if (last_thread)

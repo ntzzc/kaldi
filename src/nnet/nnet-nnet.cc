@@ -157,6 +157,17 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseF
   //////////////////////////////////////
 }
 
+void Nnet::ResetGradient()
+{
+
+    for (int32 i = NumComponents()-1; i >= 0; i--) {
+            if (components_[i]->IsUpdatable()) {
+              UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+              uc->ResetGradient();
+            }
+          }
+}
+
 void Nnet::Gradient()
 {
 

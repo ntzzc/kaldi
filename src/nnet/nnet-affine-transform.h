@@ -164,6 +164,12 @@ class AffineTransform : public UpdatableComponent {
     in_diff->AddMatMat(1.0, out_diff, kNoTrans, linearity_, kNoTrans, 0.0);
   }
 
+  void ResetGradient()
+  {
+      linearity_corr_.SetZero();
+      bias_corr_.SetZero();
+  }
+
   void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
   {
 	    // we use following hyperparameters from the option class

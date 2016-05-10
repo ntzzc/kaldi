@@ -213,6 +213,9 @@ class UpdatableComponent : public Component {
   virtual void Gradient(const CuMatrixBase<BaseFloat> &input,
                       const CuMatrixBase<BaseFloat> &diff) {};
 
+  /// Reset gradient
+  virtual void ResetGradient() {};
+
   /// Update parameters
   virtual void UpdateGradient() {};
 

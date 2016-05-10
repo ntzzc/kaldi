@@ -349,6 +349,14 @@ private:
 		        // backward pass
 				if (!crossvalidate) {
 					// backpropagate
+
+                    if (model_sync->reset_gradient_[thread_idx] && parallel_opts->merge_func == "globalgradient")
+                    {
+                        nnet.ResetGradient();
+                        model_sync->reset_gradient_[thread_idx] = false;
+                        //KALDI_VLOG(1) << "Reset Gradient";
+                    }
+
 					if (parallel_opts->num_threads > 1 && update_frames >= opts->update_frames) {
 						nnet.Backpropagate(nnet_diff, NULL, false);
 						nnet.Gradient();
@@ -402,6 +410,7 @@ private:
 							    p_merge_func->MergeCacheReset();
 
 							    model_sync->SetWeight(&nnet);
+                                model_sync->ResetGradient();
 							}
 						}
 

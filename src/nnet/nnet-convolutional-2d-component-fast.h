@@ -404,6 +404,12 @@ class Convolutional2DComponentFast : public UpdatableComponent {
        in_diff->MulColsVec(in_diff_summands_);
   }
 
+  void ResetGradient()
+  {
+      filters_grad_patches_.SetZero();
+      bias_grad_.SetZero();
+  }
+
   void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
     // useful dims
     int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
@@ -416,7 +422,7 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
     // we use following hyperparameters from the option class
     //const BaseFloat lr = opts_.learn_rate;
-    //const BaseFloat mmt = opts_.momentum;
+    const BaseFloat mmt = opts_.momentum;
     //const BaseFloat mmt = 0.0;
     //const BaseFloat l2 = opts_.l2_penalty;
     //const BaseFloat l1 = opts_.l1_penalty;
@@ -450,9 +456,9 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
     // compute gradient (incl. momentum)
     AddMatMatBatched(static_cast<BaseFloat>(1.0f), vectorized_grad_patches_, vectorized_diff_patches_, kTrans, vectorized_input_patches_, kNoTrans, 
-	static_cast<BaseFloat>(0.0f));
+	static_cast<BaseFloat>(mmt));
     filters_grad_.SumMats(vectorized_grad_patches_);
-    bias_grad_.AddRowSumMat(1.0, diff_output_, 0.0);
+    bias_grad_.AddRowSumMat(1.0, diff_output_, mmt);
 
     // scale
     filters_grad_.Scale(1.0/out_fmap_size);

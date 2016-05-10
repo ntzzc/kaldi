@@ -96,13 +96,13 @@ struct NnetUpdateOptions {
 
 	      po->Register("skip-frames", &skip_frames, "Compute model on selected frames(one frame out of every skip frames)");
 
+	      sweep_time = skip_frames;
+
 	      po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training");
 
 	      po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
 
 	      po->Register("use-psgd",&use_psgd, "use preconditional sgd instead of sgd, it always true while training with multi-machine");
-
-	      sweep_time = skip_frames;
   	  }
 };
 
