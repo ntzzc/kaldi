@@ -95,7 +95,7 @@ bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
 	        examples.resize(sweep_time);
 
-	        if (sweep_time <= 1)
+	        if (skip_frames <= 1)
 	        {
 	        	examples[0] = this;
 	        	return true;
@@ -155,7 +155,7 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
     examples.resize(sweep_time);
 
-    if (sweep_time <= 1)
+    if (skip_frames <= 1)
     {
     	examples[0] = this;
     	return true;
@@ -261,7 +261,7 @@ bool SequentialNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
 		        // split feature
 		      int32 lent, cur;
-		      examples.resize(skip_frames);
+		      examples.resize(1);
 
 		        if (skip_frames <= 1)
 		        {

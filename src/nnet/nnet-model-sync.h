@@ -127,14 +127,24 @@ public:
 
 	void MultiMachineInit();
 
+    void ResetGradient()
+    {
+        for (int i = 0; i < opts_->num_threads; i++)
+            reset_gradient_[i] = true;
+    }
+
 	void Initialize(Nnet *nnet)
 	{
 		model_mutex_.Lock();
 		if (!initialized_)
 		{
 			isfinished_ = new bool[opts_->num_threads];
+			reset_gradient_ = new bool[opts_->num_threads];
 			for (int i = 0; i < opts_->num_threads; i++)
+            {
 				isfinished_[i] = false;
+                reset_gradient_[i] = false;
+            }
 			this->GetWeight(nnet);
 			InitMergeFunction();
 			initialized_ = true;
@@ -143,6 +153,7 @@ public:
 	}
 
 	bool	*isfinished_;
+    bool    *reset_gradient_;
 
 private:
 	friend class ModelAverageMerge;

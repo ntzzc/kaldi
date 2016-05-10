@@ -127,13 +127,13 @@ private:
 	void operator ()()
 	{
 
-		int gpuid;
 		int thread_idx = this->thread_id_;
 
 		model_sync->LockModel();
 
 	    // Select the GPU
 	#if HAVE_CUDA == 1
+	    int gpuid;
 	    if (parallel_opts->num_procs > 1)
 	    {
 	    	//thread_idx = model_sync->GetThreadIdx();
@@ -200,7 +200,6 @@ private:
 
 
 	    Timer time;
-	    double time_now = 0;
 
 		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff;
 		//CuMatrix<BaseFloat> si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;

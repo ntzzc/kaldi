@@ -128,13 +128,13 @@ private:
 	void operator ()()
 	{
 
-		int gpuid;
 		int thread_idx = this->thread_id_;
 
 		model_sync->LockModel();
 
 	    // Select the GPU
 	#if HAVE_CUDA == 1
+	    int gpuid;
 	    if (parallel_opts->num_procs > 1)
 	    {
 	    	//int32 thread_idx = model_sync->GetThreadIdx();
@@ -303,6 +303,14 @@ private:
 		        // backward pass
 				if (!crossvalidate) {
 					// backpropagate
+
+                    if (model_sync->reset_gradient_[thread_idx] && parallel_opts->merge_func == "globalgradient")
+                    {
+                        nnet.ResetGradient();
+                        model_sync->reset_gradient_[thread_idx] = false;
+                        //KALDI_VLOG(1) << "Reset Gradient";
+                    }
+
 					if (parallel_opts->num_threads > 1 && update_frames >= opts->update_frames) {
 						nnet.Backpropagate(nnet_diff, NULL, false);
 						nnet.Gradient();
@@ -356,6 +364,7 @@ private:
 							    p_merge_func->MergeCacheReset();
 
 							    model_sync->SetWeight(&nnet);
+                                model_sync->ResetGradient();
 							}
 						}
 

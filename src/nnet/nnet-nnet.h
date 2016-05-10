@@ -53,6 +53,7 @@ class Nnet {
   void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff, bool update=true);
   /// Perform update gradient pass through the network
   void Update();
+  void ResetGradient();
   void Gradient();
   void UpdateGradient();
   /// Perform forward pass through the network, don't keep buffers (use it when not training)

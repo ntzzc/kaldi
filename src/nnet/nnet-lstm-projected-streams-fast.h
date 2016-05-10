@@ -716,6 +716,17 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	    w_r_m_.AddMat(-lr, w_r_m_corr_);
   }
 
+  void ResetGradient()
+  {
+      w_gifo_x_corr_.SetZero();
+      w_gifo_r_corr_.SetZero();
+      bias_corr_.SetZero();
+      peephole_i_c_corr_.SetZero();
+      peephole_f_c_corr_.SetZero();
+      peephole_o_c_corr_.SetZero();
+      w_r_m_corr_.SetZero();
+  }
+
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
     const BaseFloat lr  = opts_.learn_rate;
 

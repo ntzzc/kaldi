@@ -126,7 +126,7 @@ class ModelGlobalSumMerge : public ModelMergeFunction
 
 public:
 		ModelGlobalSumMerge(const NnetParallelOptions *opts, NnetModelSync *model_sync)
-		  	  : mLearningRate(1.0),nnet_data_(NULL),nnet_free_data_(NULL),dim_(0),ModelMergeFunction(opts, model_sync)
+		  	  : mLearningRate(1.0),nnet_data_(NULL),nnet_free_data_(NULL),ModelMergeFunction(opts, model_sync),dim_(0)
 			{
 				Init();
 			}
@@ -168,7 +168,7 @@ class ModelGlobalGradientMerge : public ModelMergeFunction
 public:
 	ModelGlobalGradientMerge(const NnetParallelOptions *opts, NnetModelSync *model_sync)
 		  	  : mLearningRate(1.0),mmt(opts->global_momentum),nnet_data_(NULL),nnet_free_data_(NULL),gradient_data_(NULL),gradient_free_data_(NULL),
-				dim_(0),ModelMergeFunction(opts, model_sync)
+				ModelMergeFunction(opts, model_sync),dim_(0)
 			{
 				Init();
 			}
