@@ -446,8 +446,7 @@ class CuMatrixBase {
 
   /// *this += alpha * A * indexes
   void AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
-		  	  	  const CuArray<int32> &indexes,
-				  MatrixTransposeType trans = kNoTrans);
+		  	  	  const CuArray<int32> &indexes);
 
   /////////////////////////////////////////////////////
   /////  CTC Training

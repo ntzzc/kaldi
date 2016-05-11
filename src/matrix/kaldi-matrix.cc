@@ -2687,6 +2687,37 @@ void MatrixBase<Real>::CopyRows(const MatrixBase<Real> &src,
   }
 }
 
+/////////////////////////////////////////////////////
+ /////  RNN LSTM Training
+/////////////////////////////////////////////////////
+template<typename Real>
+void MatrixBase<Real>::CopyRowToVecId(MatrixIndexT *indices) {
+
+	Real *this_data = this->data_;
+	for (MatrixIndexT c = 0; c < num_cols_; c++) {
+		indices[c] = (MatrixIndexT)this_data[c];
+	}
+}
+
+ /// *this += alpha * A * indexes
+template<typename Real>
+void MatrixBase<Real>::AddMatToRows(Real alpha, const MatrixBase<Real> &A,
+		  	  	  const const MatrixIndexT *indices)
+ {
+	 KALDI_ASSERT(NumCols() == A.NumCols());
+
+	 MatrixIndexT src_stride = A.Stride(), src_rows = A.NumRows();
+	 Real *this_data = this->data_;
+	 Real *src_data = A.data_;
+	 for (MatrixIndexT r = 0; r < src_rows; r++, src_data += src_stride)
+	 {
+		 MatrixIndexT index = indices[r];
+		 this_data = this->RowData(index);
+		 if (index >= 0)
+			 cblas_Xaxpy(num_cols_, alpha, src_data, 1, this_data, 1);
+	 }
+ }
+
 template<typename Real>
 void MatrixBase<Real>::CopyRows(const Real *const *src) {
   MatrixIndexT num_rows = num_rows_,

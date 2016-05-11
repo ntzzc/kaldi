@@ -127,6 +127,15 @@ class MatrixBase {
   /// Sets to numbers uniformly distributed on (0, 1)
   void SetRandUniform();
 
+  /////////////////////////////////////////////////////
+   /////  RNN LSTM Training
+   /////////////////////////////////////////////////////
+   void CopyRowToVecId(MatrixIndexT *indices);
+
+   /// *this += alpha * A * indexes
+   void AddMatToRows(Real alpha, const MatrixBase<Real> &A,
+ 		  	  	  const const MatrixIndexT *indices);
+
   /*  Copying functions.  These do not resize the matrix! */
 
 

@@ -1040,21 +1040,52 @@ void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const 
 }
 
 /////////////////////////////////////////////////////
-/////  RNN LSTM Training
+/////  RNN LSTM LM Training
 /////////////////////////////////////////////////////
 template<typename Real>
 void CuMatrixBase<Real>::CopyRowToVecId(const CuArray<int32> &indexes)
 {
+	KALDI_ASSERT(NumRows() == 1 && NumCols() == indexes.Dim());
+	if (indexes.Dim() == 0) return;
 
+	#if HAVE_CUDA == 1
+	  if (CuDevice::Instantiate().Enabled()) {
+
+	    Timer tim;
+	    dim3 dimBlock(CU1DBLOCK);
+	    dim3 dimGrid(n_blocks(num_cols_, CU1DBLOCK));
+	    cuda_copy_row_to_vecid(dimGrid, dimBlock, data_, indexes.Data(), Dim());
+	    CU_SAFE_CALL(cudaGetLastError());
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	  } else
+	#endif
+	  {
+	    Mat().CopyRowToVecId(indexes.Data());
+	  }
 }
 
 /// *this += alpha * A * indexes
 template<typename Real>
 void CuMatrixBase<Real>::AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
-		  	  	  const CuArray<int32> &indexes,
-				  MatrixTransposeType trans = kNoTrans)
+		  	  	  const CuArray<int32> &indices)
 {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(static_cast<MatrixIndexT>(indices.Dim()) == A.NumRows());
+    KALDI_ASSERT(NumCols() == A.NumCols());
 
+    Timer tim;
+    dim3 dimGrid, dimBlock;
+    GetBlockSizesForSimpleMatrixOperation(A.NumRows(), A.NumCols(),
+                                          &dimGrid, &dimBlock);
+    cuda_add_mat_to_rows(dimGrid, dimBlock, data_, A.Data(), indices.Data(), Dim(), A.Dim());
+    CU_SAFE_CALL(cudaGetLastError());
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+  {
+    Mat().AddMatToRows(A.Mat(), indices.Data());
+  }
 }
 
 
