@@ -79,10 +79,9 @@ template<typename Real>
 void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 		const std::vector<CuSubVector<Real>* > &src_vec, Real beta);
 
-template<class Real>
-template<class OtherReal>
+template<typename Real, typename OtherReal>
 void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
-		std::vector<CuSubMatrix<Real>* > &des, MatrixTransposeType trans);
+		std::vector<CuSubMatrix<OtherReal>* > &des, MatrixTransposeType trans);
 
 /**
  * Matrix for CUDA computing.
@@ -730,7 +729,7 @@ class CuMatrixBase {
                MatrixIndexT num_rows,
                MatrixIndexT num_cols,
                MatrixIndexT stride,
-	       cublasHandle_t handle
+	       cublasHandle_t handle,
 		   cudaStream_t cuda_stream):
   data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride), handle_(handle), cuda_stream_(cuda_stream){}
 #else

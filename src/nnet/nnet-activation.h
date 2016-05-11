@@ -120,8 +120,8 @@ class CBSoftmax : public Component {
   }
 
  private:
-  std::vector<int32>& class_boundary_;
-  std::vector<int32>& updateclass_id_;
+  std::vector<int32> class_boundary_;
+  std::vector<int32> updateclass_id_;
   std::vector<CuSubMatrix<BaseFloat>* > input_patches_;
   std::vector<CuSubMatrix<BaseFloat>* > output_patches_;
 };

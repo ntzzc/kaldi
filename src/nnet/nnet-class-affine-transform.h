@@ -99,7 +99,7 @@ class ClassAffineTransform : public UpdatableComponent {
     num_class_ = num_class;
     //
 
-    class_boundary_.Resize(num_class_+1);
+    class_boundary_.resize(num_class_+1);
   }
 
   void ReadData(std::istream &is, bool binary) {
@@ -195,7 +195,7 @@ class ClassAffineTransform : public UpdatableComponent {
     	}
     }
 
-    AddVecToRowsStreamed(1.0, output_patches_, updateclass_bias_, 0.0);
+    AddVecToRowsStreamed(static_cast<BaseFloat>(1.0f), output_patches_, updateclass_bias_, static_cast<BaseFloat>(0.0f));
     AddMatMatStreamed(static_cast<BaseFloat>(1.0f), output_patches_, input_patches_, kNoTrans,
     									updateclass_linearity_, kTrans, static_cast<BaseFloat>(1.0f));
 
@@ -216,9 +216,8 @@ class ClassAffineTransform : public UpdatableComponent {
 	  updateclass_linearity_corr_.clear();
 	  updateclass_bias_corr_.clear();
 
-	    CuArray<int32> idx(sortedclass_id_);
 
-	    int size = idx.Dim();
+	    int size = sortedclass_id_.size();
 	    int beg = 0, cid, clen;
 
 	    for (int i = 1; i <= size; i++)
@@ -230,7 +229,7 @@ class ClassAffineTransform : public UpdatableComponent {
 	    		in_diff_patches_.push_back(new CuSubMatrix<BaseFloat>(input_diff_sorted_.RowRange(beg, i-beg)));
 	    		updateclass_linearity_corr_.push_back(class_linearity_corr_[cid]);
 	    		updateclass_bias_corr_.push_back(class_bias_corr_[cid]);
-	    		out_diff_patches_.push_back(new CuSubMatrix<BaseFloat>(out_diff->Range(beg, i-beg, class_boundary_[cid], clen)));
+	    		out_diff_patches_.push_back(new CuSubMatrix<BaseFloat>(out_diff.Range(beg, i-beg, class_boundary_[cid], clen)));
 	    		beg = i;
 	    	}
 	    }
@@ -240,10 +239,11 @@ class ClassAffineTransform : public UpdatableComponent {
 
 	    // class
 	    clen = output_dim_ - class_boundary_[size-1];
-	    CuSubMatrix<BaseFloat> *out_diff_class = new CuSubMatrix<BaseFloat>(out_diff->ColRange(class_boundary_[size-1], clen));
-	    input_diff_sorted_->AddMatMat(1.0, out_diff_class, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
+	    CuSubMatrix<BaseFloat> *out_diff_class = new CuSubMatrix<BaseFloat>(out_diff.ColRange(class_boundary_[size-1], clen));
+	    input_diff_sorted_.AddMatMat(1.0, *out_diff_class, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
 
-	    in_diff->CopyRows(input_diff_sorted_, sortedclass_id_index_);
+        CuArray<int32> idx(sortedclass_id_index_);
+	    in_diff->CopyRows(input_diff_sorted_, idx);
 
   }
 
@@ -266,8 +266,8 @@ class ClassAffineTransform : public UpdatableComponent {
 
 		AddMatMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_linearity_corr_, out_diff_patches_, kTrans,
 																input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
-		for (int32 i = 0; i < updateclass_linearity_corr_.size(); i++)
-				updateclass_bias_corr_[i]->AddRowSumMat(1.0, out_diff_patches_[i], mmt);
+		for (int32 i = 0; i < updateclass_bias_corr_.size(); i++)
+				updateclass_bias_corr_[i]->AddRowSumMat(1.0, *out_diff_patches_[i], mmt);
   }
 
   void UpdateGradient()
@@ -345,8 +345,8 @@ class ClassAffineTransform : public UpdatableComponent {
 		  len = (i==size-1) ? output_dim_ - class_boundary_[size-1] : class_boundary_[i+1] - class_boundary_[i];
 		  class_linearity_[i] = new CuSubMatrix<BaseFloat>(linearity_.RowRange(class_boundary_[i], len));
 		  class_linearity_corr_[i] = new CuSubMatrix<BaseFloat>(linearity_corr_.RowRange(class_boundary_[i], len));
-		  class_bias_[i] = new CuSubMatrix<BaseFloat>(bias_.RowRange(class_boundary_[i], len));
-		  class_bias_corr_[i] = new CuSubMatrix<BaseFloat>(bias_corr_.RowRange(class_boundary_[i], len));
+		  class_bias_[i] = new CuSubVector<BaseFloat>(bias_.Range(class_boundary_[i], len));
+		  class_bias_corr_[i] = new CuSubVector<BaseFloat>(bias_corr_.Range(class_boundary_[i], len));
 	  }
   }
 

@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
 
 
     Nnet nnet;
-    NnetStats stats;
+    NnetLmStats stats;
 
     Timer time;
     double time_now = 0;

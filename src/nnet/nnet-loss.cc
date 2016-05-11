@@ -207,7 +207,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  int32 num_frames = net_out.NumRows(),
 	  num_pdf = net_out.NumCols();
 
-	  KALDI_ASSERT(num_frames == target.Dim());
+	  KALDI_ASSERT(num_frames == target.size());
 
 	  int class_size = class_boundary_.size();
 	  if (hos_tgt_mat_.NumRows() != num_frames)
@@ -248,19 +248,19 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 	  int size = class_hos_tgt_mat.size();
 	  for (int i = 0; i < size; i++)
-		  class_hos_tgt_mat[i].SetZero();
+		  class_hos_tgt_mat[i]->SetZero();
 
 
 	  for (int i = 0; i < num_frames; i++)
 	  {
 		  hos_tgt_mat_(i, target[i]) = 1.0;
 		  cid = word2class_[target[i]];
-		  class_hos_tgt_mat[size-1](i, cid) = 1.0;
+		  (*class_hos_tgt_mat[size-1])(i, cid) = 1.0;
 	  }
 
 	  for (int i = 0; i < size; i++)
 	  {
-		  class_tgt_mat[i].CopyFromMat(class_hos_tgt_mat[i]);
+		  class_tgt_mat[i]->CopyFromMat(*class_hos_tgt_mat[i]);
 	  }
 
 	  // call the other eval function,
@@ -286,40 +286,40 @@ void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
 
   for (int i = 0; i < size; i++)
   {
-	  target_sum_.Resize(class_target[i].NumRows());
-	  target_sum_.AddColSumMat(1.0, class_target[i], 0.0);
-	  class_frame_weights[i].MulElements(target_sum_);
+	  target_sum_.Resize(class_target[i]->NumRows());
+	  target_sum_.AddColSumMat(1.0, *class_target[i], 0.0);
+	  class_frame_weights[i]->MulElements(target_sum_);
 
 	  // get the number of frames after the masking,
-	  num_frames += class_frame_weights[i].Sum();
+	  num_frames += class_frame_weights[i]->Sum();
 	  KALDI_ASSERT(num_frames >= 0.0);
 
 	  // compute derivative wrt. activations of last layer of neurons,
 	  class_diff[i] = class_netout[i];
-	  class_diff[i].AddMat(-1.0, class_target[i]);
-	  class_diff[i].MulRowsVec(class_frame_weights[i]); // weighting,
+	  class_diff[i]->AddMat(-1.0, *class_target[i]);
+	  class_diff[i]->MulRowsVec(*class_frame_weights[i]); // weighting,
 
 	  // evaluate the frame-level classification,
 	  double corr;
-	  class_netout[i].FindRowMaxId(&max_id_out_); // find max in nn-output
-	  class_target[i].FindRowMaxId(&max_id_tgt_); // find max in targets
-	  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, class_frame_weights[i], &corr);
+	  class_netout[i]->FindRowMaxId(&max_id_out_); // find max in nn-output
+	  class_target[i]->FindRowMaxId(&max_id_tgt_); // find max in targets
+	  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, *class_frame_weights[i], &corr);
 	  correct += corr;
 
 	  // calculate cross_entropy (in GPU),
-	  xentropy_aux_ = class_netout[i]; // y
+	  xentropy_aux_ = *class_netout[i]; // y
 	  xentropy_aux_.Add(1e-20); // avoid log(0)
 	  xentropy_aux_.ApplyLog(); // log(y)
-	  xentropy_aux_.MulElements(class_target[i]); // t*log(y)
-	  xentropy_aux_.MulRowsVec(class_frame_weights[i]); // w*t*log(y)
+	  xentropy_aux_.MulElements(*class_target[i]); // t*log(y)
+	  xentropy_aux_.MulRowsVec(*class_frame_weights[i]); // w*t*log(y)
 	  cross_entropy += -xentropy_aux_.Sum();
 
 	  // caluculate entropy (in GPU),
-	  entropy_aux_ = class_target[i]; // t
+	  entropy_aux_ = *class_target[i]; // t
 	  entropy_aux_.Add(1e-20); // avoid log(0)
 	  entropy_aux_.ApplyLog(); // log(t)
-	  entropy_aux_.MulElements(class_target[i]); // t*log(t)
-	  entropy_aux_.MulRowsVec(class_frame_weights[i]); // w*t*log(t)
+	  entropy_aux_.MulElements(*class_target[i]); // t*log(t)
+	  entropy_aux_.MulRowsVec(*class_frame_weights[i]); // w*t*log(t)
 	  entropy = -entropy_aux_.Sum();
 
 	  KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));

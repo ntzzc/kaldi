@@ -139,7 +139,7 @@ struct LmNnetExample : NnetExample
 
 	LmNnetExample(SequentialInt32VectorReader *wordid_reader,
 					NnetModelSync *model_sync,
-					NnetCtcStats *stats,
+					NnetLmStats *stats,
 					const NnetUpdateOptions *opts):
 	NnetExample(NULL), wordid_reader(wordid_reader),
 	model_sync(model_sync), stats(stats), opts(opts){}

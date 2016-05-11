@@ -25,6 +25,8 @@
 
 #if HAVE_CUDA == 1
 
+#define CUDA_API_PER_THREAD_DEFAULT_STREAM
+
 #include <cublas_v2.h>
 #include <map>
 #include <string>

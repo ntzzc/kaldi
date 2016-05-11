@@ -95,10 +95,10 @@ void AddVecStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des,
 	    Timer tim;
 
 	    for (int32 i = 0; i < size; i++) {
-		    int32 dim = des[i]->dim_;
-		    Real *data = des[i]->data_;
-		    const Real *src_data = src[i]->data_;
-		    cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream())
+		    int32 dim = des[i]->Dim();
+		    Real *data = des[i]->Data();
+		    const Real *src_data = src[i]->Data();
+		    cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
 		    if (beta != 1.0) cuda_scal(des[i]->GetLocalCublasHandle(), dim, beta, data, 1);
 		    if (alpha != 0.0) cuda_axpy(des[i]->GetLocalCublasHandle(), dim, alpha, src_data, 1, data, 1);
 	    }
@@ -109,8 +109,8 @@ void AddVecStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des,
 #endif
 	  {
 		  for (int32 i = 0; i < size; i++) {
-			if (beta != 1.0) des[i]->Scale(beta);
-			des[i]->AddVec(alpha, src[i]);
+			if (beta != 1.0) des[i]->Vec().Scale(beta);
+			des[i]->Vec().AddVec(alpha, src[i]->Vec());
 		  }
 	  }
 }
@@ -133,7 +133,7 @@ void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 
 template
 void AddRowSumMatStreamed(float alpha, std::vector<CuSubVector<float>* > &des_vec,
-		const std::vector<CuMatrixBase<float>* > &src_mat, Real beta = 1.0);
+		const std::vector<CuMatrixBase<float>* > &src_mat, float beta = 1.0);
 
 template
 void AddRowSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_vec,
@@ -969,8 +969,13 @@ void CuVector<Real>::Destroy() {
       CuDevice::Instantiate().Free(this->data_);
     if (this->handle_ != NULL)
     {
-      DestroyCublasHandle(this->handle_);
-      this->handle_ = NULL;
+        DestroyCublasHandle(this->handle_);
+        this->handle_ = NULL;
+    }
+    if (this->cuda_stream_ != NULL)
+    {
+        cudaStreamDestroy(this->cuda_stream_);
+        this->cuda_stream_ = NULL;
     }
   } else
 #endif

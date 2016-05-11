@@ -53,7 +53,7 @@ inline CuSubMatrix<Real>::CuSubMatrix(const Real *data,
                                       const MatrixIndexT stride):
 #if HAVE_CUDA == 1
     CuMatrixBase<Real>(const_cast<Real*>(data), num_rows, num_cols, stride,
-    		this->GetLocalCublasHandle()， this->GetLocalCudaStream())
+    		this->GetLocalCublasHandle(), this->GetLocalCudaStream())
 #else
     CuMatrixBase<Real>(const_cast<Real*>(data), num_rows, num_cols, stride) 
 #endif

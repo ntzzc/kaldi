@@ -380,14 +380,12 @@ private:
 	       kaldi::Posterior post;
 	       lat_like = kaldi::LatticeForwardBackward(den_lat, &post, &lat_ac_like);
 
-		double tmp = 0.0;
 	       // 6) convert the Posterior to a matrix
 	       //nnet_diff_h.Resize(num_frames, num_pdfs, kSetZero);
 	       for (int32 t = 0; t < post.size(); t++) {
 	         for (int32 arc = 0; arc < post[t].size(); arc++) {
 	           int32 pdf = trans_model != NULL ? trans_model->TransitionIdToPdf(post[t][arc].first) : post[t][arc].first-1;
 	           nnet_diff_h(t, pdf) += post[t][arc].second;
-			tmp = post[t][arc].second;
 	         }
 	       }
 
@@ -508,8 +506,6 @@ private:
 	void operator ()()
 	{
 
-		int gpuid;
-
 		model_sync->LockModel();
 		int thread_idx = this->thread_id_;
 
@@ -519,7 +515,7 @@ private:
 	    {
 	    	//int32 thread_idx = model_sync->GetThreadIdx();
 	    	KALDI_LOG << "MyId: " << parallel_opts->myid << "  ThreadId: " << thread_idx;
-	    	gpuid = CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
+	    	CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
 	    	for (int i = 0; i< this->num_threads*parallel_opts->num_procs; i++)
 	    	{
 	    		KALDI_LOG << model_sync->gpuinfo_[i].hostname << "  myid: " << model_sync->gpuinfo_[i].myid
@@ -527,7 +523,7 @@ private:
 	    	}
 	    }
 	    else
-	    	gpuid = CuDevice::Instantiate().SelectGpu();
+	    	CuDevice::Instantiate().SelectGpu();
 
 	    //CuDevice::Instantiate().DisableCaching();
 	#endif
@@ -553,16 +549,15 @@ private:
 		int32 skip_frames = 1;
 
 
-	    int32 num_done = 0, num_no_num_ali = 0, num_no_den_lat = 0,
-	          num_other_error = 0, num_frm_drop = 0;
+	    int32 num_done = 0, num_frm_drop = 0;
 
 	    int32 rank_in = 20, rank_out = 80, update_period = 4;
 	    BaseFloat num_samples_history = 2000.0;
 	    BaseFloat alpha = 4.0;
 
 	    kaldi::int64 total_frames = 0;
-	    double total_mmi_obj = 0.0, mmi_obj = 0.0;
-	    double total_post_on_ali = 0.0, post_on_ali = 0.0;
+	    double total_mmi_obj = 0.0;
+	    double total_post_on_ali = 0.0;
 	    double total_frame_acc = 0.0;
 
 		Nnet nnet_transf;
@@ -805,8 +800,6 @@ private:
 
 						  // get actual dims for this utt and nnet
 						  num_frames = mat.NumRows();
-						  int32 num_fea = mat.NumCols(),
-						  num_pdfs = nnet.OutputDim();
 
 						  // 3) propagate the feature to get the log-posteriors (nnet w/o sofrmax)
 						  //lstm  time-shift, copy the last frame of LSTM input N-times,

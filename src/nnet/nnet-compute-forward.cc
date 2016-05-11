@@ -54,13 +54,12 @@ public:
 	  // This does the main function of the class.
 	void operator ()()
 	{
-		int gpuid;
 
 		examples_mutex->Lock();
 		// Select the GPU
 		#if HAVE_CUDA == 1
 			if (opts->use_gpu == "yes")
-		    	gpuid = CuDevice::Instantiate().SelectGpu();
+		    	CuDevice::Instantiate().SelectGpu();
 		    //CuDevice::Instantiate().DisableCaching();
 		#endif
 

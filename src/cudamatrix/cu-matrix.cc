@@ -1039,6 +1039,25 @@ void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const 
 	}
 }
 
+/////////////////////////////////////////////////////
+/////  RNN LSTM Training
+/////////////////////////////////////////////////////
+template<typename Real>
+void CuMatrixBase<Real>::CopyRowToVecId(const CuArray<int32> &indexes)
+{
+
+}
+
+/// *this += alpha * A * indexes
+template<typename Real>
+void CuMatrixBase<Real>::AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
+		  	  	  const CuArray<int32> &indexes,
+				  MatrixTransposeType trans = kNoTrans)
+{
+
+}
+
+
 template<typename Real>
 void CuMatrixBase<Real>::ComputeCtcAlpha(const CuMatrixBase<Real> &prob,
                                          int32 row_idx,
@@ -2239,12 +2258,12 @@ void AddMatMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 		  n = ((transA==kTrans)? A[i]->NumCols() : A[i]->NumRows());
 		  k = ((transB==kTrans)? B[i]->NumCols() : B[i]->NumRows());
 
-		  cublasSetStream(B[i]->GetLocalCublasHandle(), B[i]->GetLocalCudaStream())
+		  cublasSetStream(B[i]->GetLocalCublasHandle(), B[i]->GetLocalCudaStream());
 		  cublas_gemm(B[i]->GetLocalCublasHandle(),
 						(transB==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
 						(transA==kTrans? CUBLAS_OP_T:CUBLAS_OP_N),
-						m, n, k, alpha, B[i]->data_, B[i]->Stride(),
-						A[i]->data_, A[i]->Stride(), beta, C[i]->data_, C[i]->Stride());
+						m, n, k, alpha, B[i]->Data(), B[i]->Stride(),
+						A[i]->Data(), A[i]->Stride(), beta, C[i]->Data(), C[i]->Stride());
 	  }
 	  CU_SAFE_CALL(cudaGetLastError());
 
@@ -2281,9 +2300,9 @@ void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 
 	  for (int32 i = 0; i < size; i++) {
 			if (transA == kNoTrans) {
-			  KALDI_ASSERT(A[i].NumRows() == C[i].NumRows() && A[i].NumCols() == C[i].NumCols());
+			  KALDI_ASSERT(A[i]->NumRows() == C[i]->NumRows() && A[i]->NumCols() == C[i]->NumCols());
 			} else {
-			  KALDI_ASSERT(A[i].NumCols() == C[i].NumRows() && A[i].NumRows() == C[i].NumCols());
+			  KALDI_ASSERT(A[i]->NumCols() == C[i]->NumRows() && A[i]->NumRows() == C[i]->NumCols());
 			}
 	  }
 
@@ -2294,12 +2313,12 @@ void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 			// This block dimension seems to work better than the
 			// one from GetBlockSizesForSimpleMatrixOperation().
 			dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
-			dim3 dimGrid(n_blocks(A[i].NumCols(), CU2DBLOCK),
-						 n_blocks(A[i].NumRows(), CU2DBLOCK));
+			dim3 dimGrid(n_blocks(A[i]->NumCols(), CU2DBLOCK),
+						 n_blocks(A[i]->NumRows(), CU2DBLOCK));
 
-			cublasSetStream(C[i]->GetLocalCublasHandle(), C[i]->GetLocalCudaStream())
-			cuda_add_mat(dimGrid, dimBlock, alpha, A[i].data_,
-						 C[i].data_, C[i].Dim(), A[i].Stride(),
+			cublasSetStream(C[i]->GetLocalCublasHandle(), C[i]->GetLocalCudaStream());
+			cuda_add_mat(dimGrid, dimBlock, alpha, A[i]->Data(),
+						 C[i]->Data(), C[i]->Dim(), A[i]->Stride(),
 						 (transA == kTrans ? 1 : 0));
 		}
 		CU_SAFE_CALL(cudaGetLastError());
@@ -2309,7 +2328,7 @@ void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 #endif
   {
 		  for (int32 i = 0; i < size; i++)
-			  	 C[i].Mat().AddMat(alpha, A[i].Mat(), transA);
+			  	 C[i]->Mat().AddMat(alpha, A[i]->Mat(), transA);
   }
 }
 
@@ -2331,17 +2350,17 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 	  if (size == 0) return;
 
 	  for (int32 i = 0; i < size; i++)
-		  KALDI_ASSERT(SameDim(des[i], src[i]));
+		  KALDI_ASSERT(des[i]->NumRows() == src[i]->NumRows() && des[i]->NumCols() == src[i]->NumCols());
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
 	    Timer tim;
 	    for (int32 i = 0; i < size; i++) {
-			size_t dimBlock = src[i]->num_cols_ > CU1DBLOCK ? CU1DBLOCK : src[i]->num_cols_;
-			size_t dimGrid = src[i]->num_rows_;
+			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
+			size_t dimGrid = src[i]->NumRows();
 
-			cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream())
-			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->data_, src[i]->data_, des[i]->Dim(), src[i]->Stride());
+			cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
+			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Stride());
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
 
@@ -2389,8 +2408,8 @@ void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 			GetBlockSizesForSimpleMatrixOperation(des_mat[i]->NumRows(), des_mat[i]->NumCols(),
 												  &dimGrid, &dimBlock);
 
-			cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream())
-			cuda_add_vec_to_rows(dimGrid, dimBlock, alpha, src_vec[i]->data_, beta, des_mat[i]->data_, des_mat[i]->Dim());
+			cublasSetStream(des_mat[i]->GetLocalCublasHandle(), des_mat[i]->GetLocalCudaStream());
+			cuda_add_vec_to_rows(dimGrid, dimBlock, alpha, src_vec[i]->Data(), beta, des_mat[i]->Data(), des_mat[i]->Dim());
 		}
 
 		CU_SAFE_CALL(cudaGetLastError());
@@ -2400,8 +2419,8 @@ void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 #endif
   {
 	  for (int32 i = 0; i < size; i++) {
-		  if (beta != 1.0) des_mat[i]->Scale(beta);
-		  	  des_mat[i]->AddVecToRows(alpha, src_vec[i]);
+          if (beta != 1.0) des_mat[i]->Mat().Scale(beta);
+          des_mat[i]->Mat().AddVecToRows(alpha, src_vec[i]->Vec());
 	  }
   }
 }
@@ -2414,18 +2433,18 @@ template
 void AddVecToRowsStreamed(double alpha, std::vector<CuSubMatrix<double>* > &des_mat,
                  	const std::vector<CuSubVector<double>* > &src_vec, double beta);
 
-template<class Real>
-template<class OtherReal>
+template<class Real, class OtherReal>
 void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
-		std::vector<CuSubMatrix<Real>* > &des, MatrixTransposeType trans){
+		std::vector<CuSubMatrix<OtherReal>* > &des, MatrixTransposeType trans){
 
-	  KALDI_ASSERT(des_mat.size() == src_vec.size());
+	  KALDI_ASSERT(des.size() == src.size());
 	  int32 size = src.size();
 
 	  if (size == 0) return;
 
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
+        Timer tim;
 	  for (int32 i = 0; i < size; i++) {
 		  if (sizeof(Real) == sizeof(OtherReal) && static_cast<const void*>(src[i]->Data()) == static_cast<const void*>(des[i]->Data()))
 		  {
@@ -2438,31 +2457,31 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 		  }
 
 		  if (trans == kNoTrans){
-			  KALDI_ASSERT(M.NumRows() == num_rows_ && M.NumCols() == num_cols_);
+			  KALDI_ASSERT(src[i]->NumRows() == des[i]->NumRows() && src[i]->NumCols() == des[i]->NumCols());
 		  }else {
-			  KALDI_ASSERT(M.NumCols() == num_rows_ && M.NumRows() == num_cols_);
+			  KALDI_ASSERT(src[i]->NumCols() == des[i]->NumRows() && src[i]->NumRows() == des[i]->NumCols());
 		  }
 
-		  if (src[i]->num_rows_ == 0) return; // Nothing to do.
+		  if (src[i]->NumRows() == 0) return; // Nothing to do.
 
 		  Timer tim;
 		  if (sizeof(Real) == sizeof(OtherReal) && trans == kNoTrans ) {
 			  MatrixIndexT dst_pitch = des[i]->Stride() * sizeof(Real);
 			  MatrixIndexT src_pitch = src[i]->Stride() * sizeof(Real);
 			  MatrixIndexT width = src[i]->NumCols() * sizeof(Real);
-			  cudaMemcpy2DAsync(des[i]->data_, dst_pitch, src[i]->data_, src_pitch,
-										width, src[i]->num_rows_, cudaMemcpyDeviceToDevice, des[i]->GetLocalCudaStream());
+			  cudaMemcpy2DAsync(des[i]->Data(), dst_pitch, src[i]->Data(), src_pitch,
+										width, src[i]->NumRows(), cudaMemcpyDeviceToDevice, des[i]->GetLocalCudaStream());
 		  } else
 			{
 			  dim3 dimGrid, dimBlock;
 			  GetBlockSizesForSimpleMatrixOperation(des[i]->NumRows(), des[i]->NumCols(),
 													&dimGrid, &dimBlock);
 
-			  cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream())
+			  cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
 			  if (trans == kNoTrans) {
-				cuda_copy_from_mat(dimGrid, dimBlock, des[i]->data_, src[i]->data_, des[i]->Dim(), src[i]->Dim());
+				cuda_copy_from_mat(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Dim());
 			  } else {
-				cuda_copy_from_mat_trans(dimGrid, dimBlock, des[i]->data_, src[i]->data_, des[i]->Dim(), src[i]->Dim());
+				cuda_copy_from_mat_trans(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Dim());
 			  }
 			}
 	  }
@@ -2479,15 +2498,13 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 }
 
 // Instantiate the template above.
-template<float>
-template<double>
+template<>
 void CopyFromMatStreamed(const std::vector<CuSubMatrix<float>* > &src,
 		std::vector<CuSubMatrix<double>* > &des, MatrixTransposeType trans);
 
-template<float>
-template<double>
-void CopyFromMatStreamed(const std::vector<CuSubMatrix<float>* > &src,
-		std::vector<CuSubMatrix<double>* > &des, MatrixTransposeType trans);
+template<>
+void CopyFromMatStreamed(const std::vector<CuSubMatrix<double>* > &src,
+		std::vector<CuSubMatrix<float>* > &des, MatrixTransposeType trans);
 
 template
 void CopyFromMatStreamed(const std::vector<CuSubMatrix<float>* > &src,

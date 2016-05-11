@@ -50,6 +50,8 @@
 #include "nnet/nnet-sentence-averaging-component.h"
 #include "nnet/nnet-frame-pooling-component.h"
 #include "nnet/nnet-parallel-component.h"
+#include "nnet/nnet-word-vector-transform.h"
+#include "nnet/nnet-class-affine-transform.h"
 
 #include <sstream>
 

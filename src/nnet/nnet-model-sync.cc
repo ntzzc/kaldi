@@ -1035,7 +1035,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 
-				CU_SAFE_CALL(cudaMemcpy2D(lass_affine->linearity_.Data(), dst_pitch,
+				CU_SAFE_CALL(cudaMemcpy2D(class_affine->linearity_.Data(), dst_pitch,
 										host_data_+pos, src_pitch, width, dim.rows,
 										cudaMemcpyHostToDevice));
 
@@ -1053,7 +1053,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 
-				CU_SAFE_CALL(cudaMemcpy2D(word_transf->wordvector_.Data()(), dst_pitch,
+				CU_SAFE_CALL(cudaMemcpy2D(word_transf->wordvector_.Data(), dst_pitch,
 										host_data_+pos, src_pitch, width, dim.rows,
 										cudaMemcpyHostToDevice));
 

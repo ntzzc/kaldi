@@ -144,11 +144,11 @@ class WordVectorTransform : public UpdatableComponent {
   {
 	    // we use following hyperparameters from the option class
 	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
-	    const BaseFloat mmt = opts_.momentum;
-	    const BaseFloat l2 = opts_.l2_penalty;
-	    const BaseFloat l1 = opts_.l1_penalty;
+	    //const BaseFloat mmt = opts_.momentum;
+	    //const BaseFloat l2 = opts_.l2_penalty;
+	    //const BaseFloat l1 = opts_.l1_penalty;
 	    // we will also need the number of frames in the mini-batch
-	    const int32 num_frames = input.NumRows();
+	    //const int32 num_frames = input.NumRows();
 		local_lrate = -lr;
 
 	    // compute gradient (incl. momentum)

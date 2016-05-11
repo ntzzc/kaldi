@@ -203,7 +203,6 @@ class CuVectorBase {
   void ReplaceValue(Real orig, Real changed);
   
   void MulElements(const CuVectorBase<Real> &v);
- protected:
 
   // The following two functions should only be called if we did not compile
   // with CUDA or could not get a CUDA card; in that case the contents are
@@ -214,15 +213,7 @@ class CuVectorBase {
   inline VectorBase<Real> &Vec() {
     return *(reinterpret_cast<VectorBase<Real>* >(this));
   }
-  
-  /// Default constructor: make it protected so the user cannot
-  /// instantiate this class.
-  CuVectorBase<Real>(): data_(NULL), dim_(0)
-  {
-#if HAVE_CUDA == 1
-	  handle_ = NULL;
-#endif
-  }
+
 
 #if HAVE_CUDA == 1
   inline cublasHandle_t GetLocalCublasHandle()
@@ -231,7 +222,26 @@ class CuVectorBase {
 		  CreateCublasHandle(&handle_);
 	  return handle_;
   }
+  inline cudaStream_t GetLocalCudaStream()
+  {
+	  if (cuda_stream_ == NULL)
+		  cudaStreamCreateWithFlags(&cuda_stream_, cudaStreamNonBlocking);
+		  //cudaStreamCreate(&cuda_stream_);
+	  return cuda_stream_;
+  }
 #endif
+
+ protected:
+  
+  /// Default constructor: make it protected so the user cannot
+  /// instantiate this class.
+  CuVectorBase<Real>(): data_(NULL), dim_(0)
+  {
+#if HAVE_CUDA == 1
+	  handle_ = NULL;
+      cuda_stream_ = NULL;
+#endif
+  }
   
   Real *data_; ///< GPU data pointer (or regular data pointer
                ///< if CUDA is not compiled in or we have no GPU).
@@ -239,6 +249,7 @@ class CuVectorBase {
 
 #if HAVE_CUDA == 1
   cublasHandle_t handle_;
+  cudaStream_t cuda_stream_;
 #endif
 
  private:
