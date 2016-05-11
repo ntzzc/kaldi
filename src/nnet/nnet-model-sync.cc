@@ -1109,7 +1109,7 @@ std::string NnetParallelUtil::FAddSuffix(std::string filename, int idx)
 
   const char *pfn = filename.c_str();
   len = strlen(pfn);
-  const char *p1, *p2;
+  const char *p2;
 
   p2 = strchr(pfn, '.');
 

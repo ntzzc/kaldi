@@ -134,7 +134,7 @@ class MatrixBase {
 
    /// *this += alpha * A * indexes
    void AddMatToRows(Real alpha, const MatrixBase<Real> &A,
- 		  	  	  const const MatrixIndexT *indices);
+ 		  	  	  const MatrixIndexT *indices);
 
   /*  Copying functions.  These do not resize the matrix! */
 

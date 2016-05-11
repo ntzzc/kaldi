@@ -2702,7 +2702,7 @@ void MatrixBase<Real>::CopyRowToVecId(MatrixIndexT *indices) {
  /// *this += alpha * A * indexes
 template<typename Real>
 void MatrixBase<Real>::AddMatToRows(Real alpha, const MatrixBase<Real> &A,
-		  	  	  const const MatrixIndexT *indices)
+		  	  	        const MatrixIndexT *indices)
  {
 	 KALDI_ASSERT(NumCols() == A.NumCols());
 

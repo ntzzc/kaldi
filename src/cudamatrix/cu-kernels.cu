@@ -1550,14 +1550,14 @@ static void _copy_row_to_vecid(const Real *mat, MatrixIndexT_cuda *vec_id, Matri
 
 template<typename Real>
 __global__
-static void _add_mat_to_rows(Real *des, Real *src, const MatrixIndexT_cuda* reorder, MatrixDim des_dim, MatrixDim src_dim) {
+static void _add_mat_to_rows(Real alpha, Real *dst, const Real *src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, MatrixDim src_dim) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;  // col index
   int j = blockIdx.y * blockDim.y + threadIdx.y;  // row index
   if (i < dst_dim.cols && j < dst_dim.rows) {
-    int index = reorder[j],
+    int index = reorder[j];
     int dst_index = index * dst_dim.stride + i;
     int src_index = j * src_dim.stride + i;
-    dst[dst_index] += index >= 0 ? src[src_index] : 0;
+    dst[dst_index] += index >= 0 ? alpha*src[src_index] : 0;
   }	
 }
 
@@ -2813,12 +2813,12 @@ void cudaF_copy_rows_from_vec(dim3 Gr, dim3 Bl, float *mat_out, MatrixDim d_out,
   _copy_rows_from_vec<<<Gr,Bl>>>(mat_out, d_out, v_in);
 }
 
-void cudaF_copy_row_to_vecid(dim3 Gr, dim3 Bl, const float *mat, int32_cuda *vec_id, MatrixDim dim) {
+void cudaF_copy_row_to_vecid(dim3 Gr, dim3 Bl, const float *mat, MatrixIndexT_cuda *vec_id, MatrixDim dim) {
 	_copy_row_to_vecid<<<Gr, Bl>>>(mat, vec_id, dim);
 }
 
-void cudaF_add_mat_to_rows(dim3 Gr, dim3 Bl, float *des, float *src, int32_cuda *vec_id, MatrixDim des_dim, MatrixDim src_dim) {
-	_add_mat_to_rows<<<Gr, Bl>>>(des, src, vec_id, des_dim, src_dim);
+void cudaF_add_mat_to_rows(dim3 Gr, dim3 Bl, float alpha, float *dst, const float *src, const MatrixIndexT_cuda *vec_id, MatrixDim dst_dim, MatrixDim src_dim) {
+	_add_mat_to_rows<<<Gr, Bl>>>(alpha, dst, src, vec_id, dst_dim, src_dim);
 }
 
 void cudaF_copy_col_from_mat_df(int Gr, int Bl, double* v, int col, const float* mat, MatrixDim dmat, int dim) {
@@ -3321,12 +3321,12 @@ void cudaD_copy_rows_from_vec(dim3 Gr, dim3 Bl, double *mat_out, MatrixDim d_out
   _copy_rows_from_vec<<<Gr,Bl>>>(mat_out, d_out, v_in);
 }
 
-void cudaD_copy_row_to_vecid(dim3 Gr, dim3 Bl, const double *mat, int32_cuda *vec_id, MatrixDim dim) {
+void cudaD_copy_row_to_vecid(dim3 Gr, dim3 Bl, const double *mat, MatrixIndexT_cuda *vec_id, MatrixDim dim) {
 	_copy_row_to_vecid<<<Gr, Bl>>>(mat, vec_id, dim);
 }
 
-void cudaD_add_mat_to_rows(dim3 Gr, dim3 Bl, double *des, double *src, int32_cuda *vec_id, MatrixDim des_dim, MatrixDim src_dim) {
-	_add_mat_to_rows<<<Gr, Bl>>>(des, src, vec_id, des_dim, src_dim);
+void cudaD_add_mat_to_rows(dim3 Gr, dim3 Bl, double alpha, double *dst, const double *src, const MatrixIndexT_cuda *vec_id, MatrixDim dst_dim, MatrixDim src_dim) {
+	_add_mat_to_rows<<<Gr, Bl>>>(alpha, dst, src, vec_id, dst_dim, src_dim);
 }
 
 void cudaD_sum_column_ranges(dim3 Gr, dim3 Bl, double *data, MatrixDim dim,

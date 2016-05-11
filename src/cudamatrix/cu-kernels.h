@@ -284,11 +284,11 @@ inline void cuda_copy_rows_from_vec(dim3 Gr, dim3 Bl, float *mat_out, MatrixDim 
 /*
  * RNN lstm lm
  */
-inline void cuda_copy_row_to_vecid(dim3 Gr, dim3 Bl, const float *mat, int32_cuda *vec_id, MatrixDim dim) {
+inline void cuda_copy_row_to_vecid(dim3 Gr, dim3 Bl, const float *mat, MatrixIndexT_cuda *vec_id, MatrixDim dim) {
 	cudaF_copy_row_to_vecid(Gr, Bl, mat, vec_id, dim);
 }
-inline void cuda_add_mat_to_rows(dim3 Gr, dim3 Bl, float *des, float *src, int32_cuda *vec_id, MatrixDim des_dim, MatrixDim src_dim) {
-	cudaF_add_mat_to_rows(Gr, Bl, des, src, vec_id, des_dim, src_dim);
+inline void cuda_add_mat_to_rows(dim3 Gr, dim3 Bl, float alpha, float *dst, const float *src, const MatrixIndexT_cuda *vec_id, MatrixDim dst_dim, MatrixDim src_dim) {
+	cudaF_add_mat_to_rows(Gr, Bl, alpha, dst, src, vec_id, dst_dim, src_dim);
 }
 
 inline void cuda_randomize(dim3 Gr, dim3 Bl, float *y, const float *x, const int32_cuda *copy_from, MatrixDim d_out, MatrixDim d_in) { cudaF_randomize(Gr,Bl,y,x,copy_from,d_out,d_in); }
@@ -571,11 +571,11 @@ inline void cuda_copy_rows_from_vec(dim3 Gr, dim3 Bl, double *mat_out, MatrixDim
 /*
  * RNN lstm lm
  */
-inline void cuda_copy_row_to_vecid(dim3 Gr, dim3 Bl, const float *mat, int32_cuda *vec_id, MatrixDim dim) {
+inline void cuda_copy_row_to_vecid(dim3 Gr, dim3 Bl, const double *mat, MatrixIndexT_cuda *vec_id, MatrixDim dim) {
 	cudaD_copy_row_to_vecid(Gr, Bl, mat, vec_id, dim);
 }
-inline void cuda_add_mat_to_rows(dim3 Gr, dim3 Bl, float *des, float *src, int32_cuda *vec_id, MatrixDim des_dim, MatrixDim src_dim) {
-	cudaD_add_mat_to_rows(Gr, Bl, des, src, vec_id, des_dim, src_dim);
+inline void cuda_add_mat_to_rows(dim3 Gr, dim3 Bl, double alpha, double *dst, const double *src, const MatrixIndexT_cuda *vec_id, MatrixDim dst_dim, MatrixDim src_dim) {
+	cudaD_add_mat_to_rows(Gr, Bl, alpha, dst, src, vec_id, dst_dim, src_dim);
 }
 
 inline void cuda_randomize(dim3 Gr, dim3 Bl, double *y, const double *x, const int32_cuda *copy_from, MatrixDim d_out, MatrixDim d_in) { cudaD_randomize(Gr,Bl,y,x,copy_from,d_out,d_in); }

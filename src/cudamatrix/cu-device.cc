@@ -563,7 +563,7 @@ void CuDevice::CheckGpuHealth() {
   }
 */
 
-CuDevice::CuDevice(): active_gpu_id_(-1), verbose_(true), handle_(NULL),
+CuDevice::CuDevice(): handle_(NULL), active_gpu_id_(-1), verbose_(true), 
                       allocator_(CuAllocatorOptions()) { }
 
 
@@ -584,7 +584,6 @@ CuDevice CuDevice::global_device_;
 void
 CuDevice::GetBandwidth(int32 gpu_idx, float &d2h, float &h2d)
 {
-	  int idx = gpu_idx;
 	  int memSize = 64*1024*1024;
 	  		float elapsedTimeInMs = 0.0f;
 	  	    float bandwidthInMBs = 0.0f;
@@ -791,7 +790,8 @@ bool CuDevice::Initialize()
 	  }
 
 	  active_gpu_id_ = 0;
-
+      
+      return true;
 }
 
 int CuDevice::SelectGpu()

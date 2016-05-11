@@ -442,11 +442,11 @@ class CuMatrixBase {
   /////////////////////////////////////////////////////
   /////  RNN LSTM Training
   /////////////////////////////////////////////////////
-  void CopyRowToVecId(const CuArray<int32> &indexes);
+  void CopyRowToVecId(CuArray<MatrixIndexT> &indexes);
 
   /// *this += alpha * A * indexes
   void AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
-		  	  	  const CuArray<int32> &indexes);
+		  	  	  const CuArray<MatrixIndexT> &indexes);
 
   /////////////////////////////////////////////////////
   /////  CTC Training

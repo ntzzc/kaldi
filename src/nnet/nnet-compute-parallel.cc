@@ -198,7 +198,6 @@ private:
 
 
 	    Timer time, mpi_time;
-	    double time_now = 0;
 
 		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff;
 		CuMatrix<BaseFloat> si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
