@@ -57,7 +57,7 @@ private:
 				si_model_filename;
 
 	ExamplesRepository *repository_;
-    NnetStats *stats_;
+    NnetLmStats *stats_;
 
     const NnetTrainOptions *trn_opts;
     const NnetDataRandomizerOptions *rnd_opts;
@@ -109,7 +109,7 @@ private:
 			std::string	model_filename,
 			ExamplesRepository *repository,
 			Nnet *nnet,
-			NnetStats *stats):
+			NnetLmStats *stats):
 				opts(opts),
 				model_sync(model_sync),
 				model_filename(model_filename),
@@ -531,7 +531,7 @@ void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		Nnet *nnet,
-		NnetStats *stats)
+		NnetLmStats *stats)
 {
 		ExamplesRepository repository;
 		NnetModelSync model_sync(nnet, opts->parallel_opts);

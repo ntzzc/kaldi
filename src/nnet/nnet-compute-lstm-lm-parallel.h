@@ -122,7 +122,7 @@ void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string feature_rspecifier,
 		std::string targets_rspecifier,
 		Nnet *nnet,
-		NnetStats *stats);
+		NnetLmStats *stats);
 
 
 } // namespace nnet1
