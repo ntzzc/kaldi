@@ -129,8 +129,10 @@ class WordVectorTransform : public UpdatableComponent {
 
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
-	wordid_.Resize(in.NumCols(), kUndefined);
-	in.CopyRowToVecId(wordid_);
+	wordid_.Resize(in.NumRows(), kUndefined);
+	CuMatrix<BaseFloat> tmp(1, in.NumRows());
+	tmp.CopyFromMat(in, kTrans);
+	tmp.CopyRowToVecId(wordid_);
 	out->CopyRows(wordvector_, wordid_);
   }
 

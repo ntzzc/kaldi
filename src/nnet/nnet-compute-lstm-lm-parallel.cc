@@ -368,8 +368,8 @@ private:
 	        cb_softmax->SetUpdateClassId(sorted_target);
 
 	        // forward pass
-	        CuMatrix<BaseFloat> words(1, feat.Dim());
-	        words.CopyRowFromVec(CuVector<BaseFloat>(feat), 0);
+	        CuMatrix<BaseFloat> words(feat.Dim(), 1);
+	        words.CopyColFromVec(CuVector<BaseFloat>(feat), 0);
 
 	        nnet.Propagate(words, &nnet_out);
 
