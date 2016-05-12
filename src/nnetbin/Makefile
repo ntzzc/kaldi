@@ -23,7 +23,7 @@ BINFILES = nnet-train-frmshuff \
         nnet-train-frmshuff-parallel nnet-train-frmshuff-parallel-mpi \
         nnet-train-lstm-mpe-sequential nnet-train-lstm-mmi-sequential \
 	nnet-train-lstm-streams-parallel nnet-train-lstm-streams-asgd \
-	nnet-forward-parallel nnet-train-ctc-parallel nnet-train-lstm-streams-parallel-mpi
+	nnet-forward-parallel nnet-train-ctc-parallel nnet-train-lstm-streams-parallel-mpi nnet-train-lstm-lm-parallel
 
 OBJFILES =
 

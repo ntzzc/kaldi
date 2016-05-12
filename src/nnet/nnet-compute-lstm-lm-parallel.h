@@ -110,12 +110,12 @@ struct NnetLmStats: NnetStats {
     }
 };
 
-
 typedef struct ClassIdMap_
 {
 	  int32  idx;
 	  int32  classid;
 }ClassIdMap;
+
 
 void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,

@@ -18,6 +18,7 @@
 // limitations under the License.
 
 #include <deque>
+#include <algorithm>
 #include "hmm/posterior.h"
 #include "lat/lattice-functions.h"
 #include "thread/kaldi-semaphore.h"
@@ -35,6 +36,9 @@
 #include "nnet/nnet-model-merge-function.h"
 #include "nnet/nnet-activation.h"
 #include "nnet/nnet-example.h"
+#include "nnet/nnet-affine-transform.h"
+#include "nnet/nnet-class-affine-transform.h"
+#include "nnet/nnet-word-vector-transform.h"
 
 #include "nnet/nnet-compute-lstm-lm-parallel.h"
 
@@ -66,7 +70,8 @@ private:
     int32 num_threads;
     bool crossvalidate;
 
-    bool compare(const ClassIdMap &a, const ClassIdMap &b)
+
+    static bool compare(const ClassIdMap &a, const ClassIdMap &b)
     {
   	  return a.classid < b.classid;
     }
@@ -81,7 +86,7 @@ private:
 		for (int i = 0; i < size; i++)
 		{
 		  map[i].idx = i;
-		  map[i].classid = updateclass_id(i);
+		  map[i].classid = updateclass_id[i];
 		}
 		std::sort(map.begin(), map.end(), compare);
 
@@ -378,6 +383,14 @@ private:
 
 		        // backward pass
 				if (!crossvalidate) {
+
+                    if (model_sync->reset_gradient_[thread_idx] && parallel_opts->merge_func == "globalgradient")
+                    {
+                        nnet.ResetGradient();
+                        model_sync->reset_gradient_[thread_idx] = false;
+                        //KALDI_VLOG(1) << "Reset Gradient";
+                    }
+
 					// backpropagate
 					if (parallel_opts->num_threads > 1 && update_frames >= opts->update_frames) {
 						nnet.Backpropagate(nnet_diff, NULL, false);
@@ -432,6 +445,7 @@ private:
 							    p_merge_func->MergeCacheReset();
 
 							    model_sync->SetWeight(&nnet);
+                                model_sync->ResetGradient();
 							}
 						}
 
@@ -458,7 +472,7 @@ private:
 
 		if (objective_function == "xent"){
 			//KALDI_LOG << xent.Report();
-			stats_->xent.Add(&xent);
+			stats_->cbxent.Add(&cbxent);
 		 }else if (objective_function == "mse"){
 			//KALDI_LOG << mse.Report();
 			stats_->mse.Add(&mse);
