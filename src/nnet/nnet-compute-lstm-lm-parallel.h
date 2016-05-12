@@ -120,7 +120,6 @@ typedef struct ClassIdMap_
 void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
-		std::string targets_rspecifier,
 		Nnet *nnet,
 		NnetLmStats *stats);
 

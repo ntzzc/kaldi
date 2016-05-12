@@ -189,6 +189,7 @@ void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 {
 		class_boundary_ = class_boundary;
 		int32 num_class = class_boundary.size()-1;
+        word2class_.resize(class_boundary[num_class]);
 		int i,j = 0;
 		for (i = 0; i < class_boundary[num_class]; i++)
 		{

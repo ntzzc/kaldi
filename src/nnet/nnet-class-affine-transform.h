@@ -339,6 +339,9 @@ class ClassAffineTransform : public UpdatableComponent {
 
 	  int size = class_boundary_.size(), len;
 	  class_linearity_.resize(size);
+      class_linearity_corr_.resize(size);
+      class_bias_.resize(size);
+      class_bias_corr_.resize(size);
 
 	  for (int i = 0; i < size; i++)
 	  {
