@@ -356,7 +356,58 @@ void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
   }
 }
 
+std::string CBXent::Report() {
+  std::ostringstream oss;
+  oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
+      << "[AvgXent " << loss_/frames_
+      << ", AvgTargetEnt " << entropy_/frames_
+      << ", frames " << frames_ << "]" << std::endl;
+  if (loss_vec_.size() > 0) {
+     oss << "progress: [";
+     std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
+     oss << "]" << std::endl;
+  }
+  if (correct_ >= 0.0) {
+    oss << "FRAME_ACCURACY >> " << 100.0*correct_/frames_ << "% <<" << std::endl;
+  }
+  return oss.str();
+}
 
+/// Merge lost
+void CBXent::Add(CBXent *xent)
+{
+	  this->frames_ += xent->frames_;
+	  this->correct_ += xent->correct_;
+	  this->loss_ += xent->loss_;
+	  this->entropy_ += xent->entropy_;
+
+	  // partial results during training
+	  frames_progress_ += xent->frames_progress_;
+	  loss_progress_ += xent->loss_progress_;
+	  entropy_progress_+= xent->entropy_progress_;
+
+	  for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
+		  this->loss_vec_[i] += xent->loss_vec_[i];
+}
+
+void CBXent::Merge(int myid, int root)
+{
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	void *addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->frames_));
+	MPI_Reduce(addr, (void*)(&this->frames_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->correct_));
+	MPI_Reduce(addr, (void*)(&this->correct_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->loss_));
+	MPI_Reduce(addr, (void*)(&this->loss_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->entropy_));
+	MPI_Reduce(addr, (void*)(&this->entropy_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+}
 
 /* Mse */
 
