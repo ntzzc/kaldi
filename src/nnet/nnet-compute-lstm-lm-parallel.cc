@@ -70,34 +70,58 @@ private:
     int32 num_threads;
     bool crossvalidate;
 
+    std::vector<int32> class_boundary_, word2class_;
 
-    static bool compare(const ClassIdMap &a, const ClassIdMap &b)
+    static bool compare_classid(const Word &a, const Word &b)
     {
   	  return a.classid < b.classid;
     }
 
-    void SortUpdateClass(const std::vector<int32>& updateclass_id,
-    			std::vector<int32>& sortedclass_id, std::vector<int32>& sortedclass_id_index,
+    void SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
+    		std::vector<int32>& sortedclass_id, std::vector<int32>& sortedclass_id_index, std::vector<int32>& sortedclass_id_reindex,
 				const Vector<BaseFloat>& frame_mask, Vector<BaseFloat>& sorted_frame_mask)
     {
-		int size = updateclass_id.size();
-		std::vector<ClassIdMap> map(size);
+		int size = update_id.size();
+		std::vector<Word> words(size);
 
 		for (int i = 0; i < size; i++)
 		{
-		  map[i].idx = i;
-		  map[i].classid = updateclass_id[i];
+			words[i].idx = i;
+			words[i].wordid = update_id[i];
+			words[i].classid = this->word2class_[update_id[i]];
 		}
-		std::sort(map.begin(), map.end(), compare);
 
+		std::sort(words.begin(), words.end(), compare_classid);
+
+		sorted_id.resize(size);
 		sortedclass_id.resize(size);
 		sortedclass_id_index.resize(size);
+		sortedclass_id_reindex.resize(size);
 
 		for (int i = 0; i < size; i++)
 		{
-			sortedclass_id[i] = map[i].classid;
-			sortedclass_id_index[i] = map[i].idx;
-			sorted_frame_mask(i) = frame_mask(map[i].idx);
+			sorted_id[i] = words[i].wordid;
+			sortedclass_id[i] = words[i].classid;
+			sortedclass_id_index[i] = words[i].idx;
+			sortedclass_id_reindex[words[i].idx] = i;
+			sorted_frame_mask(i) = frame_mask(words[i].idx);
+		}
+    }
+
+    void SetClassBoundary(const Vector<BaseFloat>& classinfo)
+    {
+	    class_boundary_.resize(classinfo.Dim());
+		int32 num_class = class_boundary_.size()-1;
+	    for (int i = 0; i < classinfo.Dim(); i++)
+	    	class_boundary_[i] = classinfo(i);
+		int i,j = 0;
+		word2class_.resize(class_boundary_[num_class]);
+		for (i = 0; i < class_boundary_[num_class]; i++)
+		{
+			if (i>=class_boundary_[j] && i<class_boundary_[j+1])
+				word2class_[i] = class_boundary_[j];
+			else
+				word2class_[i] = class_boundary_[++j];
 		}
     }
 
@@ -195,7 +219,7 @@ private:
 
 	    nnet.SetTrainOptions(*trn_opts);
 
-	    std::vector<int32> class_boundary;
+
 	    if (classboundary_file != "")
 	    {
 		    Input in;
@@ -203,9 +227,7 @@ private:
 		    in.OpenTextMode(classboundary_file);
 		    classinfo.Read(in.Stream(), false);
 		    in.Close();
-		    class_boundary.resize(classinfo.Dim());
-		    for (int i = 0; i < classinfo.Dim(); i++)
-		    	class_boundary[i] = classinfo(i);
+		    SetClassBoundary(classinfo);
 	    }
 
 	    ClassAffineTransform *class_affine;
@@ -220,8 +242,8 @@ private:
 	    	else if (nnet.GetComponent(c).GetType() == Component::kCBSoftmax)
 	    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
 	    }
-	    class_affine->SetClassBoundary(class_boundary);
-	    cb_softmax->SetClassBoundary(class_boundary);
+	    class_affine->SetClassBoundary(class_boundary_);
+	    cb_softmax->SetClassBoundary(class_boundary_);
 
 	    if (opts->dropout_retention > 0.0) {
 	      nnet_transf.SetDropoutRetention(opts->dropout_retention);
@@ -248,7 +270,7 @@ private:
 	    CBXent cbxent;
 	    Mse mse;
 
-	    cbxent.SetClassBoundary(class_boundary);
+	    cbxent.SetClassBoundary(class_boundary_);
 
 		CuMatrix<BaseFloat> feats_transf, nnet_out, nnet_diff;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
@@ -278,7 +300,9 @@ private:
 	    Vector<BaseFloat> feat(batch_size * num_stream, kSetZero);
 	    std::vector<int32> target(batch_size * num_stream, kSetZero);
 	    std::vector<int32> sorted_target(batch_size * num_stream, kSetZero);
-	    std::vector<int32> sorted_target_index(batch_size * num_stream, kSetZero);
+	    std::vector<int32> sortedclass_target(batch_size * num_stream, kSetZero);
+	    std::vector<int32> sortedclass_target_index(batch_size * num_stream, kSetZero);
+	    std::vector<int32> sortedclass_target_reindex(batch_size * num_stream, kSetZero);
 
 	    LmNnetExample *example;
 	    Timer time;
@@ -363,9 +387,10 @@ private:
 	        // for streams with new utterance, history states need to be reset
 	        nnet.ResetLstmStreams(new_utt_flags);
 
-	        SortUpdateClass(target, sorted_target, sorted_target_index, frame_mask, sorted_frame_mask);
-	        class_affine->SetUpdateClassId(sorted_target, sorted_target_index);
-	        cb_softmax->SetUpdateClassId(sorted_target);
+	        SortUpdateClass(target, sorted_target, sortedclass_target,
+	        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask);
+	        class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
+	        cb_softmax->SetUpdateClassId(sortedclass_target);
 
 	        // forward pass
 	        CuMatrix<BaseFloat> words(feat.Dim(), 1);

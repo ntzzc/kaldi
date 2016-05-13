@@ -110,11 +110,12 @@ struct NnetLmStats: NnetStats {
     }
 };
 
-typedef struct ClassIdMap_
+typedef struct Word_
 {
 	  int32  idx;
+	  int32	 wordid;
 	  int32  classid;
-}ClassIdMap;
+}Word;
 
 
 void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,

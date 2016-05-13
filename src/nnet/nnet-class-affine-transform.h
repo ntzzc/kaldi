@@ -169,7 +169,7 @@ class ClassAffineTransform : public UpdatableComponent {
     // multiply by weights^t
     // out->AddMatMat(1.0, in, kNoTrans, linearity_, kTrans, 1.0);
 
-    CuArray<int32> idx(sortedclass_id_);
+    CuArray<int32> idx(sortedclass_id_index_);
     input_sorted_.Resize(in.NumRows(), in.NumCols(), kUndefined);
 
 	input_sorted_.CopyRows(in, idx);
@@ -242,7 +242,7 @@ class ClassAffineTransform : public UpdatableComponent {
 	    CuSubMatrix<BaseFloat> *out_diff_class = new CuSubMatrix<BaseFloat>(out_diff.ColRange(class_boundary_[size-1], clen));
 	    input_diff_sorted_.AddMatMat(1.0, *out_diff_class, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
 
-        CuArray<int32> idx(sortedclass_id_index_);
+        CuArray<int32> idx(sortedclass_id_reindex_);
 	    in_diff->CopyRows(input_diff_sorted_, idx);
 
   }
@@ -353,10 +353,11 @@ class ClassAffineTransform : public UpdatableComponent {
 	  }
   }
 
-  void SetUpdateClassId(const std::vector<int32>& sortedclass_id, const std::vector<int32>& sortedclass_id_index)
+  void SetUpdateClassId(const std::vector<int32>& sortedclass_id, const std::vector<int32>& sortedclass_id_index, std::vector<int32> &sortedclass_id_reindex)
   {
 	  sortedclass_id_ = sortedclass_id;
 	  sortedclass_id_index_ = sortedclass_id_index;
+	  sortedclass_id_reindex_ = sortedclass_id_reindex;
   }
 
 
@@ -393,6 +394,7 @@ protected:
   //std::vector<int32> updateclass_id_;
   std::vector<int32> sortedclass_id_;
   std::vector<int32> sortedclass_id_index_;
+  std::vector<int32> sortedclass_id_reindex_;
 
   int32 num_class_;
 
