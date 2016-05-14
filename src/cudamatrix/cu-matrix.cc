@@ -97,16 +97,8 @@ void CuMatrix<Real>::Destroy() {
       CuDevice::Instantiate().Free(this->data_);
       CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
     }
-    if (this->handle_ != NULL)
-    {
-    	DestroyCublasHandle(this->handle_);
-    	this->handle_ = NULL;
-    }
-    if (this->cuda_stream_ != NULL)
-    {
-    	cudaStreamDestroy(this->cuda_stream_);
-    	this->cuda_stream_ = NULL;
-    }
+    this->DestroyLocalCublasHandle();
+    this->DestroyLocalCudaStream();
   } else
 #endif
   {

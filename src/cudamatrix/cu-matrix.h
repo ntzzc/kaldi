@@ -699,12 +699,30 @@ class CuMatrixBase {
 	  return handle_;
   }
 
+  inline void DestroyLocalCublasHandle()
+  {
+	    if (this->handle_ != NULL)
+	    {
+	    	DestroyCublasHandle(this->handle_);
+	    	this->handle_ = NULL;
+	    }
+  }
+
   inline cudaStream_t GetLocalCudaStream()
   {
 	  if (cuda_stream_ == NULL)
 		  cudaStreamCreateWithFlags(&cuda_stream_, cudaStreamNonBlocking);
 		  //cudaStreamCreate(&cuda_stream_);
 	  return cuda_stream_;
+  }
+
+  inline void DestroyLocalCudaStream()
+  {
+	    if (this->cuda_stream_ != NULL)
+	    {
+	    	cudaStreamDestroy(this->cuda_stream_);
+	    	this->cuda_stream_ = NULL;
+	    }
   }
 #endif
 
@@ -723,21 +741,11 @@ class CuMatrixBase {
 
   /// This constructor takes the #rows, #cols and stride; it's called from
   /// the constructor of CuSubMatrix.
-#if HAVE_CUDA == 1
-  CuMatrixBase(Real *data,
-               MatrixIndexT num_rows,
-               MatrixIndexT num_cols,
-               MatrixIndexT stride,
-	       cublasHandle_t handle,
-		   cudaStream_t cuda_stream):
-  data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride), handle_(handle), cuda_stream_(cuda_stream){}
-#else
   CuMatrixBase(Real *data,
                MatrixIndexT num_rows,
                MatrixIndexT num_cols,
                MatrixIndexT stride):
   data_(data), num_cols_(num_cols), num_rows_(num_rows), stride_(stride){}
-#endif
 
   Real *data_;       ///< GPU data pointer (or regular matrix data pointer,
   ///< if either CUDA was not compiled in or we could not
@@ -895,27 +903,17 @@ class CuSubMatrix: public CuMatrixBase<Real> {
   /// This type of constructor is needed for Range() to work [in CuMatrix base
   /// class]. Cannot make it explicit or that breaks.
   inline CuSubMatrix<Real> (const CuSubMatrix &other):
-#if HAVE_CUDA == 1
-  CuMatrixBase<Real> (other.data_, other.num_rows_, other.num_cols_,
-                      other.stride_, other.handle_, other.cuda_stream_) {}
-#else
   CuMatrixBase<Real> (other.data_, other.num_rows_, other.num_cols_,
                       other.stride_) {}
-#endif
 
   ~CuSubMatrix() 
   { 
-    if (this->handle_ != NULL)
-    {    
-        DestroyCublasHandle(this->handle_);
-        this->handle_ = NULL;
-    }
-    if (this->cuda_stream_ != NULL)
-    {
-    	cudaStreamDestroy(this->cuda_stream_);
-    	this->cuda_stream_ = NULL;
-    }
+#if HAVE_CUDA == 1
+	  this->DestroyLocalCublasHandle();
+	  this->DestroyLocalCudaStream();
+#endif
   }
+
  private:
   /// Disallow assignment.
   CuSubMatrix<Real> &operator = (const CuSubMatrix<Real> &other);
