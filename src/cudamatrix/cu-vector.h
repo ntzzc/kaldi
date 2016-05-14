@@ -222,12 +222,36 @@ class CuVectorBase {
 		  CreateCublasHandle(&handle_);
 	  return handle_;
   }
+
+ inline void DestroyLocalCublasHandle()
+  {
+        if (this->handle_ != NULL)
+        {
+            DestroyCublasHandle(this->handle_);
+            this->handle_ = NULL;
+        }
+  }
+
+  cublasHandle_t CurHandle()
+  {
+        return handle_;
+  }
+
   inline cudaStream_t GetLocalCudaStream()
   {
 	  if (cuda_stream_ == NULL)
 		  cudaStreamCreateWithFlags(&cuda_stream_, cudaStreamNonBlocking);
 		  //cudaStreamCreate(&cuda_stream_);
 	  return cuda_stream_;
+  }
+
+  inline void DestroyLocalCudaStream()
+  {
+        if (this->cuda_stream_ != NULL)
+        {
+            cudaStreamDestroy(this->cuda_stream_);
+            this->cuda_stream_ = NULL;
+        }
   }
 #endif
 
@@ -354,6 +378,13 @@ class CuSubVector: public CuVectorBase<Real> {
     CuVectorBase<Real>::dim_ = matrix.NumCols();
   }
   
+  ~CuSubVector()
+  { 
+#if HAVE_CUDA == 1
+      this->DestroyLocalCublasHandle();
+      this->DestroyLocalCudaStream();
+#endif
+  }
 
 };
 

@@ -270,7 +270,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  // call the other eval function,
 	  Eval(class_frame_weights, class_netout_mat, class_tgt_mat, class_diff);
     
-      for (int p = 0; p < size; p++)
+      for (int p = 0; p < class_frame_weights.size(); p++)
       {
             delete class_frame_weights[p]; 
             delete class_hos_tgt_mat[p]; 

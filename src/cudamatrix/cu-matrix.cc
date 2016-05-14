@@ -2382,7 +2382,7 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
 			size_t dimGrid = src[i]->NumRows();
 
-			cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
+			//cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
 			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Stride());
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
@@ -2431,7 +2431,7 @@ void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 			GetBlockSizesForSimpleMatrixOperation(des_mat[i]->NumRows(), des_mat[i]->NumCols(),
 												  &dimGrid, &dimBlock);
 
-			cublasSetStream(des_mat[i]->GetLocalCublasHandle(), des_mat[i]->GetLocalCudaStream());
+			cublasSetStream(src_vec[i]->GetLocalCublasHandle(), src_vec[i]->GetLocalCudaStream());
 			cuda_add_vec_to_rows(dimGrid, dimBlock, alpha, src_vec[i]->Data(), beta, des_mat[i]->Data(), des_mat[i]->Dim());
 		}
 

@@ -93,11 +93,16 @@ class CBSoftmax : public Component {
     input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.ColRange(class_boundary_.back(), clen)));
     output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen)));
 
-	//for (int i = 0; i < output_patches_.size(); i++)
-		//output_patches_[i].ApplySoftMaxPerRow(input_patches_[i]);
 
 	ApplySoftMaxPerRowStreamed(output_patches_, input_patches_);
+    //for (int p = 0; p < input_patches_.size(); p++)
+        //output_patches_[p]->ApplySoftMaxPerRow(*input_patches_[p]);
 
+    for (int p = 0; p < input_patches_.size(); p++)
+    {
+        delete input_patches_[p];   
+        delete output_patches_[p];  
+    }
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,

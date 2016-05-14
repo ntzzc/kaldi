@@ -171,6 +171,12 @@ class ClassAffineTransform : public UpdatableComponent {
     // multiply by weights^t
     // out->AddMatMat(1.0, in, kNoTrans, linearity_, kTrans, 1.0);
 
+    for (int p = 0; p < input_patches_.size(); p++)
+    {
+        delete input_patches_[p];   
+        delete output_patches_[p];  
+    }
+
     CuArray<int32> idx(sortedclass_id_index_);
     input_sorted_.Resize(in.NumRows(), in.NumCols(), kUndefined);
 
@@ -197,6 +203,9 @@ class ClassAffineTransform : public UpdatableComponent {
     	}
     }
 
+    //for (int p = 0; p < output_patches_.size(); p++)
+     //   output_patches_[p]->AddVecToRows(1.0, *updateclass_bias_[p], 0.0);
+
     AddVecToRowsStreamed(static_cast<BaseFloat>(1.0f), output_patches_, updateclass_bias_, static_cast<BaseFloat>(0.0f));
     AddMatMatStreamed(static_cast<BaseFloat>(1.0f), output_patches_, input_patches_, kNoTrans,
     									updateclass_linearity_, kTrans, static_cast<BaseFloat>(1.0f));
@@ -206,11 +215,6 @@ class ClassAffineTransform : public UpdatableComponent {
     CuSubMatrix<BaseFloat> *output_class = new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen));
     output_class->AddMatMat(1.0, input_sorted_, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
 
-    for (int p = 0; p < size; p++)
-    {
-        delete input_patches_[p];   
-        delete output_patches_[p];  
-    }
     delete output_class;
   }
 
@@ -218,6 +222,12 @@ class ClassAffineTransform : public UpdatableComponent {
                         const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
     // multiply error derivative by weights
 	// in_diff->AddMatMat(1.0, out_diff, kNoTrans, linearity_, kNoTrans, 0.0);
+	
+    for (int p = 0; p < in_diff_patches_.size(); p++)
+    {
+        delete in_diff_patches_[p];   
+        delete out_diff_patches_[p];  
+    }
 
 	  input_diff_sorted_.Resize(in_diff->NumRows(), in_diff->NumCols(), kUndefined);
 	  in_diff_patches_.clear();
@@ -254,11 +264,6 @@ class ClassAffineTransform : public UpdatableComponent {
         CuArray<int32> idx(sortedclass_id_reindex_);
 	    in_diff->CopyRows(input_diff_sorted_, idx);
 
-    for (int p = 0; p < size; p++)
-    {
-        delete in_diff_patches_[p];   
-        delete out_diff_patches_[p];  
-    }
     delete out_diff_class;
 
   }

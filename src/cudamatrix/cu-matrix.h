@@ -699,6 +699,10 @@ class CuMatrixBase {
 	  return handle_;
   }
 
+  cublasHandle_t CurHandle()
+  {
+    return handle_;
+  }
   inline void DestroyLocalCublasHandle()
   {
 	    if (this->handle_ != NULL)

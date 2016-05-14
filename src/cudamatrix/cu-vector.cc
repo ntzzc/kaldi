@@ -967,16 +967,9 @@ void CuVector<Real>::Destroy() {
   if (CuDevice::Instantiate().Enabled()) {
     if (this->data_ != NULL)
       CuDevice::Instantiate().Free(this->data_);
-    if (this->handle_ != NULL)
-    {
-        DestroyCublasHandle(this->handle_);
-        this->handle_ = NULL;
-    }
-    if (this->cuda_stream_ != NULL)
-    {
-        cudaStreamDestroy(this->cuda_stream_);
-        this->cuda_stream_ = NULL;
-    }
+
+    this->DestroyLocalCublasHandle();
+    this->DestroyLocalCudaStream();
   } else
 #endif
   {
