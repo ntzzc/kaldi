@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
         
     std::string target_model_filename;
     if (!opts.crossvalidate) {
-      target_model_filename = po.GetArg(4);
+      target_model_filename = po.GetArg(3);
     }
 
     using namespace kaldi;

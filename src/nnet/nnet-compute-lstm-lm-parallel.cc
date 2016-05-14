@@ -119,9 +119,9 @@ private:
 		for (i = 0; i < class_boundary_[num_class]; i++)
 		{
 			if (i>=class_boundary_[j] && i<class_boundary_[j+1])
-				word2class_[i] = class_boundary_[j];
+				word2class_[i] = j;
 			else
-				word2class_[i] = class_boundary_[++j];
+				word2class_[i] = ++j;
 		}
     }
 

@@ -194,9 +194,9 @@ void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 		for (i = 0; i < class_boundary[num_class]; i++)
 		{
 			if (i>=class_boundary[j] && i<class_boundary[j+1])
-				word2class_[i] = class_boundary[j];
+				word2class_[i] = j;
 			else
-				word2class_[i] = class_boundary[++j];
+				word2class_[i] = ++j;
 		}
 }
 
@@ -230,12 +230,12 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  int beg = 0, len, cid;
 	  for (int i = 1; i <= num_frames; i++)
 	  {
-		  if (i == num_frames || word2class_[i] != word2class_[i-1])
+		  if (i == num_frames || word2class_[target[i]] != word2class_[target[i-1]])
 		  {
-			  cid = word2class_[i-1];
+			  cid = word2class_[target[i-1]];
 			  len = class_boundary_[cid+1] - class_boundary_[cid];
 			  class_hos_tgt_mat.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
-			  class_tgt_mat.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
+              class_tgt_mat.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
 			  class_netout_mat.push_back(new CuSubMatrix<BaseFloat>(net_out.Range(beg, i-beg, class_boundary_[cid], len)));
 			  class_frame_weights.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(beg, i-beg)));
 			  class_diff.push_back(new CuSubMatrix<BaseFloat>(diff->Range(beg, i-beg, class_boundary_[cid], len)));
@@ -243,9 +243,12 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 		  }
 	  }
 
-	  len = num_pdf - class_boundary_[class_size-1];
-	  class_hos_tgt_mat.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.ColRange(class_boundary_[class_size-1], len)));
-	  class_tgt_mat.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.ColRange(class_boundary_[class_size-1], len)));
+	  len = num_pdf - class_boundary_.back();
+	  class_hos_tgt_mat.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.ColRange(class_boundary_.back(), len)));
+	  class_tgt_mat.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.ColRange(class_boundary_.back(), len)));
+	  class_netout_mat.push_back(new CuSubMatrix<BaseFloat>(net_out.ColRange(class_boundary_.back(), len)));
+	  class_frame_weights.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(0, num_frames)));
+	  class_diff.push_back(new CuSubMatrix<BaseFloat>(diff->ColRange(class_boundary_.back(), len)));
 
 	  int size = class_hos_tgt_mat.size();
 	  for (int i = 0; i < size; i++)
@@ -266,6 +269,15 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 	  // call the other eval function,
 	  Eval(class_frame_weights, class_netout_mat, class_tgt_mat, class_diff);
+    
+      for (int p = 0; p < size; p++)
+      {
+            delete class_frame_weights[p]; 
+            delete class_hos_tgt_mat[p]; 
+            delete class_tgt_mat[p];
+            delete class_netout_mat[p];
+            delete class_diff[p];
+      }
 }
 
 void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
@@ -273,8 +285,9 @@ void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
 		  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_target,
 				  std::vector<CuSubMatrix<BaseFloat>* > &class_diff) {
   // check inputs,
+  KALDI_ASSERT(class_netout.size() == class_frame_weights.size());
   KALDI_ASSERT(class_netout.size() == class_target.size());
-  KALDI_ASSERT(class_netout.size() == class_target.size());
+  KALDI_ASSERT(class_netout.size() == class_diff.size());
 
 
   // There may be frames for which the sum of targets is zero.
@@ -295,10 +308,15 @@ void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
 	  num_frames += class_frame_weights[i]->Sum();
 	  KALDI_ASSERT(num_frames >= 0.0);
 
+      Vector<BaseFloat> tmp(class_netout[i]->NumCols()*class_netout[i]->NumRows());
+      //tmp.CopyRowsFromMat(*class_netout[i]);
 	  // compute derivative wrt. activations of last layer of neurons,
-	  class_diff[i] = class_netout[i];
+	  class_diff[i]->CopyFromMat(*class_netout[i]);
 	  class_diff[i]->AddMat(-1.0, *class_target[i]);
+      //tmp.CopyRowsFromMat(*class_target[i]);
+      //tmp.CopyRowsFromMat(*class_diff[i]);
 	  class_diff[i]->MulRowsVec(*class_frame_weights[i]); // weighting,
+      //tmp.CopyRowsFromMat(*class_diff[i]);
 
 	  // evaluate the frame-level classification,
 	  double corr;
@@ -321,7 +339,7 @@ void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
 	  entropy_aux_.ApplyLog(); // log(t)
 	  entropy_aux_.MulElements(*class_target[i]); // t*log(t)
 	  entropy_aux_.MulRowsVec(*class_frame_weights[i]); // w*t*log(t)
-	  entropy = -entropy_aux_.Sum();
+	  entropy += -entropy_aux_.Sum();
 
 	  KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));
 	  KALDI_ASSERT(KALDI_ISFINITE(entropy));
@@ -335,15 +353,15 @@ void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
 
   // progressive loss reporting
   {
-    static const int32 progress_step = 5000; // 5000 words
+    static const int32 progress_step = 3600*100; // 1h
     frames_progress_ += num_frames;
     loss_progress_ += cross_entropy;
     entropy_progress_ += entropy;
     correct_progress_ += correct;
     if (frames_progress_ > progress_step) {
       KALDI_VLOG(1) << "ProgressLoss[last "
-                    << static_cast<int>(frames_progress_/5000) << "(5000 words) of "
-                    << static_cast<int>(frames_/5000) << "(5000 words)]: "
+                    << static_cast<int>(frames_progress_/100/3600) << "(1h words) of "
+                    << static_cast<int>(frames_/100/3600) << "(1h words)]: "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store

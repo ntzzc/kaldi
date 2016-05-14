@@ -71,6 +71,8 @@ class ClassAffineTransform : public UpdatableComponent {
       is >> std::ws; // eat-up whitespace
     }
 
+    KALDI_ASSERT(num_class > 0);
+
     //
     // initialize
     //
@@ -200,9 +202,16 @@ class ClassAffineTransform : public UpdatableComponent {
     									updateclass_linearity_, kTrans, static_cast<BaseFloat>(1.0f));
 
     // class
-    clen = output_dim_ - class_boundary_[size-1];
-    CuSubMatrix<BaseFloat> *output_class = new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_[size-1], clen));
+    clen = output_dim_ - class_boundary_.back();
+    CuSubMatrix<BaseFloat> *output_class = new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen));
     output_class->AddMatMat(1.0, input_sorted_, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
+
+    for (int p = 0; p < size; p++)
+    {
+        delete input_patches_[p];   
+        delete output_patches_[p];  
+    }
+    delete output_class;
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
@@ -235,15 +244,22 @@ class ClassAffineTransform : public UpdatableComponent {
 	    }
 
 	    AddMatMatStreamed(static_cast<BaseFloat>(1.0f), in_diff_patches_, out_diff_patches_, kNoTrans,
-	    												updateclass_linearity_, kTrans, static_cast<BaseFloat>(0.0f));
+	    												updateclass_linearity_, kNoTrans, static_cast<BaseFloat>(0.0f));
 
 	    // class
-	    clen = output_dim_ - class_boundary_[size-1];
-	    CuSubMatrix<BaseFloat> *out_diff_class = new CuSubMatrix<BaseFloat>(out_diff.ColRange(class_boundary_[size-1], clen));
-	    input_diff_sorted_.AddMatMat(1.0, *out_diff_class, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
+	    clen = output_dim_ - class_boundary_.back();
+	    CuSubMatrix<BaseFloat> *out_diff_class = new CuSubMatrix<BaseFloat>(out_diff.ColRange(class_boundary_.back(), clen));
+	    input_diff_sorted_.AddMatMat(1.0, *out_diff_class, kNoTrans, *class_linearity_[num_class_], kNoTrans, 1.0);
 
         CuArray<int32> idx(sortedclass_id_reindex_);
 	    in_diff->CopyRows(input_diff_sorted_, idx);
+
+    for (int p = 0; p < size; p++)
+    {
+        delete in_diff_patches_[p];   
+        delete out_diff_patches_[p];  
+    }
+    delete out_diff_class;
 
   }
 
@@ -335,6 +351,7 @@ class ClassAffineTransform : public UpdatableComponent {
 
   void SetClassBoundary(const std::vector<int32>& class_boundary)
   {
+      KALDI_ASSERT(class_boundary.size() == num_class_ + 1);
 	  class_boundary_ = class_boundary;
 
 	  int size = class_boundary_.size(), len;

@@ -75,6 +75,7 @@ class CBSoftmax : public Component {
 
     input_patches_.clear();
     output_patches_.clear();
+    beg = 0;
     for (int i = 1; i <= size; i++)
     {
     	if (i == size || updateclass_id_[i] != updateclass_id_[i-1])
@@ -88,9 +89,9 @@ class CBSoftmax : public Component {
     }
 
     // class
-    clen = output_dim_ - class_boundary_[size-1];
-    input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.ColRange(class_boundary_[size-1], clen)));
-    output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_[size-1], clen)));
+    clen = output_dim_ - class_boundary_.back();
+    input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.ColRange(class_boundary_.back(), clen)));
+    output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen)));
 
 	//for (int i = 0; i < output_patches_.size(); i++)
 		//output_patches_[i].ApplySoftMaxPerRow(input_patches_[i]);
