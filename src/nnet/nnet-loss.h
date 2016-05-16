@@ -123,10 +123,7 @@ class CBXent {
   void SetClassBoundary(const std::vector<int32>& class_boundary);
 
   /// Evaluate cross entropy using target-matrix (supports soft labels),
-  void Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
-  	  	  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_netout,
-  		  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_target,
-  				  std::vector<CuSubMatrix<BaseFloat>* > &class_diff);
+  void Eval();
 
   /// Evaluate cross entropy using target-posteriors (supports soft labels),
   void Eval(const VectorBase<BaseFloat> &frame_weights,
@@ -136,6 +133,7 @@ class CBXent {
 
   /// Generate string with error report,
   std::string Report();
+
 
   /// Get loss value (frame average),
   BaseFloat AvgLoss() {
@@ -163,18 +161,36 @@ class CBXent {
   CuVector<BaseFloat> frame_weights_;
   CuVector<BaseFloat> target_sum_;
 
-  // loss computation buffers
-  Matrix<BaseFloat> hos_tgt_mat_;
   std::vector<int32> class_boundary_;
   std::vector<int32> word2class_;
 
+  // loss computation buffers
+  Matrix<BaseFloat> hos_tgt_mat_;
   CuMatrix<BaseFloat> tgt_mat_;
   CuMatrix<BaseFloat> xentropy_aux_;
   CuMatrix<BaseFloat> entropy_aux_;
 
+  std::vector<CuSubVector<BaseFloat>* > class_frame_weights_;
+  std::vector<CuSubVector<BaseFloat>* > class_target_sum_;
+
+  std::vector<SubMatrix<BaseFloat>* > class_hos_target_;
+  std::vector<CuSubMatrix<BaseFloat>* > class_target_;
+  std::vector<CuSubMatrix<BaseFloat>* > class_netout_;
+  std::vector<CuSubMatrix<BaseFloat>* > class_xentropy_aux_;
+  std::vector<CuSubMatrix<BaseFloat>* > class_entropy_aux_;
+  std::vector<CuSubMatrix<BaseFloat>* > class_diff_;
+
   // frame classification buffers,
   CuArray<int32> max_id_out_;
   CuArray<int32> max_id_tgt_;
+
+#if HAVE_CUDA == 1
+  std::vector<cudaStream_t > streamlist_;
+  void SetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist);
+  void SetStream(std::vector<CuSubVector<BaseFloat>* > &veclist);
+  void ResetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist);
+  void ResetStream(std::vector<CuSubVector<BaseFloat>* > &veclist);
+#endif
 };
 
 

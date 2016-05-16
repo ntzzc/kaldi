@@ -74,6 +74,10 @@ template<typename Real>
 void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 		const std::vector<CuSubMatrix<Real>* > &src);
 
+template<typename Real>
+void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
+		std::vector<CuArray<int32>* > &id_vec);
+
 /// (for each row r of *this), r = alpha * row + beta * r
 template<typename Real>
 void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
@@ -82,6 +86,9 @@ void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 template<typename Real, typename OtherReal>
 void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 		std::vector<CuSubMatrix<OtherReal>* > &des, MatrixTransposeType trans);
+
+template<typename Real>
+void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &vec, CuVectorBase<Real> &value) const;
 
 /**
  * Matrix for CUDA computing.
@@ -699,10 +706,16 @@ class CuMatrixBase {
 	  return handle_;
   }
 
+  inline void SetLocalCublasHandle(cublasHandle_t handle)
+  {
+	  handle_ = handle;
+  }
+
   cublasHandle_t CurHandle()
   {
     return handle_;
   }
+
   inline void DestroyLocalCublasHandle()
   {
 	    if (this->handle_ != NULL)
@@ -727,6 +740,11 @@ class CuMatrixBase {
 	    	cudaStreamDestroy(this->cuda_stream_);
 	    	this->cuda_stream_ = NULL;
 	    }
+  }
+
+  inline void SetLocalCudaStream(cudaStream_t cuda_stream)
+  {
+	  cuda_stream_ = cuda_stream;
   }
 #endif
 

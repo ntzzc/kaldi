@@ -198,6 +198,12 @@ void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 			else
 				word2class_[i] = ++j;
 		}
+
+		//#if HAVE_CUDA == 1
+		streamlist_.resize(num_class);
+		for (i = 0; i < num_class; i++)
+			cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
+		//#endif
 }
 
 void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
@@ -215,17 +221,22 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  {
 		  hos_tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
 		  tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
+		  xentropy_aux_.Resize(num_frames, num_pdf, kSetZero);
+		  entropy_aux_.Resize(num_frames, num_pdf, kSetZero);
 		  diff->Resize(num_frames, num_pdf, kSetZero);
 	  }
 
 	  frame_weights_ = frame_weights;
 
 	  // convert target to matrix,
-	  std::vector<CuSubVector<BaseFloat>* > class_frame_weights;
-	  std::vector<SubMatrix<BaseFloat>* > class_hos_tgt_mat;
-	  std::vector<CuSubMatrix<BaseFloat>* > class_tgt_mat;
-	  std::vector<CuSubMatrix<BaseFloat>* > class_netout_mat;
-	  std::vector<CuSubMatrix<BaseFloat>* > class_diff;
+	  class_frame_weights_.clear();
+	  class_target_sum_.clear();
+	  class_hos_target_.clear();
+	  class_target_.clear();
+	  class_netout_.clear();
+	  class_diff_.clear();
+	  class_xentropy_aux_.clear();
+	  class_entropy_aux_.clear();
 
 	  int beg = 0, len, cid;
 	  for (int i = 1; i <= num_frames; i++)
@@ -234,25 +245,30 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 		  {
 			  cid = word2class_[target[i-1]];
 			  len = class_boundary_[cid+1] - class_boundary_[cid];
-			  class_hos_tgt_mat.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
-              class_tgt_mat.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
-			  class_netout_mat.push_back(new CuSubMatrix<BaseFloat>(net_out.Range(beg, i-beg, class_boundary_[cid], len)));
-			  class_frame_weights.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(beg, i-beg)));
-			  class_diff.push_back(new CuSubMatrix<BaseFloat>(diff->Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_frame_weights_.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(beg, i-beg)));
+			  class_target_sum_.push_back(new CuSubVector<BaseFloat>(target_sum_.Range(beg, i-beg)));
+			  class_hos_target_.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_target_.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_netout_.push_back(new CuSubMatrix<BaseFloat>(net_out.Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_diff_.push_back(new CuSubMatrix<BaseFloat>(diff->Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_xentropy_aux_.push_back(new CuSubMatrix<BaseFloat>(xentropy_aux_.Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.Range(beg, i-beg, class_boundary_[cid], len)));
 			  beg = i;
 		  }
 	  }
 
 	  len = num_pdf - class_boundary_.back();
-	  class_hos_tgt_mat.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.ColRange(class_boundary_.back(), len)));
-	  class_tgt_mat.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.ColRange(class_boundary_.back(), len)));
-	  class_netout_mat.push_back(new CuSubMatrix<BaseFloat>(net_out.ColRange(class_boundary_.back(), len)));
-	  class_frame_weights.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(0, num_frames)));
-	  class_diff.push_back(new CuSubMatrix<BaseFloat>(diff->ColRange(class_boundary_.back(), len)));
+	  class_frame_weights_.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(0, num_frames)));
+	  class_hos_target_.push_back(new SubMatrix<BaseFloat>(hos_tgt_mat_.ColRange(class_boundary_.back(), len)));
+	  class_target_.push_back(new CuSubMatrix<BaseFloat>(tgt_mat_.ColRange(class_boundary_.back(), len)));
+	  class_netout_.push_back(new CuSubMatrix<BaseFloat>(net_out.ColRange(class_boundary_.back(), len)));
+	  class_diff_.push_back(new CuSubMatrix<BaseFloat>(diff->ColRange(class_boundary_.back(), len)));
+	  class_xentropy_aux_.push_back(new CuSubMatrix<BaseFloat>(xentropy_aux_.ColRange(class_boundary_.back(), len)));
+	  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.ColRange(class_boundary_.back(), len)));
 
-	  int size = class_hos_tgt_mat.size();
+	  int size = class_hos_tgt_mat_.size();
 	  for (int i = 0; i < size; i++)
-		  class_hos_tgt_mat[i]->SetZero();
+		  class_hos_tgt_mat_[i]->SetZero();
 
 
 	  for (int i = 0; i < num_frames; i++)
@@ -268,77 +284,153 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  }
 
 	  // call the other eval function,
-	  Eval(class_frame_weights, class_netout_mat, class_tgt_mat, class_diff);
+	  Eval();
     
-      for (int p = 0; p < class_frame_weights.size(); p++)
+      for (int p = 0; p < class_frame_weights_.size(); p++)
       {
-            delete class_frame_weights[p]; 
-            delete class_hos_tgt_mat[p]; 
-            delete class_tgt_mat[p];
-            delete class_netout_mat[p];
-            delete class_diff[p];
+            delete class_frame_weights_[p];
+            delete class_target_sum_[p];
+            delete class_hos_target_[p];
+            delete class_target_[p];
+            delete class_netout_[p];
+            delete class_diff_[p];
+            delete class_xentropy_aux_[p];
+            delete class_entropy_aux_[p];
       }
 }
 
-void CBXent::Eval(std::vector<CuSubVector<BaseFloat>* > &class_frame_weights,
-	  	  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_netout,
-		  	  	  std::vector<CuSubMatrix<BaseFloat>* > &class_target,
-				  std::vector<CuSubMatrix<BaseFloat>* > &class_diff) {
-  // check inputs,
-  KALDI_ASSERT(class_netout.size() == class_frame_weights.size());
-  KALDI_ASSERT(class_netout.size() == class_target.size());
-  KALDI_ASSERT(class_netout.size() == class_diff.size());
+void CBXent::SetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist)
+{
+	for (int i = 0; i < matlist.size(); i++)
+		matlist[i]->SetLocalCudaStream(streamlist_[i]);
+}
 
+void CBXent::ResetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist)
+{
+	for (int i = 0; i < matlist.size(); i++)
+		matlist[i]->SetLocalCudaStream(NULL);
+}
+
+void CBXent::SetStream(std::vector<CuSubVector<BaseFloat>* > &veclist)
+{
+	for (int i = 0; i < veclist.size(); i++)
+		veclist[i]->SetLocalCudaStream(streamlist_[i]);
+}
+
+void CBXent::ResetStream(std::vector<CuSubVector<BaseFloat>* > &veclist)
+{
+	for (int i = 0; i < veclist.size(); i++)
+		veclist[i]->SetLocalCudaStream(NULL);
+}
+
+void CBXent::Eval() {
 
   // There may be frames for which the sum of targets is zero.
   // This happens in multi-lingual training when the frame
   // has target class in the softmax of another language.
   // We 'switch-off' such frames by masking the 'frame_weights_',
-  int size = class_frame_weights.size();
+  int size = class_frame_weights_.size();
   double num_frames = 0, correct = 0, cross_entropy = 0,
 		  entropy = 0;
 
+  this->SetStream(class_target_sum_);
+  AddColSumMatStreamed(1.0, class_target_sum_, class_target_, 0.0);
+  this->ResetStream(class_target_sum_);
+  for (int i = 0; i < size; i++)
+	  class_frame_weights_[i]->MulElements(*class_target_sum_[i]);
+
+
+  // get the number of frames after the masking,
+  CuVectorBase<Real> tmp(class_frame_weights_.size());
+  SumStreamed(class_frame_weights_, tmp);
+  num_frames = tmp.Sum();
+
+  // compute derivative wrt. activations of last layer of neurons,
+  CopyFromMatStreamed(class_netout_, class_diff_);
+  AddMatStreamed(-1.0, class_diff_, class_target_);
+  for (int i = 0; i < size; i++)
+	  class_diff_[i]->MulRowsVec(*class_frame_weights_[i]); // weighting,
+
+
+  // evaluate the frame-level classification,
+  double corr;
+  std::vector<CuArray<int32>* > & max_id_out_vec(class_netout_.size());
+  std::vector<CuArray<int32>* > & max_id_tgt_vec(class_target_.size());
+  this->SetStream(class_netout_);
+  FindMaxIdPerRowStreamed(class_netout_, max_id_out_vec);
+  this->ResetStream(class_netout_);
+  this->SetStream(class_target_);
+  FindMaxIdPerRowStreamed(class_target_, max_id_tgt_vec);
+  this->ResetStream(class_target_);
   for (int i = 0; i < size; i++)
   {
-	  target_sum_.Resize(class_target[i]->NumRows());
-	  target_sum_.AddColSumMat(1.0, *class_target[i], 0.0);
-	  class_frame_weights[i]->MulElements(target_sum_);
+	  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, *class_frame_weights_[i], &corr);
+	  correct += corr;
+  }
+
+
+  // calculate cross_entropy (in GPU),
+  CopyFromMatStreamed(class_netout_, class_xentropy_aux_);
+  for (int i = 0; i < size; i++)
+  {
+	  class_xentropy_aux_[i]->Add(1e-20); // avoid log(0)
+	  class_xentropy_aux_[i]->ApplyLog(); // log(y)
+	  class_xentropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
+	  class_xentropy_aux_[i]->MulRowsVec(*class_frame_weights_[i]); // w*t*log(y)
+  }
+  tmp.Resize(class_xentropy_aux_.size());
+  MatSumStreamed(class_xentropy_aux_, tmp);
+  cross_entropy += -tmp.Sum();
+
+  // calculate cross_entropy (in GPU),
+  CopyFromMatStreamed(class_netout_, class_entropy_aux_);
+  for (int i = 0; i < size; i++)
+  {
+	  class_entropy_aux_[i]->Add(1e-20); // avoid log(0)
+	  class_entropy_aux_[i]->ApplyLog(); // log(y)
+	  class_entropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
+	  class_entropy_aux_[i]->MulRowsVec(*class_frame_weights_[i]); // w*t*log(y)
+  }
+  tmp.Resize(class_entropy_aux_.size());
+  MatSumStreamed(class_entropy_aux_, tmp);
+  entropy += -tmp.Sum();
+
+  for (int i = 0; i < size; i++)
+  {
+	  class_target_sum_[i]->AddColSumMat(1.0, *class_target_[i], 0.0);
+	  class_frame_weights_[i]->MulElements(target_sum_);
 
 	  // get the number of frames after the masking,
-	  num_frames += class_frame_weights[i]->Sum();
+	  num_frames += class_frame_weights_[i]->Sum();
 	  KALDI_ASSERT(num_frames >= 0.0);
 
-      Vector<BaseFloat> tmp(class_netout[i]->NumCols()*class_netout[i]->NumRows());
-      //tmp.CopyRowsFromMat(*class_netout[i]);
+      //Vector<BaseFloat> tmp(class_netout[i]->NumCols()*class_netout[i]->NumRows());
 	  // compute derivative wrt. activations of last layer of neurons,
-	  class_diff[i]->CopyFromMat(*class_netout[i]);
-	  class_diff[i]->AddMat(-1.0, *class_target[i]);
-      //tmp.CopyRowsFromMat(*class_target[i]);
-      //tmp.CopyRowsFromMat(*class_diff[i]);
-	  class_diff[i]->MulRowsVec(*class_frame_weights[i]); // weighting,
-      //tmp.CopyRowsFromMat(*class_diff[i]);
+	  class_diff_[i]->CopyFromMat(*class_netout_[i]);
+	  class_diff_[i]->AddMat(-1.0, *class_target_[i]);
+	  class_diff_[i]->MulRowsVec(*class_frame_weights_[i]); // weighting,
 
 	  // evaluate the frame-level classification,
 	  double corr;
-	  class_netout[i]->FindRowMaxId(&max_id_out_); // find max in nn-output
-	  class_target[i]->FindRowMaxId(&max_id_tgt_); // find max in targets
-	  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, *class_frame_weights[i], &corr);
+	  class_netout_[i]->FindRowMaxId(&max_id_out_); // find max in nn-output
+	  class_target_[i]->FindRowMaxId(&max_id_tgt_); // find max in targets
+	  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, *class_frame_weights_[i], &corr);
 	  correct += corr;
 
 	  // calculate cross_entropy (in GPU),
-	  xentropy_aux_ = *class_netout[i]; // y
-	  xentropy_aux_.Add(1e-20); // avoid log(0)
-	  xentropy_aux_.ApplyLog(); // log(y)
-	  xentropy_aux_.MulElements(*class_target[i]); // t*log(y)
-	  xentropy_aux_.MulRowsVec(*class_frame_weights[i]); // w*t*log(y)
-	  cross_entropy += -xentropy_aux_.Sum();
+	  *class_xentropy_aux_[i] = *class_netout_[i]; // y
+	  class_xentropy_aux_[i]->Add(1e-20); // avoid log(0)
+	  class_xentropy_aux_[i]->ApplyLog(); // log(y)
+	  class_xentropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
+	  class_xentropy_aux_[i]->MulRowsVec(*class_frame_weights_[i]); // w*t*log(y)
+	  cross_entropy += -class_xentropy_aux_[i]->Sum();
 
 	  // caluculate entropy (in GPU),
-	  entropy_aux_ = *class_target[i]; // t
+	  entropy_aux_ = *class_target_[i]; // t
 	  entropy_aux_.Add(1e-20); // avoid log(0)
 	  entropy_aux_.ApplyLog(); // log(t)
-	  entropy_aux_.MulElements(*class_target[i]); // t*log(t)
-	  entropy_aux_.MulRowsVec(*class_frame_weights[i]); // w*t*log(t)
+	  entropy_aux_.MulElements(*class_target_[i]); // t*log(t)
+	  entropy_aux_.MulRowsVec(*class_frame_weights_[i]); // w*t*log(t)
 	  entropy += -entropy_aux_.Sum();
 
 	  KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));

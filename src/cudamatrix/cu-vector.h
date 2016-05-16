@@ -51,6 +51,13 @@ template<typename Real>
 void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 		const std::vector<CuMatrixBase<Real>* > &src_mat, Real beta = 1.0);
 
+template<typename Real>
+void AddColSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
+		const std::vector<CuMatrixBase<Real>* > &src_mat, Real beta = 1.0);
+
+template<typename Real>
+void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real> &value) const;
+
 /**
  * Vector for CUDA computing
  */
@@ -232,6 +239,11 @@ class CuVectorBase {
         }
   }
 
+ inline void SetLocalCublasHandle(cublasHandle_t handle)
+ {
+	  handle_ = handle;
+ }
+
   cublasHandle_t CurHandle()
   {
         return handle_;
@@ -252,6 +264,11 @@ class CuVectorBase {
             cudaStreamDestroy(this->cuda_stream_);
             this->cuda_stream_ = NULL;
         }
+  }
+
+  inline void SetLocalLocalCudaStream(cudaStream_t cuda_stream)
+  {
+	  cuda_stream_ = cuda_stream;
   }
 #endif
 

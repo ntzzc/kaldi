@@ -2067,6 +2067,119 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride) {
 
 template<typename Real>
 __global__
+static _row_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
+{
+  int j = blockIdx.x;
+  int THREADS = blockDim.x;
+  if (j >= d.rows) return;
+
+  __shared__ Real aux[CU1DBLOCK];
+  int steps = (d.cols - 1) / THREADS + 1;
+
+  //copy input to aux
+  aux[threadIdx.x] = x[threadIdx.x+j*d.stride];
+  for(int i=1; i<steps; i++) {
+    if(threadIdx.x+i*THREADS < d.cols) {
+      aux[threadIdx.x] += x[threadIdx.x+i*THREADS+j*d.stride];
+    }
+  }
+ 
+    nTotalThreads = THREADS;
+  __syncthreads();
+  while(nTotalThreads > 1) {
+    int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
+    // only the first half of the threads will be active.
+    if (threadIdx.x < halfPoint)  {
+      // Get the shared value stored by another thread
+      if(threadIdx.x+halfPoint < nTotalThreads)
+        aux[threadIdx.x] += aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
+  }
+  
+  __syncthreads();
+  y[j] = beta*y[j] + alpha*aux[0];
+  
+}
+
+template<typename Real>
+__global__
+static _col_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
+{
+  int j = blockIdx.x;
+  int THREADS = blockDim.x;
+  if (j >= d.cols) return;
+
+  __shared__ Real aux[CU1DBLOCK];
+  int steps = (d.rows - 1) / THREADS + 1;
+
+  //copy input to aux
+  aux[threadIdx.x] = x[threadIdx.x*d.stride+j];
+  for(int i=1; i<steps; i++) {
+    if(threadIdx.x+i*THREADS < d.rows) {
+      aux[threadIdx.x] += x[(threadIdx.x+i*THREADS)*d.stride+j];
+    }
+  }
+ 
+    nTotalThreads = THREADS;
+  __syncthreads();
+  while(nTotalThreads > 1) {
+    int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
+    // only the first half of the threads will be active.
+    if (threadIdx.x < halfPoint)  {
+      // Get the shared value stored by another thread
+      if(threadIdx.x+halfPoint < nTotalThreads)
+        aux[threadIdx.x] += aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
+  }
+  
+  __syncthreads();
+  y[j] = beta*y[j] + alpha*aux[0];
+  
+}
+
+template<typename Real>
+__global__
+static _row_max_id(int32_cuda *vec_id, const double *x, MatrixDim d)
+{
+  int j = blockIdx.x;
+  int THREADS = blockDim.x;
+  if (j >= d.rows) return;
+
+  __shared__ int32_cuda aux[CU1DBLOCK];
+  int steps = (d.cols - 1) / THREADS + 1;
+
+  //copy input to aux
+  aux[threadIdx.x] = threadIdx.x;
+  for(int i=1; i<steps; ++i) {
+    if(threadIdx.x+i*THREADS < d.cols && x[aux[threadIdx.x]] < x[threadIdx.x+i*THREADS+j*d.stride])
+	aux[threadIdx.x] = threadIdx.x+i*THREADS+j*d.stride;
+  }
+ 
+  int nTotalThreads = THREADS;
+  __syncthreads();
+  while(nTotalThreads > 1) {
+    int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
+    // only the first half of the threads will be active.
+    if (threadIdx.x < halfPoint)  {
+      // Get the shared value stored by another thread
+      if(threadIdx.x+halfPoint < nTotalThreads && x[aux[threadIdx.x]] < x[aux[threadIdx.x+halfPoint]])
+        aux[threadIdx.x] = aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
+  }
+  
+  __syncthreads();
+  vec_id[j] = aux[0];
+  
+}
+
+template<typename Real>
+__global__
 static void _log_softmax_reduce(Real *y, const Real *x,
                                 MatrixDim d, int src_stride) {
   int j = blockIdx.x;
@@ -2764,6 +2877,19 @@ void cudaF_log_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, M
   _log_softmax_reduce<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
+void cudaF_row_sum_reduce(size_t Gr, size_t Bl, float alpha, float *y, const float *x, MatrixDim d, float beta, cudaStream_t s) {
+ _row_sum_reduce<<<Gr,Bl,0,s>>>(alpha,y,x,beta,d); 
+}
+
+void cudaF_col_sum_reduce(size_t Gr, size_t Bl, float alpha, float *y, const float *x, MatrixDim d, float beta, cudaStream_t s) {
+ _col_sum_reduce<<<Gr,Bl,0,s>>>(alpha,y,x,beta,d); 
+}
+
+void cudaF_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const float *x, MatrixDim d, cudaStream_t s) { 
+_row_max_id<<<Gr,Bl,0,s>>>(vec_id,x,d); 
+}
+
+
 void cudaF_splice(dim3 Gr, dim3 Bl, float* y, const float* x, const int32_cuda* off, MatrixDim d_out, MatrixDim d_in) {
   _splice<<<Gr,Bl>>>(y,x,off,d_out,d_in);
 }
@@ -3271,6 +3397,18 @@ void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, Mat
 
 void cudaD_log_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride) {
   _log_softmax_reduce<<<Gr,Bl>>>(y, x, d, src_stride);
+}
+
+void cudaD_row_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s) {
+ _row_sum_reduce<<<Gr,Bl,0,s>>>(alpha,y,x,beta,d); 
+}
+
+void cudaD_col_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s) {
+ _col_sum_reduce<<<Gr,Bl,0,s>>>(alpha,y,x,beta,d); 
+}
+
+void cudaD_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const double *x, MatrixDim d, cudaStream_t s) { 
+ _row_max_id<<<Gr,Bl,0,s>>>(vec_id,x,d); 
 }
 
 void cudaD_splice(dim3 Gr, dim3 Bl, double* y, const double* x, const int32_cuda* off, MatrixDim d_out, MatrixDim d_in) {
