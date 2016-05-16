@@ -2594,9 +2594,9 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<double>* > &src,
 		std::vector<CuSubMatrix<double>* > &des, MatrixTransposeType trans);
 
 template<typename Real>
-void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src, CuVectorBase<Real> &value) const{
-	  KALDI_ASSERT(vec.size() == value.Dim());
-	  int32 size = vec.size();
+void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src, CuVectorBase<Real> &value) {
+	  KALDI_ASSERT(src.size() == value.Dim());
+	  int32 size = src.size();
 
 	  if (size == 0) return;
 
@@ -2605,14 +2605,14 @@ void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src, CuVectorBase<Re
 		Timer tim;
 
 		for (int32 i = 0; i < size; i++) {
-			CuVectorBase<Real> tmp(src[i]->NumRows());
+			CuVector<Real> tmp(src[i]->NumRows());
 			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
 			size_t dimGrid = src[i]->NumRows();
 
-			cuda_row_sum_reduce(dimGrid, dimBlock, alpha, tmp.Data(), src[i]->Data(), src[i]->Dim(), beta, src[i]->GetLocalCudaStream());
+			cuda_row_sum_reduce(dimGrid, dimBlock, 1.0, tmp.Data(), src[i]->Data(), src[i]->Dim(), 0.0, src[i]->GetLocalCudaStream());
 
-			size_t dimBlock = tmp.Dim() > CU1DBLOCK ? CU1DBLOCK : tmp.Dim();
-			int dimGrid = 1; // only 1 block here. we have loops in each thread.
+			dimBlock = tmp.Dim() > CU1DBLOCK ? CU1DBLOCK : tmp.Dim();
+			dimGrid = 1; // only 1 block here. we have loops in each thread.
 			cuda_vec_sum(dimGrid, dimBlock, tmp.Data(), value.Data()+i, tmp.Dim(), 1);
 		}
 		CU_SAFE_CALL(cudaGetLastError());
@@ -2627,6 +2627,12 @@ void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src, CuVectorBase<Re
 		  }
 	  }
 }
+
+template
+void MatSumStreamed(const std::vector<CuSubMatrix<float>* > &src, CuVectorBase<float> &value); 
+
+template<typename Real>
+void MatSumStreamed(const std::vector<CuSubMatrix<double>* > &src, CuVectorBase<double> &value);
 
 template<typename Real>
 void CuMatrixBase<Real>::CopyRowsFromVec(const CuVectorBase<Real> &v) {

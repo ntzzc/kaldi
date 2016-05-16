@@ -266,21 +266,21 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_xentropy_aux_.push_back(new CuSubMatrix<BaseFloat>(xentropy_aux_.ColRange(class_boundary_.back(), len)));
 	  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.ColRange(class_boundary_.back(), len)));
 
-	  int size = class_hos_tgt_mat_.size();
+	  int size = class_hos_target_.size();
 	  for (int i = 0; i < size; i++)
-		  class_hos_tgt_mat_[i]->SetZero();
+		  class_hos_target_[i]->SetZero();
 
 
 	  for (int i = 0; i < num_frames; i++)
 	  {
 		  hos_tgt_mat_(i, target[i]) = 1.0;
 		  cid = word2class_[target[i]];
-		  (*class_hos_tgt_mat[size-1])(i, cid) = 1.0;
+		  (*class_hos_target_[size-1])(i, cid) = 1.0;
 	  }
 
 	  for (int i = 0; i < size; i++)
 	  {
-		  class_tgt_mat[i]->CopyFromMat(*class_hos_tgt_mat[i]);
+		  class_target_[i]->CopyFromMat(*class_hos_target_[i]);
 	  }
 
 	  // call the other eval function,
@@ -334,28 +334,28 @@ void CBXent::Eval() {
 		  entropy = 0;
 
   this->SetStream(class_target_sum_);
-  AddColSumMatStreamed(1.0, class_target_sum_, class_target_, 0.0);
+  AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_target_sum_, class_target_, static_cast<BaseFloat>(0.0f));
   this->ResetStream(class_target_sum_);
   for (int i = 0; i < size; i++)
 	  class_frame_weights_[i]->MulElements(*class_target_sum_[i]);
 
 
   // get the number of frames after the masking,
-  CuVectorBase<Real> tmp(class_frame_weights_.size());
+  CuVector<BaseFloat> tmp(class_frame_weights_.size());
   SumStreamed(class_frame_weights_, tmp);
   num_frames = tmp.Sum();
 
   // compute derivative wrt. activations of last layer of neurons,
   CopyFromMatStreamed(class_netout_, class_diff_);
-  AddMatStreamed(-1.0, class_diff_, class_target_);
+  AddMatStreamed(static_cast<BaseFloat>(-1.0f), class_diff_, class_target_);
   for (int i = 0; i < size; i++)
 	  class_diff_[i]->MulRowsVec(*class_frame_weights_[i]); // weighting,
 
 
   // evaluate the frame-level classification,
   double corr;
-  std::vector<CuArray<int32>* > & max_id_out_vec(class_netout_.size());
-  std::vector<CuArray<int32>* > & max_id_tgt_vec(class_target_.size());
+  std::vector<CuArray<int32>* >  max_id_out_vec(class_netout_.size());
+  std::vector<CuArray<int32>* >  max_id_tgt_vec(class_target_.size());
   this->SetStream(class_netout_);
   FindMaxIdPerRowStreamed(class_netout_, max_id_out_vec);
   this->ResetStream(class_netout_);
@@ -418,7 +418,7 @@ void CBXent::Eval() {
 	  correct += corr;
 
 	  // calculate cross_entropy (in GPU),
-	  *class_xentropy_aux_[i] = *class_netout_[i]; // y
+	  class_xentropy_aux_[i]->CopyFromMat(*class_netout_[i]); // y
 	  class_xentropy_aux_[i]->Add(1e-20); // avoid log(0)
 	  class_xentropy_aux_[i]->ApplyLog(); // log(y)
 	  class_xentropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
@@ -426,7 +426,7 @@ void CBXent::Eval() {
 	  cross_entropy += -class_xentropy_aux_[i]->Sum();
 
 	  // caluculate entropy (in GPU),
-	  entropy_aux_ = *class_target_[i]; // t
+	  entropy_aux_.CopyFromMat(*class_target_[i]); // t
 	  entropy_aux_.Add(1e-20); // avoid log(0)
 	  entropy_aux_.ApplyLog(); // log(t)
 	  entropy_aux_.MulElements(*class_target_[i]); // t*log(t)

@@ -106,7 +106,7 @@ void cudaF_add_vec_to_cols(dim3 Gr, dim3 Bl, float alpha, const float *col, floa
 void cudaF_add_vec_to_rows(dim3 Gr, dim3 Bl, float alpha, const float *row, float beta, float *dst, MatrixDim d);
 void cudaF_row_sum_reduce(size_t Gr, size_t Bl, float alpha, float *y, const float *x, MatrixDim d, float beta, cudaStream_t s=NULL);
 void cudaF_col_sum_reduce(size_t Gr, size_t Bl, float alpha, float *y, const float *x, MatrixDim d, float beta, cudaStream_t s=NULL);
-void cudaF_row_max_id(size_t Gr, size_t Bl, float alpha, int32_cuda *vec_id, const float *x, MatrixDim d, cudaStream_t s=NULL);
+void cudaF_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const float *x, MatrixDim d, cudaStream_t s=NULL);
 void cudaF_add_mat_diag_vec(dim3 Gr, dim3 Bl, float alpha, float *mat, MatrixDim mat_dim, const float *mat2, int mat2_row_stride, int mat2_col_stride, const float *vec, float beta);
 void cudaF_add_mat_mat_elements(dim3 Gr, dim3 Bl, float *data, const float *srcA_data, const float *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, float alpha, float beta);
 /*
@@ -262,7 +262,7 @@ void cudaD_add_vec_to_cols(dim3 Gr, dim3 Bl, double alpha, const double *col, do
 void cudaD_add_vec_to_rows(dim3 Gr, dim3 Bl, double alpha, const double *row, double beta, double *dst, MatrixDim d);
 void cudaD_row_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s=NULL);
 void cudaD_col_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s=NULL);
-void cudaD_row_max_id(size_t Gr, size_t Bl, double alpha, int32_cuda *vec_id, const double *x, MatrixDim d, cudaStream_t s=NULL);
+void cudaD_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const double *x, MatrixDim d, cudaStream_t s=NULL);
 void cudaD_add_mat_diag_vec(dim3 Gr, dim3 Bl, double alpha, double *mat, MatrixDim mat_dim, const double *mat2, int mat2_row_stride, int mat2_col_stride, const double *vec, double beta);
 void cudaD_add_mat_mat_elements(dim3 Gr, dim3 Bl, double *data, const double *srcA_data, const double *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, double alpha, double beta);
 

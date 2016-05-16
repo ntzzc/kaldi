@@ -126,9 +126,9 @@ void AddVecStreamed(double alpha, std::vector<CuSubVector<double>* > &des,
 
 template<typename Real>
 void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
-		const std::vector<CuMatrixBase<Real>* > &src, Real beta = 1.0)
+		const std::vector<CuSubMatrix<Real>* > &src, Real beta = 1.0)
 {
-	  KALDI_ASSERT(src.size() == des.size());
+	  KALDI_ASSERT(src.size() == des_vec.size());
 	  int32 size = src.size();
 
 	  if (size == 0) return;
@@ -162,16 +162,16 @@ void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 
 template
 void AddRowSumMatStreamed(float alpha, std::vector<CuSubVector<float>* > &des_vec,
-		const std::vector<CuMatrixBase<float>* > &src_mat, float beta = 1.0);
+		const std::vector<CuSubMatrix<float>* > &src_mat, float beta = 1.0);
 
 template
 void AddRowSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_vec,
-		const std::vector<CuMatrixBase<double>* > &src_mat, double beta = 1.0);
+		const std::vector<CuSubMatrix<double>* > &src_mat, double beta = 1.0);
 
 template<typename Real>
 void AddColSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
-		const std::vector<CuMatrixBase<Real>* > &src, Real beta = 1.0) {
-	  KALDI_ASSERT(src.size() == des.size());
+		const std::vector<CuSubMatrix<Real>* > &src, Real beta = 1.0) {
+	  KALDI_ASSERT(src.size() == des_vec.size());
 	  int32 size = src.size();
 
 	  if (size == 0) return;
@@ -205,14 +205,14 @@ void AddColSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 
 template
 void AddColSumMatStreamed(float alpha, std::vector<CuSubVector<float>* > &des_vec,
-		const std::vector<CuMatrixBase<float>* > &src, float beta = 1.0);
+		const std::vector<CuSubMatrix<float>* > &src, float beta = 1.0);
 
 template
 void AddColSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_vec,
-		const std::vector<CuMatrixBase<double>* > &src, double beta = 1.0);
+		const std::vector<CuSubMatrix<double>* > &src, double beta = 1.0);
 
 template<typename Real>
-void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real> &value) const {
+void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real> &value) {
 	  KALDI_ASSERT(vec.size() == value.Dim());
 	  int32 size = vec.size();
 
@@ -223,7 +223,7 @@ void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real>
 		Timer tim;
 
 		for (int32 i = 0; i < size; i++) {
-			size_t dimBlock = dim_ > CU1DBLOCK ? CU1DBLOCK : dim_;
+			size_t dimBlock = vec[i]->Dim() > CU1DBLOCK ? CU1DBLOCK : vec[i]->Dim();
 			int dimGrid = 1; // only 1 block here. we have loops in each thread.
 			cuda_vec_sum(dimGrid, dimBlock, vec[i]->Data(), value.Data()+i, vec[i]->Dim(), 1);
 		}
@@ -239,10 +239,10 @@ void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real>
 }
 
 template
-void SumStreamed(const std::vector<CuSubVector<float>* > &vec, CuVectorBase<float> &value) const;
+void SumStreamed(const std::vector<CuSubVector<float>* > &vec, CuVectorBase<float> &value);
 
 template
-void SumStreamed(const std::vector<CuSubVector<double>* > &vec, CuVectorBase<double> &value) const;
+void SumStreamed(const std::vector<CuSubVector<double>* > &vec, CuVectorBase<double> &value);
 
 template<typename Real>
 void CuVectorBase<Real>::CopyColFromMat(const CuMatrixBase<Real> &mat, MatrixIndexT col) {

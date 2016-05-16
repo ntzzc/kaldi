@@ -2067,7 +2067,7 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride) {
 
 template<typename Real>
 __global__
-static _row_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
+static void _row_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
 {
   int j = blockIdx.x;
   int THREADS = blockDim.x;
@@ -2084,7 +2084,7 @@ static _row_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim 
     }
   }
  
-    nTotalThreads = THREADS;
+    int nTotalThreads = THREADS;
   __syncthreads();
   while(nTotalThreads > 1) {
     int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
@@ -2105,7 +2105,7 @@ static _row_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim 
 
 template<typename Real>
 __global__
-static _col_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
+static void _col_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
 {
   int j = blockIdx.x;
   int THREADS = blockDim.x;
@@ -2122,7 +2122,7 @@ static _col_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim 
     }
   }
  
-    nTotalThreads = THREADS;
+    int nTotalThreads = THREADS;
   __syncthreads();
   while(nTotalThreads > 1) {
     int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
@@ -2143,7 +2143,7 @@ static _col_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim 
 
 template<typename Real>
 __global__
-static _row_max_id(int32_cuda *vec_id, const double *x, MatrixDim d)
+static void _row_max_id(int32_cuda *vec_id, const Real *x, MatrixDim d)
 {
   int j = blockIdx.x;
   int THREADS = blockDim.x;

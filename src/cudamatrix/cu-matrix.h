@@ -85,10 +85,10 @@ void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 
 template<typename Real, typename OtherReal>
 void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
-		std::vector<CuSubMatrix<OtherReal>* > &des, MatrixTransposeType trans);
+		std::vector<CuSubMatrix<OtherReal>* > &des, MatrixTransposeType trans = kNoTrans);
 
 template<typename Real>
-void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &vec, CuVectorBase<Real> &value) const;
+void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &vec, CuVectorBase<Real> &value);
 
 /**
  * Matrix for CUDA computing.
