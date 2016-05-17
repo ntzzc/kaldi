@@ -80,7 +80,7 @@ void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 
 template<typename Real>
 void GenTargetStreamed(std::vector<CuSubMatrix<Real>* > &src,
-		const std::vector<CuArray<int32>* > &id_vec);
+		const CuArray<int32> &id_vec);
 
 /// (for each row r of *this), r = alpha * row + beta * r
 template<typename Real>

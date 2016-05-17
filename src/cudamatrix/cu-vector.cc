@@ -214,11 +214,11 @@ void AddColSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_
 template<typename Real>
 Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec) {
 	  int32 size = vec.size();
-
-	  if (size == 0) return;
-
-	  CuVector<BaseFloat> value(vec.size());
 	  Real sum = 0.0;
+
+	  if (size == 0) return sum;
+
+	  CuVector<Real> value(vec.size());
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {

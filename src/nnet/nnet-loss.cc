@@ -262,13 +262,13 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_xentropy_aux_.clear();
 	  class_entropy_aux_.clear();
 
-
+      std::vector<int32> tgt_id(2*num_frames);
 
 	  int beg = 0, len, cid;
 	  for (int i = 1; i <= num_frames; i++)
 	  {
-		  tgt_id_(i-1) = target[i];
-		  tgt_id_(i-1+num_frames) = word2class_[target[i-1]];
+		  tgt_id[i-1] = target[i];
+		  tgt_id[i-1+num_frames] = word2class_[target[i-1]];
 
 		  if (i == num_frames || word2class_[target[i]] != word2class_[target[i-1]])
 		  {
@@ -284,6 +284,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 			  beg = i;
 		  }
 	  }
+      tgt_id_.CopyFromVec(tgt_id);
 
 	  len = num_pdf - class_boundary_.back();
 	  class_frame_weights_.push_back(new CuSubVector<BaseFloat>(frame_weights_.Range(0, num_frames)));

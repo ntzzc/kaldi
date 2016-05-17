@@ -2180,7 +2180,7 @@ static void _row_max_id(int32_cuda *vec_id, const Real *x, MatrixDim d)
 
 template<typename Real>
 __global__
-static void _gen_tgt(Real *x, const int32_cuda *vec_id) 
+static void _gen_tgt(Real *x, const int32_cuda *vec_id, MatrixDim d) 
 { 
   int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;  // column index
   int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;  // row index

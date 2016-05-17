@@ -264,7 +264,7 @@ void cudaD_add_vec_to_rows(dim3 Gr, dim3 Bl, double alpha, const double *row, do
 void cudaD_row_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s=NULL);
 void cudaD_col_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s=NULL);
 void cudaD_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const double *x, MatrixDim d, cudaStream_t s=NULL);
-void cudaD_gen_tgt(dim3 Gr, dim3 Bl, float *x, const int32_cuda *vec_id, MatrixDim d, cudaStream_t s=NULL);
+void cudaD_gen_tgt(dim3 Gr, dim3 Bl, double *x, const int32_cuda *vec_id, MatrixDim d, cudaStream_t s=NULL);
 void cudaD_add_mat_diag_vec(dim3 Gr, dim3 Bl, double alpha, double *mat, MatrixDim mat_dim, const double *mat2, int mat2_row_stride, int mat2_col_stride, const double *vec, double beta);
 void cudaD_add_mat_mat_elements(dim3 Gr, dim3 Bl, double *data, const double *srcA_data, const double *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, double alpha, double beta);
 
