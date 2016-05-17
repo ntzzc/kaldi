@@ -267,7 +267,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  int beg = 0, len, cid;
 	  for (int i = 1; i <= num_frames; i++)
 	  {
-		  tgt_id[i-1] = target[i];
+		  tgt_id[i-1] = target[i-1];
 		  tgt_id[i-1+num_frames] = word2class_[target[i-1]];
 
 		  if (i == num_frames || word2class_[target[i]] != word2class_[target[i-1]])
@@ -358,15 +358,11 @@ void CBXent::Eval() {
 
   // evaluate the frame-level classification,
   double corr;
-  std::vector<CuArray<int32>* >  max_id_out_vec(class_netout_.size());
-  std::vector<CuArray<int32>* >  max_id_tgt_vec(class_target_.size());
-  FindMaxIdPerRowStreamed(class_netout_, max_id_out_vec);
-  FindMaxIdPerRowStreamed(class_target_, max_id_tgt_vec);
-  for (int i = 0; i < size; i++)
-  {
-	  CountCorrectFramesWeighted(*max_id_out_vec[i], *max_id_tgt_vec[i], *class_frame_weights_[i], &corr);
-	  correct += corr;
-  }
+  CuArray<int32>  max_id_out_(class_netout_.size());
+  CuArray<int32>  max_id_tgt_(class_target_.size());
+  FindMaxIdPerRowStreamed(class_netout_, max_id_out_);
+  FindMaxIdPerRowStreamed(class_target_, max_id_tgt_);
+  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct);
 
   // calculate cross_entropy (in GPU),
   CopyFromMatStreamed(class_netout_, class_xentropy_aux_);

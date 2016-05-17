@@ -2410,15 +2410,18 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<double>* > &des,
 
 template<typename Real>
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
-		std::vector<CuArray<int32>* > &id_vec)
+		CuArray<int32> &id_vec)
 {
-	  KALDI_ASSERT(src.size() == id_vec.size());
 	  int32 size = src.size();
 
 	  if (size == 0) return;
 
+      int pos = 0;
 	  for (int32 i = 0; i < size; i++)
-		  id_vec[i]->Resize(src[i]->NumRows());
+          pos += src[i]->NumRows();
+	  KALDI_ASSERT(pos == id_vec.Dim());
+
+      pos = 0;
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
@@ -2427,7 +2430,8 @@ void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
 			size_t dimGrid = src[i]->NumRows();
 
-			cuda_row_max_id(dimGrid, dimBlock, id_vec[i]->Data(), src[i]->Data(), src[i]->Dim(), src[i]->GetLocalCudaStream());
+			cuda_row_max_id(dimGrid, dimBlock, id_vec.Data()+pos, src[i]->Data(), src[i]->Dim(), src[i]->GetLocalCudaStream());
+            pos += src[i]->NumRows();
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
 
@@ -2436,33 +2440,32 @@ void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 #endif
 	  {
 		  for (int32 i = 0; i < size; i++) {
-			  // allocate index buffer
-			  id_vec[i]->Set(-1);
-			  // find maxima
-		    MatrixIndexT num_rows = src[i]->NumRows(), num_cols = src[i]->NumCols();
-		    for(MatrixIndexT r = 0; r < num_rows; r++) {
-		      Real max = -1e21;
-		      int32 max_id = -1;
-		      const Real *row_data = src[i]->Mat().RowData(r);
-		      for(MatrixIndexT c = 0; c < num_cols; c++) {
-		        if (max < row_data[c]) {
-		          max = row_data[c];
-		          max_id = c;
+			    // find maxima
+		        MatrixIndexT num_rows = src[i]->NumRows(), num_cols = src[i]->NumCols();
+		        for(MatrixIndexT r = 0; r < num_rows; r++) {
+		            Real max = -1e21;
+		            int32 max_id = -1;
+		            const Real *row_data = src[i]->Mat().RowData(r);
+		            for(MatrixIndexT c = 0; c < num_cols; c++) {
+		                if (max < row_data[c]) {
+		                    max = row_data[c];
+		                    max_id = c;
+		                }
+		            }
+		            id_vec.Data()[pos+r] = max_id;
 		        }
-		      }
-		      id_vec[i]->Data()[r] = max_id;
-		    }
+                pos += src[i]->Mat().NumRows();
 		  }
 	  }
 }
 
 template
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<float>* > &src,
-		std::vector<CuArray<int32>* > &id_vec);
+		CuArray<int32> &id_vec);
 
 template
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<double>* > &src,
-		std::vector<CuArray<int32>* > &id_vec);
+		CuArray<int32> &id_vec);
 
 template<typename Real>
 void GenTargetStreamed(std::vector<CuSubMatrix<Real>* > &tgt,

@@ -76,7 +76,7 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 
 template<typename Real>
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
-		std::vector<CuArray<int32>* > &id_vec);
+		CuArray<int32> &id_vec);
 
 template<typename Real>
 void GenTargetStreamed(std::vector<CuSubMatrix<Real>* > &src,
