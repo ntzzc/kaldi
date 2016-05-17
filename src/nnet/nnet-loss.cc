@@ -357,9 +357,6 @@ void CBXent::Eval() {
 
 
   // evaluate the frame-level classification,
-  double corr;
-  CuArray<int32>  max_id_out_(class_netout_.size());
-  CuArray<int32>  max_id_tgt_(class_target_.size());
   FindMaxIdPerRowStreamed(class_netout_, max_id_out_);
   FindMaxIdPerRowStreamed(class_target_, max_id_tgt_);
   CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct);

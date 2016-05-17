@@ -2339,7 +2339,7 @@ void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 			dim3 dimGrid(n_blocks(A[i]->NumCols(), CU2DBLOCK),
 						 n_blocks(A[i]->NumRows(), CU2DBLOCK));
 
-			cublasSetStream(C[i]->GetLocalCublasHandle(), C[i]->GetLocalCudaStream());
+			//cublasSetStream(C[i]->GetLocalCublasHandle(), C[i]->GetLocalCudaStream());
 			cuda_add_mat(dimGrid, dimBlock, alpha, A[i]->Data(),
 						 C[i]->Data(), C[i]->Dim(), A[i]->Stride(),
 						 (transA == kTrans ? 1 : 0));
@@ -2419,7 +2419,8 @@ void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
       int pos = 0;
 	  for (int32 i = 0; i < size; i++)
           pos += src[i]->NumRows();
-	  KALDI_ASSERT(pos == id_vec.Dim());
+
+	  id_vec.Resize(pos);
 
       pos = 0;
 
@@ -2608,7 +2609,7 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 			  GetBlockSizesForSimpleMatrixOperation(des[i]->NumRows(), des[i]->NumCols(),
 													&dimGrid, &dimBlock);
 
-			  cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
+			  //cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
 			  if (trans == kNoTrans) {
 				cuda_copy_from_mat(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Dim());
 			  } else {
