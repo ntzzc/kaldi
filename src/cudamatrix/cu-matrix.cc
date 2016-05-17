@@ -2495,7 +2495,6 @@ void GenTargetStreamed(std::vector<CuSubMatrix<Real>* > &tgt,
             pos += tgt[i]->NumRows();
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
-
 	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
 	  } else
 #endif

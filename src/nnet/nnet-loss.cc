@@ -230,6 +230,29 @@ void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 #endif
 }
 
+template <typename T>
+inline void CBCountCorrectFramesWeighted(const CuArray<T> &v1, 
+                                       const CuArray<T> &v2, 
+                                       const CuVectorBase<BaseFloat> &weights, 
+                                       double *correct) {
+  KALDI_ASSERT(v1.Dim() == v2.Dim());
+  KALDI_ASSERT(v1.Dim()/2 == weights.Dim());
+  int32 dim = v1.Dim();
+  // Get GPU data to host,
+  std::vector<T> v1_h(dim), v2_h(dim);
+  v1.CopyToVec(&v1_h);
+  v2.CopyToVec(&v2_h);
+  Vector<BaseFloat> w(dim/2);
+  weights.CopyToVec(&w);
+  // Get correct frame count (weighted),
+  double corr = 0.0;
+  for (int32 i=0; i<dim/2; i++) {
+   corr += w(i) * (v1_h[i]==v2_h[i] && v1_h[i+dim/2]==v2_h[i+dim/2]  ? 1.0 : 0.0);
+  }
+  // Return,
+  (*correct) = corr;
+}
+
 void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
           const CuMatrixBase<BaseFloat> &net_out,
 		  const std::vector<int32> &target,
@@ -267,8 +290,9 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  int beg = 0, len, cid;
 	  for (int i = 1; i <= num_frames; i++)
 	  {
-		  tgt_id[i-1] = target[i-1];
-		  tgt_id[i-1+num_frames] = word2class_[target[i-1]];
+          cid = word2class_[target[i-1]];
+		  tgt_id[i-1] = target[i-1] - class_boundary_[cid];
+		  tgt_id[i-1+num_frames] = cid;
 
 		  if (i == num_frames || word2class_[target[i]] != word2class_[target[i-1]])
 		  {
@@ -296,9 +320,9 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.ColRange(class_boundary_.back(), len)));
 
 
+	  this->SetStream(class_frame_weights_);
 	  this->SetStream(class_target_sum_);
 	  this->SetStream(class_target_);
-	  this->SetStream(class_frame_weights_);
 	  this->SetStream(class_netout_);
 	  this->SetStream(class_diff_);
 	  this->SetStream(class_xentropy_aux_);
@@ -309,13 +333,13 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  // call the other eval function,
 	  Eval();
     
+	  this->ResetStream(class_frame_weights_);
 	  this->ResetStream(class_target_sum_);
 	  this->ResetStream(class_target_);
-	  this->ResetStream(class_frame_weights_);
 	  this->ResetStream(class_netout_);
+	  this->ResetStream(class_diff_);
 	  this->ResetStream(class_xentropy_aux_);
 	  this->ResetStream(class_entropy_aux_);
-
 
       for (int p = 0; p < class_frame_weights_.size(); p++)
       {
@@ -345,6 +369,8 @@ void CBXent::Eval() {
 	  class_target_sum_[i]->MulElements(*class_frame_weights_[i]);
 	  //class_frame_weights_[i]->MulElements(*class_target_sum_[i]);
 
+  //Vector<BaseFloat> tmp(target_sum_);
+  //tmp.CopyFromVec(frame_weights_); 
 
   // get the number of frames after the masking,
   num_frames = VecSumStreamed(class_target_sum_);
@@ -359,7 +385,7 @@ void CBXent::Eval() {
   // evaluate the frame-level classification,
   FindMaxIdPerRowStreamed(class_netout_, max_id_out_);
   FindMaxIdPerRowStreamed(class_target_, max_id_tgt_);
-  CountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct);
+  CBCountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct);
 
   // calculate cross_entropy (in GPU),
   CopyFromMatStreamed(class_netout_, class_xentropy_aux_);
@@ -373,7 +399,7 @@ void CBXent::Eval() {
   cross_entropy = -MatSumStreamed(class_xentropy_aux_);
 
   // calculate cross_entropy (in GPU),
-  CopyFromMatStreamed(class_netout_, class_entropy_aux_);
+  CopyFromMatStreamed(class_target_, class_entropy_aux_);
   for (int i = 0; i < size; i++)
   {
 	  class_entropy_aux_[i]->Add(1e-20); // avoid log(0)
@@ -381,7 +407,6 @@ void CBXent::Eval() {
 	  class_entropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
 	  class_entropy_aux_[i]->MulRowsVec(*class_frame_weights_[i]); // w*t*log(y)
   }
-
   entropy = -MatSumStreamed(class_entropy_aux_);
 
   KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));
