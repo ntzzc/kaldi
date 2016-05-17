@@ -2465,6 +2465,52 @@ void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<double>* > &src,
 		std::vector<CuArray<int32>* > &id_vec);
 
 template<typename Real>
+void GenTargetStreamed(std::vector<CuSubMatrix<Real>* > &tgt,
+		const std::vector<CuArray<int32>* > &id_vec)
+{
+	  KALDI_ASSERT(tgt.size() == id_vec.size());
+	  int32 size = tgt.size();
+
+	  if (size == 0) return;
+
+	  for (int32 i = 0; i < size; i++)
+		  KALDI_ASSERT(tgt[i].NumRows() == id_vec[i].Dim());
+
+#if HAVE_CUDA == 1
+	  if (CuDevice::Instantiate().Enabled()) {
+	    Timer tim;
+	    for (int32 i = 0; i < size; i++) {
+	        dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+	        dim3 dimGrid(n_blocks(NumCols(), CU2DBLOCK),
+	                     n_blocks(NumRows(), CU2DBLOCK));
+
+	        cuda_gen_tgt(dimGrid, dimBlock, alpha, tgt[i]->Data(),
+	                         id_vec[i]->Data(), tgt[i]->Dim(), tgt[i]->GetLocalCudaStream());
+	    }
+	    CU_SAFE_CALL(cudaGetLastError());
+
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	  } else
+#endif
+	  {
+		  for (int32 i = 0; i < size; i++) {
+			  tgt[i]->Mat().SetZero();
+			  for (int32 j = 0; j < tgt[i]->NumRows(); j++) {
+				  tgt[i]->Mat()(j, id_vec[i]->Data()[j]) = 1.0;
+			  }
+		  }
+	  }
+}
+
+template
+void GenTargetStreamed(std::vector<CuSubMatrix<float>* > &src,
+		const std::vector<CuArray<int32>* > &id_vec);
+
+template
+void GenTargetStreamed(std::vector<CuSubMatrix<double>* > &src,
+		const std::vector<CuArray<int32>* > &id_vec);
+
+template<typename Real>
 void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
                  	const std::vector<CuSubVector<Real>* > &src_vec, Real beta)
 {
@@ -2487,7 +2533,6 @@ void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
 			GetBlockSizesForSimpleMatrixOperation(des_mat[i]->NumRows(), des_mat[i]->NumCols(),
 												  &dimGrid, &dimBlock);
 
-			cublasSetStream(src_vec[i]->GetLocalCublasHandle(), src_vec[i]->GetLocalCudaStream());
 			cuda_add_vec_to_rows(dimGrid, dimBlock, alpha, src_vec[i]->Data(), beta, des_mat[i]->Data(), des_mat[i]->Dim());
 		}
 
@@ -2594,29 +2639,34 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<double>* > &src,
 		std::vector<CuSubMatrix<double>* > &des, MatrixTransposeType trans);
 
 template<typename Real>
-void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src, CuVectorBase<Real> &value) {
+Real MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src) {
 	  KALDI_ASSERT(src.size() == value.Dim());
 	  int32 size = src.size();
 
 	  if (size == 0) return;
+
+		int len = 0, pos = 0;
+		Real sum = 0.0;
+		for (int32 i = 0; i < size; i++)
+			len += src[i]->NumRows();
+		CuVector<Real> tmp(len);
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
 		Timer tim;
 
 		for (int32 i = 0; i < size; i++) {
-			CuVector<Real> tmp(src[i]->NumRows());
+
 			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
 			size_t dimGrid = src[i]->NumRows();
 
-			cuda_row_sum_reduce(dimGrid, dimBlock, 1.0, tmp.Data(), src[i]->Data(), src[i]->Dim(), 0.0, src[i]->GetLocalCudaStream());
-
-			dimBlock = tmp.Dim() > CU1DBLOCK ? CU1DBLOCK : tmp.Dim();
-			dimGrid = 1; // only 1 block here. we have loops in each thread.
-			cuda_vec_sum(dimGrid, dimBlock, tmp.Data(), value.Data()+i, tmp.Dim(), 1);
+			cuda_row_sum_reduce(dimGrid, dimBlock, 1.0, tmp.Data()+pos, src[i]->Data(), src[i]->Dim(), 0.0, src[i]->GetLocalCudaStream());
+			pos += src[i]->NumRows();
 		}
 		CU_SAFE_CALL(cudaGetLastError());
+		sum = tmp.Sum();
 		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+		return sum;
 	  } else
 #endif
 	  {
@@ -2625,14 +2675,15 @@ void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &src, CuVectorBase<Re
 			    row_sum.AddRowSumMat(1.0, *src[i], 0.0);
 			    value(i) = row_sum.Sum();
 		  }
+		  return value.Sum();
 	  }
 }
 
 template
-void MatSumStreamed(const std::vector<CuSubMatrix<float>* > &src, CuVectorBase<float> &value); 
+Real MatSumStreamed(const std::vector<CuSubMatrix<float>* > &src);
 
 template<typename Real>
-void MatSumStreamed(const std::vector<CuSubMatrix<double>* > &src, CuVectorBase<double> &value);
+Real MatSumStreamed(const std::vector<CuSubMatrix<double>* > &src);
 
 template<typename Real>
 void CuMatrixBase<Real>::CopyRowsFromVec(const CuVectorBase<Real> &v) {

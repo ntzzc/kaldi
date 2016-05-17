@@ -169,6 +169,7 @@ class CBXent {
   CuMatrix<BaseFloat> tgt_mat_;
   CuMatrix<BaseFloat> xentropy_aux_;
   CuMatrix<BaseFloat> entropy_aux_;
+  CuArray<int32> tgt_id_;
 
   std::vector<CuSubVector<BaseFloat>* > class_frame_weights_;
   std::vector<CuSubVector<BaseFloat>* > class_target_sum_;

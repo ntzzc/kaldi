@@ -2180,6 +2180,17 @@ static void _row_max_id(int32_cuda *vec_id, const Real *x, MatrixDim d)
 
 template<typename Real>
 __global__
+static void _gen_tgt(Real *x, const int32_cuda *vec_id) 
+{ 
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;  // column index
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;  // row index
+  int32_cuda index = i + j * d.stride;
+  if (i < d.cols && j < d.rows)
+    x[index] = (i==vec_id[j] ? 1.0 : 0.0);
+}
+
+template<typename Real>
+__global__
 static void _log_softmax_reduce(Real *y, const Real *x,
                                 MatrixDim d, int src_stride) {
   int j = blockIdx.x;
@@ -2889,6 +2900,9 @@ void cudaF_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const float *x, 
 _row_max_id<<<Gr,Bl,0,s>>>(vec_id,x,d); 
 }
 
+void cudaF_gen_tgt(dim3 Gr, dim3 Bl, float *x, const int32_cuda *vec_id, MatrixDim d, cudaStream_t s) { 
+_gen_tgt<<<Gr,Bl,0,s>>>(x, vec_id, d); 
+}
 
 void cudaF_splice(dim3 Gr, dim3 Bl, float* y, const float* x, const int32_cuda* off, MatrixDim d_out, MatrixDim d_in) {
   _splice<<<Gr,Bl>>>(y,x,off,d_out,d_in);
@@ -3409,6 +3423,10 @@ void cudaD_col_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const d
 
 void cudaD_row_max_id(size_t Gr, size_t Bl, int32_cuda *vec_id, const double *x, MatrixDim d, cudaStream_t s) { 
  _row_max_id<<<Gr,Bl,0,s>>>(vec_id,x,d); 
+}
+
+void cudaD_gen_tgt(dim3 Gr, dim3 Bl, double *x, const int32_cuda *vec_id, MatrixDim d, cudaStream_t s) { 
+_gen_tgt<<<Gr,Bl,0,s>>>(x, vec_id, d); 
 }
 
 void cudaD_splice(dim3 Gr, dim3 Bl, double* y, const double* x, const int32_cuda* off, MatrixDim d_out, MatrixDim d_in) {

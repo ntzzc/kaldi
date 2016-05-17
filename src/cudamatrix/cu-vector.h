@@ -56,7 +56,7 @@ void AddColSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 		const std::vector<CuSubMatrix<Real>* > &src_mat, Real beta = 1.0);
 
 template<typename Real>
-void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real> &value);
+Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec);
 
 /**
  * Vector for CUDA computing

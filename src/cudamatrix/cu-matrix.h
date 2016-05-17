@@ -78,6 +78,10 @@ template<typename Real>
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 		std::vector<CuArray<int32>* > &id_vec);
 
+template<typename Real>
+void GenTargetStreamed(std::vector<CuSubMatrix<Real>* > &src,
+		const std::vector<CuArray<int32>* > &id_vec);
+
 /// (for each row r of *this), r = alpha * row + beta * r
 template<typename Real>
 void AddVecToRowsStreamed(Real alpha, std::vector<CuSubMatrix<Real>* > &des_mat,
@@ -88,7 +92,7 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 		std::vector<CuSubMatrix<OtherReal>* > &des, MatrixTransposeType trans = kNoTrans);
 
 template<typename Real>
-void MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &vec, CuVectorBase<Real> &value);
+Real MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &vec);
 
 /**
  * Matrix for CUDA computing.

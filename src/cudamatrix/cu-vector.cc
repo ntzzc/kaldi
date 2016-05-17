@@ -134,16 +134,16 @@ void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 	  if (size == 0) return;
 
 	  for (int32 i = 0; i < size; i++)
-		  KALDI_ASSERT(des_vec[i]->Dim() == src[i]->NumRows());
+		  KALDI_ASSERT(des_vec[i]->Dim() == src[i]->NumCols());
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
 	    Timer tim;
 	    for (int32 i = 0; i < size; i++) {
-			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
-			size_t dimGrid = src[i]->NumRows();
+	   			size_t dimBlock = src[i]->NumRows() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumRows();
+	   			size_t dimGrid = src[i]->NumCols();
 
-			cuda_row_sum_reduce(dimGrid, dimBlock, alpha, des_vec[i]->Data(), src[i]->Data(), src[i]->Dim(), beta, des_vec[i]->GetLocalCudaStream());
+	   			cuda_col_sum_reduce(dimGrid, dimBlock, alpha, des_vec[i]->Data(), src[i]->Data(), src[i]->Dim(), beta, des_vec[i]->GetLocalCudaStream());
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
 
@@ -177,16 +177,16 @@ void AddColSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 	  if (size == 0) return;
 
 	  for (int32 i = 0; i < size; i++)
-		  KALDI_ASSERT(des_vec[i]->Dim() == src[i]->NumCols());
+		  KALDI_ASSERT(des_vec[i]->Dim() == src[i]->NumRows());
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
 	    Timer tim;
 	    for (int32 i = 0; i < size; i++) {
-			size_t dimBlock = src[i]->NumRows() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumRows();
-			size_t dimGrid = src[i]->NumCols();
+			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
+			size_t dimGrid = src[i]->NumRows();
 
-			cuda_col_sum_reduce(dimGrid, dimBlock, alpha, des_vec[i]->Data(), src[i]->Data(), src[i]->Dim(), beta, des_vec[i]->GetLocalCudaStream());
+			cuda_row_sum_reduce(dimGrid, dimBlock, alpha, des_vec[i]->Data(), src[i]->Data(), src[i]->Dim(), beta, des_vec[i]->GetLocalCudaStream());
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
 
@@ -196,7 +196,7 @@ void AddColSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 	  {
 		  for (int32 i = 0; i < size; i++)
 		  {
-			  CuVector<Real> ones(src[i]->NumRows());
+			  CuVector<Real> ones(src[i]->NumCols());
 			  ones.Set(1.0);
 			  des_vec[i]->Vec().AddMatVec(alpha,src[i]->Mat(),kNoTrans,ones.Vec(),beta);
 		  }
@@ -212,11 +212,13 @@ void AddColSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_
 		const std::vector<CuSubMatrix<double>* > &src, double beta = 1.0);
 
 template<typename Real>
-void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real> &value) {
-	  KALDI_ASSERT(vec.size() == value.Dim());
+Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec) {
 	  int32 size = vec.size();
 
 	  if (size == 0) return;
+
+	  CuVector<BaseFloat> value(vec.size());
+	  Real sum = 0.0;
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
@@ -228,21 +230,25 @@ void SumStreamed(const std::vector<CuSubVector<Real>* > &vec, CuVectorBase<Real>
 			cuda_vec_sum(dimGrid, dimBlock, vec[i]->Data(), value.Data()+i, vec[i]->Dim(), 1);
 		}
 		CU_SAFE_CALL(cudaGetLastError());
+		sum = value.Sum();
+
 		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+		return sum;
 	  } else
 #endif
 	  {
 		  for (int32 i = 0; i < size; i++) {
 			  value(i) = vec[i]->Vec().Sum();
 		  }
+		  return value.Sum();
 	  }
 }
 
 template
-void SumStreamed(const std::vector<CuSubVector<float>* > &vec, CuVectorBase<float> &value);
+float VecSumStreamed(const std::vector<CuSubVector<float>* > &vec);
 
 template
-void SumStreamed(const std::vector<CuSubVector<double>* > &vec, CuVectorBase<double> &value);
+double VecSumStreamed(const std::vector<CuSubVector<double>* > &vec);
 
 template<typename Real>
 void CuVectorBase<Real>::CopyColFromMat(const CuMatrixBase<Real> &mat, MatrixIndexT col) {
