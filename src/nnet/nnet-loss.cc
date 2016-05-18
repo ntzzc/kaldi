@@ -185,30 +185,6 @@ std::string Xent::Report() {
 
 /* CBXent */
 
-void CBXent::SetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist)
-{
-	for (int i = 0; i < matlist.size(); i++)
-		matlist[i]->SetLocalCudaStream(streamlist_[i]);
-}
-
-void CBXent::ResetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist)
-{
-	for (int i = 0; i < matlist.size(); i++)
-		matlist[i]->SetLocalCudaStream(NULL);
-}
-
-void CBXent::SetStream(std::vector<CuSubVector<BaseFloat>* > &veclist)
-{
-	for (int i = 0; i < veclist.size(); i++)
-		veclist[i]->SetLocalCudaStream(streamlist_[i]);
-}
-
-void CBXent::ResetStream(std::vector<CuSubVector<BaseFloat>* > &veclist)
-{
-	for (int i = 0; i < veclist.size(); i++)
-		veclist[i]->SetLocalCudaStream(NULL);
-}
-
 void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 {
 		class_boundary_ = class_boundary;
@@ -263,9 +239,9 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 	  KALDI_ASSERT(num_frames == target.size());
 
-	  if (hos_tgt_mat_.NumRows() != num_frames)
+	  if (net_out.NumRows() != num_frames)
 	  {
-		  hos_tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
+		  //hos_tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
 		  tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
 		  xentropy_aux_.Resize(num_frames, num_pdf, kSetZero);
 		  entropy_aux_.Resize(num_frames, num_pdf, kSetZero);
@@ -320,26 +296,26 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.ColRange(class_boundary_.back(), len)));
 
 
-	  this->SetStream(class_frame_weights_);
-	  this->SetStream(class_target_sum_);
-	  this->SetStream(class_target_);
-	  this->SetStream(class_netout_);
-	  this->SetStream(class_diff_);
-	  this->SetStream(class_xentropy_aux_);
-	  this->SetStream(class_entropy_aux_);
+	  SetStream(class_frame_weights_, streamlist_);
+	  SetStream(class_target_sum_, streamlist_);
+	  SetStream(class_target_, streamlist_);
+	  SetStream(class_netout_, streamlist_);
+	  SetStream(class_diff_, streamlist_);
+	  SetStream(class_xentropy_aux_, streamlist_);
+	  SetStream(class_entropy_aux_, streamlist_);
 
 	  GenTargetStreamed(class_target_, tgt_id_);
 
 	  // call the other eval function,
 	  Eval();
     
-	  this->ResetStream(class_frame_weights_);
-	  this->ResetStream(class_target_sum_);
-	  this->ResetStream(class_target_);
-	  this->ResetStream(class_netout_);
-	  this->ResetStream(class_diff_);
-	  this->ResetStream(class_xentropy_aux_);
-	  this->ResetStream(class_entropy_aux_);
+	  ResetStream(class_frame_weights_, streamlist_);
+	  ResetStream(class_target_sum_, streamlist_);
+	  ResetStream(class_target_, streamlist_);
+	  ResetStream(class_netout_, streamlist_);
+	  ResetStream(class_diff_, streamlist_);
+	  ResetStream(class_xentropy_aux_, streamlist_);
+	  ResetStream(class_entropy_aux_, streamlist_);
 
       for (int p = 0; p < class_frame_weights_.size(); p++)
       {
@@ -379,35 +355,21 @@ void CBXent::Eval() {
   // compute derivative wrt. activations of last layer of neurons,
   CopyFromMatStreamed(class_netout_, class_diff_);
   AddMatStreamed(static_cast<BaseFloat>(-1.0f), class_diff_, class_target_);
-  for (int i = 0; i < size; i++)
-	  class_diff_[i]->MulRowsVec(*class_frame_weights_[i]); // weighting,
-
+  MulRowsVecStreamed(class_diff_, class_frame_weights_); // weighting,
 
   // evaluate the frame-level classification,
   FindMaxIdPerRowStreamed(class_netout_, max_id_out_);
   FindMaxIdPerRowStreamed(class_target_, max_id_tgt_);
   CBCountCorrectFramesWeighted(max_id_out_, max_id_tgt_, frame_weights_, &correct);
 
-  // calculate cross_entropy (in GPU),
-  CopyFromMatStreamed(class_netout_, class_xentropy_aux_);
-  for (int i = 0; i < size; i++)
-  {
-	  class_xentropy_aux_[i]->Add(1e-20); // avoid log(0)
-	  class_xentropy_aux_[i]->ApplyLog(); // log(y)
-	  class_xentropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
-	  class_xentropy_aux_[i]->MulRowsVec(*class_frame_weights_[i]); // w*t*log(y)
-  }
+  // calculate cross_entropy (in GPU), (avoid log(0)), log(y), t*log(y), w*t*log(y)
+  CrossEntropyStreamed(class_xentropy_aux_, class_netout_, class_target_);
+  MulRowsVecStreamed(class_xentropy_aux_, class_frame_weights_); // weighting,
   cross_entropy = -MatSumStreamed(class_xentropy_aux_);
 
-  // calculate cross_entropy (in GPU),
-  CopyFromMatStreamed(class_target_, class_entropy_aux_);
-  for (int i = 0; i < size; i++)
-  {
-	  class_entropy_aux_[i]->Add(1e-20); // avoid log(0)
-	  class_entropy_aux_[i]->ApplyLog(); // log(y)
-	  class_entropy_aux_[i]->MulElements(*class_target_[i]); // t*log(y)
-	  class_entropy_aux_[i]->MulRowsVec(*class_frame_weights_[i]); // w*t*log(y)
-  }
+  // caluculate entropy (in GPU), (avoid log(0)), log(t), t*log(t), w*t*log(t)
+  EntropyStreamed(class_entropy_aux_, class_target_);
+  MulRowsVecStreamed(class_entropy_aux_, class_frame_weights_); // weighting,
   entropy = -MatSumStreamed(class_entropy_aux_);
 
   KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));

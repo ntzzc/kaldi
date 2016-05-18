@@ -250,7 +250,38 @@ void PosteriorToMatrixMappedCTC(const Posterior &post, int32 num_cols, CuMatrix<
   (*mat) = m;
 }
 
+#if HAVE_CUDA == 1
+template <typename Real>
+void SetStream(std::vector<CuSubMatrix<Real>* > &matlist, std::vector<cudaStream_t > &streamlist)
+{
+	for (int i = 0; i < matlist.size(); i++)
+		matlist[i]->SetLocalCudaStream(streamlist_[i]);
+}
+
+template <typename Real>
+void ResetStream(std::vector<CuSubMatrix<Real>* > &matlist, std::vector<cudaStream_t > &streamlist)
+{
+	for (int i = 0; i < matlist.size(); i++)
+		matlist[i]->SetLocalCudaStream(NULL);
+}
+
+template <typename Real>
+void SetStream(std::vector<CuSubVector<Real>* > &veclist, std::vector<cudaStream_t > &streamlist)
+{
+	for (int i = 0; i < veclist.size(); i++)
+		veclist[i]->SetLocalCudaStream(streamlist_[i]);
+}
+
+template <typename Real>
+void ResetStream(std::vector<CuSubVector<Real>* > &veclist, std::vector<cudaStream_t > &streamlist)
+{
+	for (int i = 0; i < veclist.size(); i++)
+		veclist[i]->SetLocalCudaStream(NULL);
+}
+#endif
+
 } // namespace nnet1
 } // namespace kaldi
+
 
 #endif

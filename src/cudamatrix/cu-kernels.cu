@@ -415,6 +415,38 @@ static void _mul_elements(Real* mat, const Real* A, MatrixDim dst_d, int src_str
 
 template<typename Real>
 __global__
+static void _cross_entropy(Real *xentropy, const Real *nnetout, const Real *target, MatrixDim dst_d, int out_stride, int tgt_stride)
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+  int32_cuda dst_index = i + j*dst_d.stride,
+			 out_index = i + j*out_stride,
+      	 	 tgt_index = i + j*tgt_stride;
+  if (i < dst_d.cols  &&  j < dst_d.rows)
+  {
+  	    xentropy[dst_index] = nnetout[out_index] + 1e-20;
+  	    xentropy[dst_index] = log(xentropy[dst_index]);
+  	    xentropy[dst_index] *= target[tgt_index];
+  }
+
+}
+
+template<typename Real>
+__global__
+static void _entropy(Real *entropy, const Real *mat, MatrixDim dst_d, int mat_stride)
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+  int32_cuda dst_index = i + j*dst_d.stride,
+      	 	 mat_index = i + j*mat_stride;
+  if (i < dst_d.cols  &&  j < dst_d.rows)
+  {
+  	    entropy[dst_index] = mat[mat_index] + 1e-20;
+  	    entropy[dst_index] = log(entropy[dst_index]);
+  	    entropy[dst_index] *= mat[mat_index];
+  }
+}
+
+template<typename Real>
+__global__
 static void _div_elements(Real* mat, const Real* A, MatrixDim dst_d, int src_stride) {
   int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
   int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
@@ -2612,6 +2644,13 @@ void cudaF_mul_elements(dim3 Gr, dim3 Bl, float* mat, const float* A, MatrixDim 
   _mul_elements<<<Gr,Bl>>>(mat,A,dst_d,src_stride);
 }
 
+void cudaF_cross_entropy(dim3 Gr, dim3 Bl, float *xentropy, const float *nnetout, const float *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s=NULL) {
+  _cross_entropy<<<Gr,Bl,0,s>>>(xentropy,nnetout,target,d,out_stride,tgt_stride);
+}
+
+void cudaF_entropy(dim3 Gr, dim3 Bl, float *entropy, const float *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL) {
+  _entropy<<<Gr,Bl,0,s>>>(entropy,mat,d,mat_stride);
+}
 void cudaF_div_elements(dim3 Gr, dim3 Bl, float* mat, const float* A, MatrixDim dst_d, int src_stride) {
   _div_elements<<<Gr,Bl>>>(mat,A,dst_d,src_stride);
 }
@@ -2624,8 +2663,8 @@ void cudaF_mul_cols_vec(dim3 Gr, dim3 Bl, float* mat, const float* scale, Matrix
   _mul_cols_vec<<<Gr,Bl>>>(mat,scale,d);
 }
 
-void cudaF_mul_rows_vec(dim3 Gr, dim3 Bl, float* mat, const float* scale, MatrixDim d) {
-  _mul_rows_vec<<<Gr,Bl>>>(mat,scale,d);
+void cudaF_mul_rows_vec(dim3 Gr, dim3 Bl, float* mat, const float* scale, MatrixDim d, cudaStream_t s) {
+  _mul_rows_vec<<<Gr,Bl,0,s>>>(mat,scale,d);
 }
 
 void cudaF_mul_rows_group_mat(dim3 Gr, dim3 Bl, float *y, const float *x,
@@ -2649,11 +2688,11 @@ void cudaF_div_rows_vec(dim3 Gr, dim3 Bl, float* mat, const float* vec_div, Matr
   _div_rows_vec<<<Gr,Bl>>>(mat, vec_div, d);
 }
 
-void cudaF_add_mat(dim3 Gr, dim3 Bl, float alpha, const float* src, float* dst, MatrixDim d, int src_stride, int A_trans) {
+void cudaF_add_mat(dim3 Gr, dim3 Bl, float alpha, const float* src, float* dst, MatrixDim d, int src_stride, int A_trans, cudaStream_t s) {
   if (A_trans) {
-    _add_mat_trans<<<Gr,Bl>>>(alpha,src,dst,d,src_stride);
+    _add_mat_trans<<<Gr,Bl,0,s>>>(alpha,src,dst,d,src_stride);
   } else {
-    _add_mat<<<Gr,Bl>>>(alpha,src,dst,d,src_stride);
+    _add_mat<<<Gr,Bl,0,s>>>(alpha,src,dst,d,src_stride);
   }
 }
 
@@ -2888,8 +2927,8 @@ void cudaF_heaviside (dim3 Gr, dim3 Bl, float* y, const float* x, MatrixDim d, i
   _heaviside<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
-void cudaF_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride) {
-  _softmax_reduce<<<Gr,Bl>>>(y, x, d, src_stride);
+void cudaF_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride, cudaStream_t s) {
+  _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride);
 }
 
 void cudaF_log_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride) {
@@ -3139,6 +3178,14 @@ void cudaD_mul_elements(dim3 Gr, dim3 Bl, double* mat, const double* A, MatrixDi
   _mul_elements<<<Gr,Bl>>>(mat,A,dst_d,src_stride);
 }
 
+void cudaD_cross_entropy(dim3 Gr, dim3 Bl, double *xentropy, const double *nnetout, const double *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s=NULL) {
+  _cross_entropy<<<Gr,Bl,0,s>>>(xentropy,nnetout,target,d,out_stride,tgt_stride);
+}
+
+void cudaD_entropy(dim3 Gr, dim3 Bl, double *entropy, const double *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL) {
+  _entropy<<<Gr,Bl,0,s>>>(entropy,mat,d,mat_stride);
+}
+
 void cudaD_div_elements(dim3 Gr, dim3 Bl, double* mat, const double* A, MatrixDim dst_d, int src_stride) {
   _div_elements<<<Gr,Bl>>>(mat,A,dst_d,src_stride);
 }
@@ -3151,8 +3198,8 @@ void cudaD_mul_cols_vec(dim3 Gr, dim3 Bl, double* mat, const double* scale, Matr
   _mul_cols_vec<<<Gr,Bl>>>(mat,scale,d);
 }
 
-void cudaD_mul_rows_vec(dim3 Gr, dim3 Bl, double* mat, const double* scale, MatrixDim d) {
-  _mul_rows_vec<<<Gr,Bl>>>(mat,scale,d);
+void cudaD_mul_rows_vec(dim3 Gr, dim3 Bl, double* mat, const double* scale, MatrixDim d, cudaStream_t s=NULL) {
+  _mul_rows_vec<<<Gr,Bl,0,s>>>(mat,scale,d);
 }
 
 void cudaD_mul_rows_group_mat(dim3 Gr, dim3 Bl, double* y, const double* x,
@@ -3413,8 +3460,8 @@ void cudaD_heaviside (dim3 Gr, dim3 Bl, double* y, const double* x, MatrixDim d,
   _heaviside<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
-void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride) {
-  _softmax_reduce<<<Gr,Bl>>>(y, x, d, src_stride);
+void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride, cudaStream_t s) {
+  _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride);
 }
 
 void cudaD_log_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride) {

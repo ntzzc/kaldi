@@ -94,15 +94,22 @@ class CBSoftmax : public Component {
     output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen)));
 
 
+    SetStream(input_patches_, streamlist_);
+   	SetStream(output_patches_, streamlist_);
+
 	ApplySoftMaxPerRowStreamed(output_patches_, input_patches_);
     //for (int p = 0; p < input_patches_.size(); p++)
         //output_patches_[p]->ApplySoftMaxPerRow(*input_patches_[p]);
+
+	ResetStream(input_patches_, streamlist_);
+	ResetStream(output_patches_, streamlist_);
 
     for (int p = 0; p < input_patches_.size(); p++)
     {
         delete input_patches_[p];   
         delete output_patches_[p];  
     }
+
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
@@ -112,12 +119,56 @@ class CBSoftmax : public Component {
     // while in_diff contains (net_output-target) :
     // this is already derivative of the error with
     // respect to activations of last layer neurons)
-    in_diff->CopyFromMat(out_diff);
+    // in_diff->CopyFromMat(out_diff);
+
+    int size = updateclass_id_.size();
+    int beg, cid, clen;
+
+    indiff_patches_.clear();
+    outdiff_patches_.clear();
+    beg = 0;
+    for (int i = 1; i <= size; i++)
+    {
+    	if (i == size || updateclass_id_[i] != updateclass_id_[i-1])
+    	{
+    		cid = updateclass_id_[i-1];
+    		clen = class_boundary_[cid+1] - class_boundary_[cid];
+    		indiff_patches_.push_back(new CuSubMatrix<BaseFloat>(in_diff->Range(beg, i-beg, class_boundary_[cid], clen)));
+    		outdiff_patches_.push_back(new CuSubMatrix<BaseFloat>(out_diff.Range(beg, i-beg, class_boundary_[cid], clen)));
+    		beg = i;
+    	}
+    }
+
+    // class
+    clen = output_dim_ - class_boundary_.back();
+    indiff_patches_.push_back(new CuSubMatrix<BaseFloat>(in_diff->ColRange(class_boundary_.back(), clen)));
+    outdiff_patches_.push_back(new CuSubMatrix<BaseFloat>(out_diff.ColRange(class_boundary_.back(), clen)));
+
+    SetStream(indiff_patches_, streamlist_);
+   	SetStream(outdiff_patches_, streamlist_);
+
+    CopyFromMatStreamed(outdiff_patches_, indiff_patches_);
+
+	ResetStream(indiff_patches_, streamlist_);
+	ResetStream(outdiff_patches_, streamlist_);
+
+    for (int p = 0; p < input_patches_.size(); p++)
+    {
+        delete indiff_patches_[p];
+        delete outdiff_patches_[p];
+    }
+
   }
 
   void SetClassBoundary(const std::vector<int32>& class_boundary)
   {
 	  class_boundary_ = class_boundary;
+#if HAVE_CUDA == 1
+	  int32 num_class = class_boundary.size()-1;
+	  streamlist_.resize(num_class);
+	  for (i = 0; i < num_class; i++)
+		  cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
+#endif
   }
 
   void SetUpdateClassId(const std::vector<int32>& updateclass_id)
@@ -130,6 +181,12 @@ class CBSoftmax : public Component {
   std::vector<int32> updateclass_id_;
   std::vector<CuSubMatrix<BaseFloat>* > input_patches_;
   std::vector<CuSubMatrix<BaseFloat>* > output_patches_;
+  std::vector<CuSubMatrix<BaseFloat>* > indiff_patches_;
+  std::vector<CuSubMatrix<BaseFloat>* > outdiff_patches_;
+
+#if HAVE_CUDA == 1
+  std::vector<cudaStream_t > streamlist_;
+#endif
 };
 
 

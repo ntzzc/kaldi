@@ -82,15 +82,17 @@ void cudaF_scale_diag_packed(int Gr, int Bl, float* mat, float value, int dim);
 void cudaF_scale(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d);
 void cudaF_apply_log(dim3 Gr, dim3 Bl, float *mat, MatrixDim d);
 void cudaF_mul_elements(dim3 Gr, dim3 Bl, float *mat, const float *A, MatrixDim dst_d, int src_stride);
+void cudaF_cross_entropy(dim3 Gr, dim3 Bl, float *xentropy, const float *nnetout, const float *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s=NULL);
+void cudaF_entropy(dim3 Gr, dim3 Bl, float *entropy, const float *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL);
 void cudaF_div_elements(dim3 Gr, dim3 Bl, float *mat, const float *A, MatrixDim dst_d, int src_stride);
 void cudaF_max(dim3 Gr, dim3 Bl, float *mat, const float *A, MatrixDim dst_d, int src_stride);
 void cudaF_mul_cols_vec(dim3 Gr, dim3 Bl, float *mat, const float *scale, MatrixDim d);
-void cudaF_mul_rows_vec(dim3 Gr, dim3 Bl, float *mat, const float *scale, MatrixDim d);
+void cudaF_mul_rows_vec(dim3 Gr, dim3 Bl, float *mat, const float *scale, MatrixDim d, cudaStream_t s=NULL);
 void cudaF_mul_rows_group_mat(dim3 Gr, dim3 Bl, float *y, const float *x, MatrixDim d, int src_stride, int group_size);
 void cudaF_calc_pnorm_deriv(dim3 Gr, dim3 Bl, float *y, const float *x1, const float *x2,  MatrixDim d, int src_stride, int group_size, float power);
 void cudaF_calc_group_max_deriv(dim3 Gr, dim3 Bl, float *y, const float *x1, const float *x2,  MatrixDim d, int src_stride, int group_size);
 void cudaF_div_rows_vec(dim3 Gr, dim3 Bl, float *mat, const float *vec_div, MatrixDim d);
-void cudaF_add_mat(dim3 Gr, dim3 Bl, float alpha, const float *src, float *dst, MatrixDim d, int src_stride, int A_trans);
+void cudaF_add_mat(dim3 Gr, dim3 Bl, float alpha, const float *src, float *dst, MatrixDim d, int src_stride, int A_trans, cudaStream_t s=NULL);
 void cudaF_convolution_forward_expand_workspace(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
                      int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap);
 void cudaF_convolution_backward_shrink_workspace(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
@@ -150,7 +152,7 @@ void cudaF_block_add_mat_mat(dim3 Gr, dim3 Bl, CuBlockMatrixData *B_cu_data, int
 /*
  * cu::
  */
-void cudaF_softmax_reduce(size_t Gr, size_t Bl, float *y, const float *x, MatrixDim d, int src_stride);
+void cudaF_softmax_reduce(size_t Gr, size_t Bl, float *y, const float *x, MatrixDim d, int src_stride, cudaStream_t s=NULL);
 void cudaF_log_softmax_reduce(size_t Gr, size_t Bl, float *y, const float *x, MatrixDim d, int src_stride);
 void cudaF_soft_hinge(dim3 Gr, dim3 Bl, float *y, const float *x, MatrixDim d, int src_stride);
 void cudaF_group_pnorm(dim3 Gr, dim3 Bl, float *y, const float *x, MatrixDim d, int src_stride, int group_size, float power);
@@ -239,15 +241,17 @@ void cudaD_scale_diag_packed(int Gr, int Bl, double* mat, double value, int dim)
 void cudaD_scale(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d);
 void cudaD_apply_log(dim3 Gr, dim3 Bl, double *mat, MatrixDim d);
 void cudaD_mul_elements(dim3 Gr, dim3 Bl, double *mat, const double *A, MatrixDim dst_d, int src_stride);
+void cudaD_cross_entropy(dim3 Gr, dim3 Bl, double *xentropy, const double *nnetout, const double *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s=NULL);
+void cudaD_entropy(dim3 Gr, dim3 Bl, double *entropy, const double *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL);
 void cudaD_div_elements(dim3 Gr, dim3 Bl, double *mat, const double *A, MatrixDim dst_d, int src_stride);
 void cudaD_max(dim3 Gr, dim3 Bl, double *mat, const double *A, MatrixDim dst_d, int src_stride);
 void cudaD_mul_cols_vec(dim3 Gr, dim3 Bl, double *mat, const double *scale, MatrixDim d);
-void cudaD_mul_rows_vec(dim3 Gr, dim3 Bl, double *mat, const double *scale, MatrixDim d);
+void cudaD_mul_rows_vec(dim3 Gr, dim3 Bl, double *mat, const double *scale, MatrixDim d, cudaStream_t s=NULL);
 void cudaD_mul_rows_group_mat(dim3 Gr, dim3 Bl, double *y, const double *x, MatrixDim d, int src_stride, int group_size);
 void cudaD_calc_pnorm_deriv(dim3 Gr, dim3 Bl, double *y, const double *x1, const double *x2,  MatrixDim d, int src_stride, int group_size, double power);
 void cudaD_calc_group_max_deriv(dim3 Gr, dim3 Bl, double *y, const double *x1, const double *x2,  MatrixDim d, int src_stride, int group_size);
 void cudaD_div_rows_vec(dim3 Gr, dim3 Bl, double *mat, const double *vec_div, MatrixDim d);
-void cudaD_add_mat(dim3 Gr, dim3 Bl, double alpha, const double *src, double *dst, MatrixDim d, int src_stride, int A_trans);
+void cudaD_add_mat(dim3 Gr, dim3 Bl, double alpha, const double *src, double *dst, MatrixDim d, int src_stride, int A_trans, cudaStream_t s=NULL);
 void cudaD_convolution_forward_expand_workspace(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
                      int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap);
 void cudaD_convolution_backward_shrink_workspace(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
@@ -310,7 +314,7 @@ void cudaD_block_add_mat_mat(dim3 Gr, dim3 Bl, CuBlockMatrixData *B_cu_data, int
 /*
  * cu::
  */
-void cudaD_softmax_reduce(size_t Gr, size_t Bl, double *y, const double *x, MatrixDim d, int src_stride);
+void cudaD_softmax_reduce(size_t Gr, size_t Bl, double *y, const double *x, MatrixDim d, int src_stride, cudaStream_t s=NULL);
 void cudaD_log_softmax_reduce(size_t Gr, size_t Bl, double *y, const double *x, MatrixDim d, int src_stride);
 void cudaD_soft_hinge(dim3 Gr, dim3 Bl, double *y, const double *x, MatrixDim d, int src_stride);
 void cudaD_group_pnorm(dim3 Gr, dim3 Bl, double *y, const double *x, MatrixDim d, int src_stride, int group_size, double power);

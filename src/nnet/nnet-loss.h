@@ -187,10 +187,6 @@ class CBXent {
 
 #if HAVE_CUDA == 1
   std::vector<cudaStream_t > streamlist_;
-  void SetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist);
-  void SetStream(std::vector<CuSubVector<BaseFloat>* > &veclist);
-  void ResetStream(std::vector<CuSubMatrix<BaseFloat>* > &matlist);
-  void ResetStream(std::vector<CuSubVector<BaseFloat>* > &veclist);
 #endif
 };
 

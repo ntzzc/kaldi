@@ -203,12 +203,19 @@ class ClassAffineTransform : public UpdatableComponent {
     	}
     }
 
-    //for (int p = 0; p < output_patches_.size(); p++)
-     //   output_patches_[p]->AddVecToRows(1.0, *updateclass_bias_[p], 0.0);
+    SetStream(input_patches_, streamlist_);
+   	SetStream(output_patches_, streamlist_);
+    SetStream(updateclass_linearity_, streamlist_);
+   	SetStream(updateclass_bias_, streamlist_);
 
     AddVecToRowsStreamed(static_cast<BaseFloat>(1.0f), output_patches_, updateclass_bias_, static_cast<BaseFloat>(0.0f));
     AddMatMatStreamed(static_cast<BaseFloat>(1.0f), output_patches_, input_patches_, kNoTrans,
     									updateclass_linearity_, kTrans, static_cast<BaseFloat>(1.0f));
+
+    ResetStream(input_patches_, streamlist_);
+    ResetStream(output_patches_, streamlist_);
+    ResetStream(updateclass_linearity_, streamlist_);
+    ResetStream(updateclass_bias_, streamlist_);
 
     // class
     clen = output_dim_ - class_boundary_.back();
@@ -253,8 +260,16 @@ class ClassAffineTransform : public UpdatableComponent {
 	    	}
 	    }
 
+	    SetStream(in_diff_patches_, streamlist_);
+	   	SetStream(updateclass_linearity_corr_, streamlist_);
+	    SetStream(out_diff_patches_, streamlist_);
+
 	    AddMatMatStreamed(static_cast<BaseFloat>(1.0f), in_diff_patches_, out_diff_patches_, kNoTrans,
 	    												updateclass_linearity_, kNoTrans, static_cast<BaseFloat>(0.0f));
+
+	    ResetStream(in_diff_patches_, streamlist_);
+	    ResetStream(updateclass_linearity_corr_, streamlist_);
+	    ResetStream(out_diff_patches_, streamlist_);
 
 	    // class
 	    clen = output_dim_ - class_boundary_.back();
@@ -285,10 +300,20 @@ class ClassAffineTransform : public UpdatableComponent {
 	    // linearity_corr_.AddMatMat(1.0, diff, kTrans, input, kNoTrans, mmt);
 	    // bias_corr_.AddRowSumMat(1.0, diff, mmt);
 
+	    SetStream(updateclass_linearity_corr_, streamlist_);
+	   	SetStream(out_diff_patches_, streamlist_);
+	    SetStream(input_patches_, streamlist_);
+	    SetStream(updateclass_bias_corr_, streamlist_);
+
 		AddMatMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_linearity_corr_, out_diff_patches_, kTrans,
 																input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
-		for (int32 i = 0; i < updateclass_bias_corr_.size(); i++)
-				updateclass_bias_corr_[i]->AddRowSumMat(1.0, *out_diff_patches_[i], mmt);
+		AddRowSumMatStreamed(1.0, updateclass_bias_corr_, out_diff_patches_, mmt);
+
+		ResetStream(updateclass_linearity_corr_, streamlist_);
+		ResetStream(out_diff_patches_, streamlist_);
+		ResetStream(input_patches_, streamlist_);
+		ResetStream(updateclass_bias_corr_, streamlist_);
+
   }
 
   void UpdateGradient()
@@ -296,8 +321,12 @@ class ClassAffineTransform : public UpdatableComponent {
 	    	// update
 	      //linearity_.AddMat(local_lrate, linearity_corr_);
 	      //bias_.AddVec(local_lrate_bias, bias_corr_);
+	  	  SetStream(updateclass_linearity_, streamlist_);
+	  	  SetStream(updateclass_bias_, streamlist_);
 	  	  AddMatStreamed(local_lrate, updateclass_linearity_, updateclass_linearity_corr_);
 	  	  AddVecStreamed(local_lrate_bias, updateclass_bias_, updateclass_bias_corr_);
+	  	  ResetStream(updateclass_bias_, streamlist_);
+	  	  ResetStream(updateclass_linearity_, streamlist_);
   }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
@@ -373,6 +402,13 @@ class ClassAffineTransform : public UpdatableComponent {
 		  class_bias_[i] = new CuSubVector<BaseFloat>(bias_.Range(class_boundary_[i], len));
 		  class_bias_corr_[i] = new CuSubVector<BaseFloat>(bias_corr_.Range(class_boundary_[i], len));
 	  }
+
+#if HAVE_CUDA == 1
+	  int32 num_class = class_boundary.size()-1;
+	  streamlist_.resize(num_class);
+	  for (i = 0; i < num_class; i++)
+		  cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
+#endif
   }
 
   void SetUpdateClassId(const std::vector<int32>& sortedclass_id, const std::vector<int32>& sortedclass_id_index, std::vector<int32> &sortedclass_id_reindex)
@@ -426,6 +462,10 @@ protected:
 
   BaseFloat local_lrate;
   BaseFloat local_lrate_bias;
+
+#if HAVE_CUDA == 1
+  std::vector<cudaStream_t > streamlist_;
+#endif
 
 };
 

@@ -94,6 +94,18 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 template<typename Real>
 Real MatSumStreamed(const std::vector<CuSubMatrix<Real>* > &vec);
 
+template<typename Real>
+void MulRowsVecStreamed(std::vector<CuSubMatrix<Real>* > &src,
+		const std::vector<CuSubVector<Real>* > &vec);
+
+template<typename Real>
+void CrossEntropyStreamed(std::vector<CuSubMatrix<Real>* > &xentropy,
+		const std::vector<CuSubMatrix<Real>* > &nnetout, const std::vector<CuSubMatrix<Real>* > &target);
+
+template<typename Real>
+void EntropyStreamed(std::vector<CuSubMatrix<Real>* > &entropy,
+		const std::vector<CuSubMatrix<Real>* > &mat);
+
 /**
  * Matrix for CUDA computing.
  * Does the computation on the CUDA card when CUDA is compiled in and

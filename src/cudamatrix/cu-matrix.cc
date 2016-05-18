@@ -2342,7 +2342,7 @@ void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 			//cublasSetStream(C[i]->GetLocalCublasHandle(), C[i]->GetLocalCudaStream());
 			cuda_add_mat(dimGrid, dimBlock, alpha, A[i]->Data(),
 						 C[i]->Data(), C[i]->Dim(), A[i]->Stride(),
-						 (transA == kTrans ? 1 : 0));
+						 (transA == kTrans ? 1 : 0), C[i]->GetLocalCudaStream());
 		}
 		CU_SAFE_CALL(cudaGetLastError());
 
@@ -2383,7 +2383,7 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 			size_t dimGrid = src[i]->NumRows();
 
 			//cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
-			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Stride());
+			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Stride(), des[i]->GetLocalCudaStream());
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
 
@@ -2618,7 +2618,7 @@ void CopyFromMatStreamed(const std::vector<CuSubMatrix<Real>* > &src,
 	  }
 	  CU_SAFE_CALL(cudaGetLastError());
 
-	  CuDevice::Instantiate().AccuProfile("CuMatrixBase::CopyFromMat(from other CuMatrixBase)", tim.Elapsed());
+	  CuDevice::Instantiate().AccuProfile("CuMatrixBase::CopyFromMatStreamed(from other CuMatrixBase)", tim.Elapsed());
   } else
 #endif
   {
@@ -2690,6 +2690,126 @@ float MatSumStreamed(const std::vector<CuSubMatrix<float>* > &src);
 
 template
 double MatSumStreamed(const std::vector<CuSubMatrix<double>* > &src);
+
+template<typename Real>
+void MulRowsVecStreamed(std::vector<CuSubMatrix<Real>* > &src,
+		const std::vector<CuSubVector<Real>* > &vec) {
+
+	  int32 size = src.size();
+
+	  if (size == 0) return;
+
+	  for (int32 i = 0; i < size; i++)
+		  KALDI_ASSERT(vec[i]->Dim() == src[i]->NumRows());
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+	  Timer tim;
+
+	  for (int32 i = 0; i < size; i++) {
+		  dim3 dimGrid, dimBlock;
+		  GetBlockSizesForSimpleMatrixOperation(src[i]->NumRows(), src[i]->NumCols(),
+												&dimGrid, &dimBlock);
+
+		  cuda_mul_rows_vec(dimGrid, dimBlock, src[i]->Data(), vec[i]->Data(), src[i]->Dim(), src[i]->GetLocalCudaStream());
+	  }
+	  CU_SAFE_CALL(cudaGetLastError());
+
+	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	} else
+#endif
+	{
+		for (int32 i = 0; i < size; i++) {
+			src[i]->Mat().MulRowsVec(vec[i]->Vec());
+		}
+	}
+}
+
+template
+void MulRowsVecStreamed(std::vector<CuSubMatrix<float>* > &src,
+		const std::vector<CuSubVector<float>* > &vec);
+
+template
+void MulRowsVecStreamed(std::vector<CuSubMatrix<double>* > &src,
+		const std::vector<CuSubVector<double>* > &vec);
+
+template<typename Real>
+void CrossEntropyStreamed(std::vector<CuSubMatrix<Real>* > &xentropy,
+		const std::vector<CuSubMatrix<Real>* > &nnetout, const std::vector<CuSubMatrix<Real>* > &target) {
+	  int32 size = src.size();
+
+	  if (size == 0) return;
+
+	  for (int32 i = 0; i < size; i++)
+	  {
+		  KALDI_ASSERT(xentropy[i]->NumRows() == nnetout[i]->NumRows() && xentropy[i]->NumCols() == nnetout[i]->NumCols());
+		  KALDI_ASSERT(xentropy[i]->NumRows() == target[i]->NumRows() && xentropy[i]->NumCols() == target[i]->NumCols());
+	  }
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+		  Timer tim;
+
+		  for (int32 i = 0; i < size; i++) {
+			  dim3 dimGrid, dimBlock;
+			  GetBlockSizesForSimpleMatrixOperation(xentropy[i]->NumRows(), xentropy[i]->NumCols(),
+													&dimGrid, &dimBlock);
+
+			  cuda_cross_entropy(dimGrid, dimBlock, xentropy[i]->Data(), nnetout[i]->Data(), target[i]->Data(),
+					  xentropy[i]->Dim(), nnetout[i]->Stride(), target[i]->Stride(), xentropy[i]->GetLocalCudaStream());
+		  }
+		  CU_SAFE_CALL(cudaGetLastError());
+
+		  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	} else
+#endif
+	{
+		// not implemented for CPU yet
+	}
+}
+
+void CrossEntropyStreamed(std::vector<CuSubMatrix<float>* > &xentropy,
+		const std::vector<CuSubMatrix<float>* > &nnetout, const std::vector<CuSubMatrix<float>* > &target);
+
+void CrossEntropyStreamed(std::vector<CuSubMatrix<double>* > &xentropy,
+		const std::vector<CuSubMatrix<double>* > &nnetout, const std::vector<CuSubMatrix<double>* > &target);
+
+template<typename Real>
+void EntropyStreamed(std::vector<CuSubMatrix<Real>* > &entropy, const std::vector<CuSubMatrix<Real>* > &mat) {
+	  int32 size = src.size();
+
+	  if (size == 0) return;
+
+	  for (int32 i = 0; i < size; i++)
+		  KALDI_ASSERT(entropy[i]->NumRows() == mat[i]->NumRows() && entropy[i]->NumCols() == mat[i]->NumCols());
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+		  Timer tim;
+
+		  for (int32 i = 0; i < size; i++) {
+			  dim3 dimGrid, dimBlock;
+			  GetBlockSizesForSimpleMatrixOperation(entropy[i]->NumRows(), entropy[i]->NumCols(),
+													&dimGrid, &dimBlock);
+
+			  cuda_entropy(dimGrid, dimBlock, entropy[i]->Data(), mat[i]->Data()
+					  entropy[i]->Dim(), mat[i]->Stride(), entropy[i]->GetLocalCudaStream());
+		  }
+		  CU_SAFE_CALL(cudaGetLastError());
+
+		  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	} else
+#endif
+	{
+		// not implemented for CPU yet
+	}
+}
+
+template
+void EntropyStreamed(std::vector<CuSubMatrix<float>* > &entropy, const std::vector<CuSubMatrix<float>* > &mat);
+
+template
+void EntropyStreamed(std::vector<CuSubMatrix<double>* > &entropy, const std::vector<CuSubMatrix<double>* > &mat);
 
 template<typename Real>
 void CuMatrixBase<Real>::CopyRowsFromVec(const CuVectorBase<Real> &v) {
