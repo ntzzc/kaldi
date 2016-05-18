@@ -167,7 +167,7 @@ inline void cuda_cross_entropy(dim3 Gr, dim3 Bl, float *xentropy, const float *n
   cudaF_cross_entropy(Gr,Bl,xentropy,nnetout,target,d,out_stride,tgt_stride,s);
 }
 inline void cuda_entropy(dim3 Gr, dim3 Bl, float *entropy, const float *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL) {
-  cudaF_entropy(Gr,Bl,entropy,mat,d,mat_stride,);
+  cudaF_entropy(Gr,Bl,entropy,mat,d,mat_stride,s);
 }
 inline void cuda_div_elements(dim3 Gr, dim3 Bl, float *mat, const float *A, MatrixDim dst_d, int src_stride) {
   cudaF_div_elements(Gr,Bl,mat,A,dst_d,src_stride);
@@ -180,7 +180,7 @@ inline void cuda_mul_rows_vec(dim3 Gr, dim3 Bl, float *mat, const float *scale, 
 inline void cuda_mul_rows_group_mat(dim3 Gr, dim3 Bl, float *y, const float *x, MatrixDim d, int src_stride, int group_size) { cudaF_mul_rows_group_mat(Gr, Bl, y, x, d, src_stride, group_size); }
 inline void cuda_calc_pnorm_deriv(dim3 Gr, dim3 Bl, float *y, const float *x1, const float *x2,  MatrixDim d, int src_stride, int group_size, float power) {cudaF_calc_pnorm_deriv(Gr, Bl, y, x1, x2, d, src_stride, group_size, power); }
 inline void cuda_calc_group_max_deriv(dim3 Gr, dim3 Bl, float *y, const float *x1, const float *x2,  MatrixDim d, int src_stride, int group_size) {cudaF_calc_group_max_deriv(Gr, Bl, y, x1, x2, d, src_stride, group_size); }
-inline void cuda_add_mat(dim3 Gr, dim3 Bl, float alpha, const float *src, float *dst, MatrixDim d, int src_stride, int A_trans, cudaStream_t s=NULL) { cudaF_add_mat(Gr,Bl,alpha,src,dst,d,src_stride, A_trans); }
+inline void cuda_add_mat(dim3 Gr, dim3 Bl, float alpha, const float *src, float *dst, MatrixDim d, int src_stride, int A_trans, cudaStream_t s=NULL) { cudaF_add_mat(Gr,Bl,alpha,src,dst,d,src_stride, A_trans,s); }
 
 inline void cuda_convolution_forward_expand_workspace(dim3 dimGrid, dim3 dimBlock, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
 		int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap)
@@ -469,7 +469,7 @@ inline void cuda_mul_elements(dim3 Gr, dim3 Bl, double *mat, const double *A, Ma
 inline void cuda_cross_entropy(dim3 Gr, dim3 Bl, double *xentropy, const double *nnetout, const double *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s=NULL) {
   cudaD_cross_entropy(Gr,Bl,xentropy,nnetout,target,d,out_stride,tgt_stride,s);
 }
-inline void cuda_entropy(dim3 Gr, dim3 Bl, float *entropy, const double *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL) {
+inline void cuda_entropy(dim3 Gr, dim3 Bl, double *entropy, const double *mat, MatrixDim d, int mat_stride, cudaStream_t s=NULL) {
   cudaD_entropy(Gr,Bl,entropy,mat,d,mat_stride,s);
 }
 inline void cuda_div_elements(dim3 Gr, dim3 Bl, double *mat, const double *A, MatrixDim dst_d, int src_stride) {
@@ -483,7 +483,7 @@ inline void cuda_mul_rows_vec(dim3 Gr, dim3 Bl, double *mat, const double *scale
 inline void cuda_mul_rows_group_mat(dim3 Gr, dim3 Bl, double *y, const double *x, MatrixDim d, int src_stride, int group_size) { cudaD_mul_rows_group_mat(Gr, Bl, y, x, d, src_stride, group_size); }
 inline void cuda_calc_pnorm_deriv(dim3 Gr, dim3 Bl, double *y, const double *x1, const double *x2,  MatrixDim d, int src_stride, int group_size, double power) {cudaD_calc_pnorm_deriv(Gr, Bl, y, x1, x2, d, src_stride, group_size, power); }
 inline void cuda_calc_group_max_deriv(dim3 Gr, dim3 Bl, double *y, const double *x1, const double *x2,  MatrixDim d, int src_stride, int group_size) {cudaD_calc_group_max_deriv(Gr, Bl, y, x1, x2, d, src_stride, group_size); }
-inline void cuda_add_mat(dim3 Gr, dim3 Bl, double alpha, const double *src, double *dst, MatrixDim d, int src_stride, int A_trans) { cudaD_add_mat(Gr,Bl,alpha,src,dst,d,src_stride, A_trans); }
+inline void cuda_add_mat(dim3 Gr, dim3 Bl, double alpha, const double *src, double *dst, MatrixDim d, int src_stride, int A_trans, cudaStream_t s=NULL) { cudaD_add_mat(Gr,Bl,alpha,src,dst,d,src_stride, A_trans, s); }
 
 inline void cuda_convolution_forward_expand_workspace(dim3 dimGrid, dim3 dimBlock, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
                 int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int filt_x_len_, int filt_y_len_, int filt_x_step_, int filt_y_step_, int connect_fmap)

@@ -2736,7 +2736,7 @@ void MulRowsVecStreamed(std::vector<CuSubMatrix<double>* > &src,
 template<typename Real>
 void CrossEntropyStreamed(std::vector<CuSubMatrix<Real>* > &xentropy,
 		const std::vector<CuSubMatrix<Real>* > &nnetout, const std::vector<CuSubMatrix<Real>* > &target) {
-	  int32 size = src.size();
+	  int32 size = xentropy.size();
 
 	  if (size == 0) return;
 
@@ -2768,15 +2768,17 @@ void CrossEntropyStreamed(std::vector<CuSubMatrix<Real>* > &xentropy,
 	}
 }
 
+template
 void CrossEntropyStreamed(std::vector<CuSubMatrix<float>* > &xentropy,
 		const std::vector<CuSubMatrix<float>* > &nnetout, const std::vector<CuSubMatrix<float>* > &target);
 
+template
 void CrossEntropyStreamed(std::vector<CuSubMatrix<double>* > &xentropy,
 		const std::vector<CuSubMatrix<double>* > &nnetout, const std::vector<CuSubMatrix<double>* > &target);
 
 template<typename Real>
 void EntropyStreamed(std::vector<CuSubMatrix<Real>* > &entropy, const std::vector<CuSubMatrix<Real>* > &mat) {
-	  int32 size = src.size();
+	  int32 size = entropy.size();
 
 	  if (size == 0) return;
 
@@ -2792,7 +2794,7 @@ void EntropyStreamed(std::vector<CuSubMatrix<Real>* > &entropy, const std::vecto
 			  GetBlockSizesForSimpleMatrixOperation(entropy[i]->NumRows(), entropy[i]->NumCols(),
 													&dimGrid, &dimBlock);
 
-			  cuda_entropy(dimGrid, dimBlock, entropy[i]->Data(), mat[i]->Data()
+			  cuda_entropy(dimGrid, dimBlock, entropy[i]->Data(), mat[i]->Data(),
 					  entropy[i]->Dim(), mat[i]->Stride(), entropy[i]->GetLocalCudaStream());
 		  }
 		  CU_SAFE_CALL(cudaGetLastError());

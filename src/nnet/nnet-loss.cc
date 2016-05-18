@@ -239,7 +239,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 	  KALDI_ASSERT(num_frames == target.size());
 
-	  if (net_out.NumRows() != num_frames)
+	  if (tgt_mat_.NumRows() != num_frames)
 	  {
 		  //hos_tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
 		  tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
@@ -309,13 +309,13 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  // call the other eval function,
 	  Eval();
     
-	  ResetStream(class_frame_weights_, streamlist_);
-	  ResetStream(class_target_sum_, streamlist_);
-	  ResetStream(class_target_, streamlist_);
-	  ResetStream(class_netout_, streamlist_);
-	  ResetStream(class_diff_, streamlist_);
-	  ResetStream(class_xentropy_aux_, streamlist_);
-	  ResetStream(class_entropy_aux_, streamlist_);
+	  ResetStream(class_frame_weights_);
+	  ResetStream(class_target_sum_);
+	  ResetStream(class_target_);
+	  ResetStream(class_netout_);
+	  ResetStream(class_diff_);
+	  ResetStream(class_xentropy_aux_);
+	  ResetStream(class_entropy_aux_);
 
       for (int p = 0; p < class_frame_weights_.size(); p++)
       {

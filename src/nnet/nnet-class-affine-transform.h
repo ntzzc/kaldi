@@ -212,10 +212,10 @@ class ClassAffineTransform : public UpdatableComponent {
     AddMatMatStreamed(static_cast<BaseFloat>(1.0f), output_patches_, input_patches_, kNoTrans,
     									updateclass_linearity_, kTrans, static_cast<BaseFloat>(1.0f));
 
-    ResetStream(input_patches_, streamlist_);
-    ResetStream(output_patches_, streamlist_);
-    ResetStream(updateclass_linearity_, streamlist_);
-    ResetStream(updateclass_bias_, streamlist_);
+    ResetStream(input_patches_);
+    ResetStream(output_patches_);
+    ResetStream(updateclass_linearity_);
+    ResetStream(updateclass_bias_);
 
     // class
     clen = output_dim_ - class_boundary_.back();
@@ -229,7 +229,7 @@ class ClassAffineTransform : public UpdatableComponent {
                         const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
     // multiply error derivative by weights
 	// in_diff->AddMatMat(1.0, out_diff, kNoTrans, linearity_, kNoTrans, 0.0);
-	
+
     for (int p = 0; p < in_diff_patches_.size(); p++)
     {
         delete in_diff_patches_[p];   
@@ -259,17 +259,16 @@ class ClassAffineTransform : public UpdatableComponent {
 	    		beg = i;
 	    	}
 	    }
-
 	    SetStream(in_diff_patches_, streamlist_);
-	   	SetStream(updateclass_linearity_corr_, streamlist_);
+	    SetStream(updateclass_linearity_, streamlist_);
 	    SetStream(out_diff_patches_, streamlist_);
 
 	    AddMatMatStreamed(static_cast<BaseFloat>(1.0f), in_diff_patches_, out_diff_patches_, kNoTrans,
 	    												updateclass_linearity_, kNoTrans, static_cast<BaseFloat>(0.0f));
 
-	    ResetStream(in_diff_patches_, streamlist_);
-	    ResetStream(updateclass_linearity_corr_, streamlist_);
-	    ResetStream(out_diff_patches_, streamlist_);
+	    ResetStream(in_diff_patches_);
+	    ResetStream(updateclass_linearity_);
+	    ResetStream(out_diff_patches_);
 
 	    // class
 	    clen = output_dim_ - class_boundary_.back();
@@ -279,8 +278,7 @@ class ClassAffineTransform : public UpdatableComponent {
         CuArray<int32> idx(sortedclass_id_reindex_);
 	    in_diff->CopyRows(input_diff_sorted_, idx);
 
-    delete out_diff_class;
-
+        delete out_diff_class;
   }
 
   void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff)
@@ -307,13 +305,12 @@ class ClassAffineTransform : public UpdatableComponent {
 
 		AddMatMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_linearity_corr_, out_diff_patches_, kTrans,
 																input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
-		AddRowSumMatStreamed(1.0, updateclass_bias_corr_, out_diff_patches_, mmt);
+		AddRowSumMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_bias_corr_, out_diff_patches_, mmt);
 
-		ResetStream(updateclass_linearity_corr_, streamlist_);
-		ResetStream(out_diff_patches_, streamlist_);
-		ResetStream(input_patches_, streamlist_);
-		ResetStream(updateclass_bias_corr_, streamlist_);
-
+		ResetStream(updateclass_linearity_corr_);
+		ResetStream(out_diff_patches_);
+		ResetStream(input_patches_);
+		ResetStream(updateclass_bias_corr_);
   }
 
   void UpdateGradient()
@@ -321,12 +318,13 @@ class ClassAffineTransform : public UpdatableComponent {
 	    	// update
 	      //linearity_.AddMat(local_lrate, linearity_corr_);
 	      //bias_.AddVec(local_lrate_bias, bias_corr_);
+
 	  	  SetStream(updateclass_linearity_, streamlist_);
 	  	  SetStream(updateclass_bias_, streamlist_);
 	  	  AddMatStreamed(local_lrate, updateclass_linearity_, updateclass_linearity_corr_);
 	  	  AddVecStreamed(local_lrate_bias, updateclass_bias_, updateclass_bias_corr_);
-	  	  ResetStream(updateclass_bias_, streamlist_);
-	  	  ResetStream(updateclass_linearity_, streamlist_);
+	  	  ResetStream(updateclass_bias_);
+	  	  ResetStream(updateclass_linearity_);
   }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
@@ -406,7 +404,7 @@ class ClassAffineTransform : public UpdatableComponent {
 #if HAVE_CUDA == 1
 	  int32 num_class = class_boundary.size()-1;
 	  streamlist_.resize(num_class);
-	  for (i = 0; i < num_class; i++)
+	  for (int i = 0; i < num_class; i++)
 		  cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
 #endif
   }

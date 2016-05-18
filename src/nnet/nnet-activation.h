@@ -101,8 +101,8 @@ class CBSoftmax : public Component {
     //for (int p = 0; p < input_patches_.size(); p++)
         //output_patches_[p]->ApplySoftMaxPerRow(*input_patches_[p]);
 
-	ResetStream(input_patches_, streamlist_);
-	ResetStream(output_patches_, streamlist_);
+	ResetStream(input_patches_);
+	ResetStream(output_patches_);
 
     for (int p = 0; p < input_patches_.size(); p++)
     {
@@ -149,10 +149,10 @@ class CBSoftmax : public Component {
 
     CopyFromMatStreamed(outdiff_patches_, indiff_patches_);
 
-	ResetStream(indiff_patches_, streamlist_);
-	ResetStream(outdiff_patches_, streamlist_);
+	ResetStream(indiff_patches_);
+	ResetStream(outdiff_patches_);
 
-    for (int p = 0; p < input_patches_.size(); p++)
+    for (int p = 0; p < indiff_patches_.size(); p++)
     {
         delete indiff_patches_[p];
         delete outdiff_patches_[p];
@@ -166,7 +166,7 @@ class CBSoftmax : public Component {
 #if HAVE_CUDA == 1
 	  int32 num_class = class_boundary.size()-1;
 	  streamlist_.resize(num_class);
-	  for (i = 0; i < num_class; i++)
+	  for (int i = 0; i < num_class; i++)
 		  cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
 #endif
   }
