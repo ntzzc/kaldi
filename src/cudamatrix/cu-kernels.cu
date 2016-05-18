@@ -2149,14 +2149,19 @@ static void _row_max_id(int32_cuda *vec_id, const Real *x, MatrixDim d)
   int THREADS = blockDim.x;
   if (j >= d.rows) return;
 
-  __shared__ int32_cuda aux[CU1DBLOCK];
+  __shared__ Real value[CU1DBLOCK];
+  __shared__ int32_cuda index[CU1DBLOCK];
   int steps = (d.cols - 1) / THREADS + 1;
 
   //copy input to aux
-  aux[threadIdx.x] = threadIdx.x;
+  value[threadIdx.x] = x[threadIdx.x+j*d.stride];
+  index[threadIdx.x] = threadIdx.x;
   for(int i=1; i<steps; ++i) {
-    if(threadIdx.x+i*THREADS < d.cols && x[aux[threadIdx.x]] < x[threadIdx.x+i*THREADS+j*d.stride])
-	aux[threadIdx.x] = threadIdx.x+i*THREADS+j*d.stride;
+    if(threadIdx.x+i*THREADS < d.cols && value[threadIdx.x] < x[threadIdx.x+i*THREADS+j*d.stride])
+    {
+        value[threadIdx.x] = x[threadIdx.x+i*THREADS+j*d.stride];
+	    index[threadIdx.x] = threadIdx.x+i*THREADS;
+    }
   }
  
   int nTotalThreads = THREADS;
@@ -2166,15 +2171,18 @@ static void _row_max_id(int32_cuda *vec_id, const Real *x, MatrixDim d)
     // only the first half of the threads will be active.
     if (threadIdx.x < halfPoint)  {
       // Get the shared value stored by another thread
-      if(threadIdx.x+halfPoint < nTotalThreads && x[aux[threadIdx.x]] < x[aux[threadIdx.x+halfPoint]])
-        aux[threadIdx.x] = aux[threadIdx.x + halfPoint];
+      if(threadIdx.x+halfPoint < nTotalThreads && value[threadIdx.x] < value[threadIdx.x+halfPoint])
+      {
+        value[threadIdx.x] = value[threadIdx.x + halfPoint];
+        index[threadIdx.x] = index[threadIdx.x + halfPoint];
+      }
     }
     __syncthreads();
     nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
   }
   
   __syncthreads();
-  vec_id[j] = aux[0];
+  vec_id[j] = index[0];
   
 }
 

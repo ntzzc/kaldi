@@ -374,6 +374,7 @@ void CBXent::Eval() {
 
   // get the number of frames after the masking,
   num_frames = VecSumStreamed(class_target_sum_);
+  num_frames /= 2;
 
   // compute derivative wrt. activations of last layer of neurons,
   CopyFromMatStreamed(class_netout_, class_diff_);
