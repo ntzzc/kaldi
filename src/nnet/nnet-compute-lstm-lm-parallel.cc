@@ -230,7 +230,7 @@ private:
 	    	}
 	    }
 	    else
-	    	gpuid = CuDevice::Instantiate().SelectGpu();
+	    	CuDevice::Instantiate().SelectGpu();
 
 	    //CuDevice::Instantiate().DisableCaching();
 	#endif

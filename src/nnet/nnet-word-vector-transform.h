@@ -84,13 +84,6 @@ class WordVectorTransform : public UpdatableComponent {
     }
     wordvector_ = mat;
 
-#if HAVE_CUDA == 1
-	  int32 num_word = wordvector_.NumRows();
-	  streamlist_.resize(num_word);
-	  for (int i = 0; i < num_word; i++)
-		  cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
-#endif
-
   }
 
   void ReadData(std::istream &is, bool binary) {
@@ -106,6 +99,7 @@ class WordVectorTransform : public UpdatableComponent {
 
     KALDI_ASSERT(wordvector_.NumRows() == vocab_size_);
     KALDI_ASSERT(wordvector_.NumCols() == output_dim_);
+
   }
 
   void WriteData(std::ostream &os, bool binary) const {
@@ -162,20 +156,31 @@ class WordVectorTransform : public UpdatableComponent {
 
 	    // compute gradient (incl. momentum)
 
+
+		for (int p = 0; p < diff_patches_.size(); p++)
+    		{
+        		delete diff_patches_[p];   
+        		delete update_wordvector_patches_[p];  
+    		}
+		
+		// sort word vector error
 		wordvector_corr_.Resize(diff.NumRows(), diff.NumCols(), kUndefined);
 		CuArray<int32> idx(sortedword_id_index_);
 		wordvector_corr_.CopyRows(diff, idx);
+		
+		diff_patches_.clear();
+		update_wordvector_patches_.clear();
 
 	  	int size = sortedword_id_.size();
-	  	int beg = 0, wordid = -1;
+	  	int beg = 0, wordid = 0;
 
-	  	for (int i = 0; i < size; i++)
+	  	for (int i = 1; i <= size; i++)
 	  	{
-	  		if (sortedword_id_[i] != wordid)
+	  		if (i == size || sortedword_id_[i] != sortedword_id_[i-1])
 	  		{
-	  			wordid = sortedword_id_[i];
+	  			wordid = sortedword_id_[i-1];
 	  			diff_patches_.push_back(new CuSubMatrix<BaseFloat>(wordvector_corr_.RowRange(beg, i-beg)));
-	  			update_wordvector_patches_.push_back(wordvector_.Row(wordid));
+	  			update_wordvector_patches_.push_back(new CuSubVector<BaseFloat>(wordvector_.Row(wordid)));
 	  			beg = i;
 	  		}
 	  	}
@@ -184,9 +189,9 @@ class WordVectorTransform : public UpdatableComponent {
   void UpdateGradient()
   {
 	    // update
-	  	  SetStream(update_wordvector_patches_, streamlist_);
-	  	  AddRowSumMatStreamed(static_cast<BaseFloat>(1.0f), update_wordvector_patches_, diff_patches_, local_lrate);
-	  	  ResetStream(update_wordvector_patches_);
+	  	SetStream(update_wordvector_patches_, streamlist_);
+	  	AddRowSumMatStreamed(local_lrate, update_wordvector_patches_, diff_patches_, static_cast<BaseFloat>(1.0f));
+	  	ResetStream(update_wordvector_patches_);
 	  	//wordvector_.AddMatToRows(local_lrate, wordvector_corr_, wordid_);
   }
 
@@ -208,6 +213,17 @@ class WordVectorTransform : public UpdatableComponent {
   {
 	  sortedword_id_ = sorted_id;
 	  sortedword_id_index_ = sorted_id_index;
+
+#if HAVE_CUDA == 1
+	  int size = sortedword_id_.size();
+	  if (size > streamlist_.size())
+	  {
+	  	streamlist_.resize(size);
+	  	for (int i = 0; i < size; i++)
+		  	cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
+	  }
+#endif
+
   }
 
   const CuMatrixBase<BaseFloat>& GetLinearity() const {
