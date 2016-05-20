@@ -62,6 +62,7 @@ struct NnetLstmLmUpdateOptions : public NnetLstmUpdateOptions {
 struct NnetLmStats: NnetStats {
 
     CBXent cbxent;
+    Xent xent;
 
     NnetLmStats() { }
 
@@ -83,6 +84,9 @@ struct NnetLmStats: NnetStats {
         MPI_Reduce(addr, (void*)(&this->num_other_error), 1, MPI_INT, MPI_SUM, root, MPI_COMM_WORLD);
 
         if (opts->objective_function == "xent") {
+                        xent.Merge(myid, 0);
+        }
+        else if (opts->objective_function == "cbxent") {
                         cbxent.Merge(myid, 0);
         }
         else {
@@ -102,6 +106,9 @@ struct NnetLmStats: NnetStats {
                   << "]";
 
         if (opts->objective_function == "xent") {
+                KALDI_LOG << xent.Report();
+        }
+        else if (opts->objective_function == "cbxent") {
                 KALDI_LOG << cbxent.Report();
         }
         else {

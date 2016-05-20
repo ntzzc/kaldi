@@ -137,6 +137,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
                     << static_cast<int>(frames_progress_/100/3600) << "h of " 
                     << static_cast<int>(frames_/100/3600) << "h]: " 
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
+                    << exp((loss_progress_-entropy_progress_)/frames_progress_) << " (PPL) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store
       loss_vec_.push_back((loss_progress_-entropy_progress_)/frames_progress_);
@@ -408,6 +409,7 @@ void CBXent::Eval() {
 std::string CBXent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
+      << "Perplexity: " << exp((loss_-entropy_)/frames_) << " (PPL), "
       << "[AvgXent " << loss_/frames_
       << ", AvgTargetEnt " << entropy_/frames_
       << ", frames " << frames_ << "]" << std::endl;

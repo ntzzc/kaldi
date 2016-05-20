@@ -74,12 +74,12 @@ private:
 
     static bool compare_classid(const Word &a, const Word &b)
     {
-    	return a.classid < b.classid;
+    	return a.classid <= b.classid;
     }
 
     static bool compare_wordid(const Word &a, const Word &b)
     {
-    	return a.wordid < b.wordid;
+    	return a.wordid <= b.wordid;
     }
 
     void SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
@@ -247,6 +247,18 @@ private:
 
 	    nnet.SetTrainOptions(*trn_opts);
 
+	    ClassAffineTransform *class_affine == NULL;
+	    WordVectorTransform *word_transf == NULL;
+	    CBSoftmax *cb_softmax == NULL;
+	    for (int32 c=0; c < nnet.NumComponents(); c++)
+	    {
+	    	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
+	    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
+	    	else if (nnet.GetComponent(c).GetType() == Component::kWordVectorTransform)
+	    		word_transf = &(dynamic_cast<WordVectorTransform&>(nnet.GetComponent(c)));
+	    	else if (nnet.GetComponent(c).GetType() == Component::kCBSoftmax)
+	    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
+	    }
 
 	    if (classboundary_file != "")
 	    {
@@ -257,21 +269,6 @@ private:
 		    in.Close();
 		    SetClassBoundary(classinfo);
 	    }
-
-	    ClassAffineTransform *class_affine;
-	    WordVectorTransform *word_transf;
-	    CBSoftmax *cb_softmax;
-	    for (int32 c=0; c < nnet.NumComponents(); c++)
-	    {
-	    	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
-	    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
-	    	else if (nnet.GetComponent(c).GetType() == Component::kWordVectorTransform)
-	    		word_transf = &(dynamic_cast<WordVectorTransform&>(nnet.GetComponent(c)));
-	    	else if (nnet.GetComponent(c).GetType() == Component::kCBSoftmax)
-	    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
-	    }
-	    class_affine->SetClassBoundary(class_boundary_);
-	    cb_softmax->SetClassBoundary(class_boundary_);
 
 	    if (opts->dropout_retention > 0.0) {
 	      nnet_transf.SetDropoutRetention(opts->dropout_retention);
@@ -296,9 +293,15 @@ private:
 	    VectorRandomizer weights_randomizer(*rnd_opts);
 
 	    CBXent cbxent;
+        Xent xent;
 	    Mse mse;
 
-	    cbxent.SetClassBoundary(class_boundary_);
+        if (NULL != class_affine)
+        {
+	        class_affine->SetClassBoundary(class_boundary_);
+	        cb_softmax->SetClassBoundary(class_boundary_);
+	        cbxent.SetClassBoundary(class_boundary_);
+        }
 
 		CuMatrix<BaseFloat> feats_transf, nnet_out, nnet_diff;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
@@ -418,6 +421,8 @@ private:
 	        // for streams with new utterance, history states need to be reset
 	        nnet.ResetLstmStreams(new_utt_flags);
 
+        if (NULL != class_affine)
+        {
 	        // sort output class id
 	        SortUpdateClass(target, sorted_target, sortedclass_target,
 	        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask);
@@ -427,6 +432,7 @@ private:
 	        // sort input word id
 	        SortUpdateWord(feat, sortedword_id, sortedword_id_index);
 	        word_transf->SetUpdateWordId(sortedword_id, sortedword_id_index);
+        }
 
 	        // forward pass
 	        CuMatrix<BaseFloat> words(feat.Dim(), 1);
@@ -436,6 +442,8 @@ private:
 
 	        // evaluate objective function we've chosen
 	        if (objective_function == "xent") {
+	        	xent.Eval(frame_mask, nnet_out, target, &nnet_diff);
+	        } else if (objective_function == "cbxent") {
 	        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff);
 	        } else {
 	            KALDI_ERR << "Unknown objective function code : " << objective_function;
@@ -532,6 +540,9 @@ private:
 		stats_->num_done += num_done;
 
 		if (objective_function == "xent"){
+			//KALDI_LOG << xent.Report();
+			stats_->xent.Add(&xent);
+		 }else if (objective_function == "cbxent"){
 			//KALDI_LOG << xent.Report();
 			stats_->cbxent.Add(&cbxent);
 		 }else if (objective_function == "mse"){

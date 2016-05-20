@@ -50,7 +50,7 @@ struct NnetLstmUpdateOptions : public NnetUpdateOptions {
     //lstm
 
     NnetLstmUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), targets_delay(5), batch_size(20), num_stream(4), dump_interval(0) { }
+    	: NnetUpdateOptions(trn_opts, rnd_opts, parallel_opts), targets_delay(0), batch_size(20), num_stream(4), dump_interval(0) { }
 
   	  void Register(OptionsItf *po)
   	  {
