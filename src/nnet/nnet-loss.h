@@ -74,6 +74,12 @@ class Xent : public LossItf {
             const Posterior &target,
             CuMatrix<BaseFloat> *diff);
   
+  /// Evaluate cross entropy using target-posteriors (supports soft labels),
+   void Eval(const VectorBase<BaseFloat> &frame_weights,
+             const CuMatrixBase<BaseFloat> &net_out,
+             const std::vector<int32> &target,
+             CuMatrix<BaseFloat> *diff);
+
   /// Generate string with error report,
   std::string Report();
 

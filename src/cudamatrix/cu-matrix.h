@@ -471,6 +471,8 @@ class CuMatrixBase {
   void AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
 		  	  	  const CuArray<MatrixIndexT> &indexes);
 
+  void GenTarget(const CuArray<int32> &target);
+
   /////////////////////////////////////////////////////
   /////  CTC Training
   /////////////////////////////////////////////////////

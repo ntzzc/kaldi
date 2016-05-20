@@ -166,6 +166,23 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   Eval(frame_weights, net_out, tgt_mat_, diff);
 }
 
+/// Evaluate cross entropy using target-posteriors (supports soft labels),
+ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
+           const CuMatrixBase<BaseFloat> &net_out,
+           const std::vector<int32> &target,
+           CuMatrix<BaseFloat> *diff)
+ {
+	  int32 num_frames = net_out.NumRows(),
+			  num_pdf = net_out.NumCols();
+	  KALDI_ASSERT(num_frames == target.size());
+
+	  CuArray<int32> target_vec(target);
+	  tgt_mat_.GenTarget(target_vec);
+
+	  // call the other eval function,
+	  Eval(frame_weights, net_out, tgt_mat_, diff);
+ }
+
 std::string Xent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "

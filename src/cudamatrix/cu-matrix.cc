@@ -1080,6 +1080,32 @@ void CuMatrixBase<Real>::AddMatToRows(Real alpha, const CuMatrixBase<Real> &A,
   }
 }
 
+template<typename Real>
+void CuMatrixBase<Real>::GenTarget(const CuArray<int32> &target)
+{
+	KALDI_ASSERT(NumRows() == target.Dim());
+
+#if HAVE_CUDA == 1
+	  if (CuDevice::Instantiate().Enabled()) {
+	    Timer tim;
+	        dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+	        dim3 dimGrid(n_blocks(NumCols(), CU2DBLOCK),
+	                     n_blocks(NumRows(), CU2DBLOCK));
+
+	        cuda_gen_tgt(dimGrid, dimBlock, Data(),
+	        					target.Data(), Dim());
+
+	    CU_SAFE_CALL(cudaGetLastError());
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	  } else
+#endif
+	  {
+		  	  Mat().SetZero();
+			  for (int32 j = 0; j < NumRows(); j++) {
+				  Mat()(j, target.Data()[j]) = 1.0;
+			  }
+	  }
+}
 
 template<typename Real>
 void CuMatrixBase<Real>::ComputeCtcAlpha(const CuMatrixBase<Real> &prob,
