@@ -188,6 +188,7 @@ std::string Xent::Report() {
 void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 {
 		class_boundary_ = class_boundary;
+
 		int32 num_class = class_boundary.size()-1;
         word2class_.resize(class_boundary[num_class]);
 		int i,j = 0;
@@ -200,8 +201,8 @@ void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 		}
 
 #if HAVE_CUDA == 1
-		streamlist_.resize(num_class);
-		for (i = 0; i < num_class; i++)
+		streamlist_.resize(num_class+1);
+		for (i = 0; i < num_class+1; i++)
 			cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
 #endif
 }

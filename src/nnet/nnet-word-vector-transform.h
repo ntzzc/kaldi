@@ -84,6 +84,13 @@ class WordVectorTransform : public UpdatableComponent {
     }
     wordvector_ = mat;
 
+#if HAVE_CUDA == 1
+	  int32 num_word = wordvector_.NumRows();
+	  streamlist_.resize(num_word);
+	  for (int i = 0; i < num_word; i++)
+		  cudaStreamCreateWithFlags(&streamlist_[i], cudaStreamNonBlocking);
+#endif
+
   }
 
   void ReadData(std::istream &is, bool binary) {
@@ -154,13 +161,33 @@ class WordVectorTransform : public UpdatableComponent {
 		local_lrate = -lr;
 
 	    // compute gradient (incl. momentum)
-		wordvector_corr_ = diff;
+
+		wordvector_corr_.Resize(diff.NumRows(), diff.NumCols(), kUndefined);
+		CuArray<int32> idx(sortedword_id_index_);
+		wordvector_corr_.CopyRows(diff, idx);
+
+	  	int size = sortedword_id_.size();
+	  	int beg = 0, wordid = -1;
+
+	  	for (int i = 0; i < size; i++)
+	  	{
+	  		if (sortedword_id_[i] != wordid)
+	  		{
+	  			wordid = sortedword_id_[i];
+	  			diff_patches_.push_back(new CuSubMatrix<BaseFloat>(wordvector_corr_.RowRange(beg, i-beg)));
+	  			update_wordvector_patches_.push_back(wordvector_.Row(wordid));
+	  			beg = i;
+	  		}
+	  	}
   }
 
   void UpdateGradient()
   {
 	    // update
-	  	wordvector_.AddMatToRows(local_lrate, wordvector_corr_, wordid_);
+	  	  SetStream(update_wordvector_patches_, streamlist_);
+	  	  AddRowSumMatStreamed(static_cast<BaseFloat>(1.0f), update_wordvector_patches_, diff_patches_, local_lrate);
+	  	  ResetStream(update_wordvector_patches_);
+	  	//wordvector_.AddMatToRows(local_lrate, wordvector_corr_, wordid_);
   }
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
@@ -175,6 +202,12 @@ class WordVectorTransform : public UpdatableComponent {
 
     wordvector_corr_ = diff;
     wordvector_.AddMatToRows(lr, wordvector_corr_, wordid_);
+  }
+
+  void SetUpdateWordId(const std::vector<int32>& sorted_id, const std::vector<int32>& sorted_id_index)
+  {
+	  sortedword_id_ = sorted_id;
+	  sortedword_id_index_ = sorted_id_index;
   }
 
   const CuMatrixBase<BaseFloat>& GetLinearity() const {
@@ -205,6 +238,14 @@ protected:
 
   int32 vocab_size_;
 
+  std::vector<int32> sortedword_id_;
+  std::vector<int32> sortedword_id_index_;
+  std::vector<CuSubVector<BaseFloat>* > update_wordvector_patches_;
+  std::vector<CuSubMatrix<BaseFloat>* > diff_patches_;
+
+#if HAVE_CUDA == 1
+  std::vector<cudaStream_t > streamlist_;
+#endif
 };
 
 } // namespace nnet1

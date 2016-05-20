@@ -74,7 +74,12 @@ private:
 
     static bool compare_classid(const Word &a, const Word &b)
     {
-  	  return a.classid < b.classid;
+    	return a.classid < b.classid;
+    }
+
+    static bool compare_wordid(const Word &a, const Word &b)
+    {
+    	return a.wordid < b.wordid;
     }
 
     void SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
@@ -105,6 +110,30 @@ private:
 			sortedclass_id_index[i] = words[i].idx;
 			sortedclass_id_reindex[words[i].idx] = i;
 			sorted_frame_mask(i) = frame_mask(words[i].idx);
+		}
+    }
+
+    void SortUpdateWord(const Vector<BaseFloat>& update_id,
+    		std::vector<int32>& sortedword_id, std::vector<int32>& sortedword_id_index)
+    {
+    	int size = update_id.Dim();
+		std::vector<Word> words(size);
+
+		for (int i = 0; i < size; i++)
+		{
+			words[i].idx = i;
+			words[i].wordid = (int32)update_id(i);
+			words[i].classid = this->word2class_[(int32)update_id(i)];
+		}
+
+		std::sort(words.begin(), words.end(), compare_wordid);
+		sortedword_id.resize(size);
+		sortedword_id_index.resize(size);
+
+		for (int i = 0; i < size; i++)
+		{
+			sortedword_id[i] = words[i].wordid;
+			sortedword_id_index[i] = words[i].idx;
 		}
     }
 
@@ -183,7 +212,6 @@ private:
 	void operator ()()
 	{
 
-		int gpuid;
 		int thread_idx = this->thread_id_;
 
 		model_sync->LockModel();
@@ -194,7 +222,7 @@ private:
 	    {
 	    	//thread_idx = model_sync->GetThreadIdx();
 	    	KALDI_LOG << "MyId: " << parallel_opts->myid << "  ThreadId: " << thread_idx;
-	    	gpuid = CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
+	    	CuDevice::Instantiate().MPISelectGpu(model_sync->gpuinfo_, model_sync->win, thread_idx, this->num_threads);
 	    	for (int i = 0; i< this->num_threads*parallel_opts->num_procs; i++)
 	    	{
 	    		KALDI_LOG << model_sync->gpuinfo_[i].hostname << "  myid: " << model_sync->gpuinfo_[i].myid
@@ -303,6 +331,8 @@ private:
 	    std::vector<int32> sortedclass_target(batch_size * num_stream, kSetZero);
 	    std::vector<int32> sortedclass_target_index(batch_size * num_stream, kSetZero);
 	    std::vector<int32> sortedclass_target_reindex(batch_size * num_stream, kSetZero);
+	    std::vector<int32> sortedword_id(batch_size * num_stream, kSetZero);
+	    std::vector<int32> sortedword_id_index(batch_size * num_stream, kSetZero);
 
 	    LmNnetExample *example;
 	    Timer time;
@@ -366,6 +396,7 @@ private:
 	                    feat(t * num_stream + s) = feats[s][curt[s]];
 	                } else {
 	                    feat(t * num_stream + s) = feats[s][lent[s]-1];
+
 	                }
 
 	                curt[s]++;
@@ -387,10 +418,15 @@ private:
 	        // for streams with new utterance, history states need to be reset
 	        nnet.ResetLstmStreams(new_utt_flags);
 
+	        // sort output class id
 	        SortUpdateClass(target, sorted_target, sortedclass_target,
 	        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask);
 	        class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
 	        cb_softmax->SetUpdateClassId(sortedclass_target);
+
+	        // sort input word id
+	        SortUpdateWord(feat, sortedword_id, sortedword_id_index);
+	        word_transf->SetUpdateWordId(sortedword_id, sortedword_id_index);
 
 	        // forward pass
 	        CuMatrix<BaseFloat> words(feat.Dim(), 1);
