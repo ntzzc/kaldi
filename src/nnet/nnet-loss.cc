@@ -170,13 +170,13 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
  void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
            const CuMatrixBase<BaseFloat> &net_out,
            const std::vector<int32> &target,
-           CuMatrix<BaseFloat> *diff)
- {
+           CuMatrix<BaseFloat> *diff) {
 	  int32 num_frames = net_out.NumRows(),
 			  num_pdf = net_out.NumCols();
 	  KALDI_ASSERT(num_frames == target.size());
 
 	  CuArray<int32> target_vec(target);
+      tgt_mat_.Resize(num_frames, num_pdf, kUndefined);
 	  tgt_mat_.GenTarget(target_vec);
 
 	  // call the other eval function,
@@ -186,6 +186,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
 std::string Xent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
+      << "Perplexity: " << exp((loss_-entropy_)/frames_) << " (PPL), "
       << "[AvgXent " << loss_/frames_ 
       << ", AvgTargetEnt " << entropy_/frames_ 
       << ", frames " << frames_ << "]" << std::endl;
@@ -411,6 +412,7 @@ void CBXent::Eval() {
                     << static_cast<int>(frames_progress_/100/3600) << "(1h words) of "
                     << static_cast<int>(frames_/100/3600) << "(1h words)]: "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
+                    << exp((loss_progress_-entropy_progress_)/frames_progress_) << " (PPL) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store
       loss_vec_.push_back((loss_progress_-entropy_progress_)/frames_progress_);

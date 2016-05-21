@@ -74,12 +74,12 @@ private:
 
     static bool compare_classid(const Word &a, const Word &b)
     {
-    	return a.classid <= b.classid;
+    	return a.classid < b.classid;
     }
 
     static bool compare_wordid(const Word &a, const Word &b)
     {
-    	return a.wordid <= b.wordid;
+    	return a.wordid < b.wordid;
     }
 
     void SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
@@ -123,7 +123,7 @@ private:
 		{
 			words[i].idx = i;
 			words[i].wordid = (int32)update_id(i);
-			words[i].classid = this->word2class_[(int32)update_id(i)];
+			words[i].classid = (int32)update_id(i);
 		}
 
 		std::sort(words.begin(), words.end(), compare_wordid);
@@ -247,9 +247,9 @@ private:
 
 	    nnet.SetTrainOptions(*trn_opts);
 
-	    ClassAffineTransform *class_affine == NULL;
-	    WordVectorTransform *word_transf == NULL;
-	    CBSoftmax *cb_softmax == NULL;
+	    ClassAffineTransform *class_affine = NULL;
+	    WordVectorTransform *word_transf = NULL;
+	    CBSoftmax *cb_softmax = NULL;
 	    for (int32 c=0; c < nnet.NumComponents(); c++)
 	    {
 	    	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
@@ -428,11 +428,11 @@ private:
 	        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask);
 	        class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
 	        cb_softmax->SetUpdateClassId(sortedclass_target);
+        }
 
 	        // sort input word id
 	        SortUpdateWord(feat, sortedword_id, sortedword_id_index);
 	        word_transf->SetUpdateWordId(sortedword_id, sortedword_id_index);
-        }
 
 	        // forward pass
 	        CuMatrix<BaseFloat> words(feat.Dim(), 1);
