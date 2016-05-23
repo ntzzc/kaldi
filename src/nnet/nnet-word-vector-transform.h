@@ -134,6 +134,8 @@ class WordVectorTransform : public UpdatableComponent {
 	CuMatrix<BaseFloat> tmp(1, in.NumRows());
 	tmp.CopyFromMat(in, kTrans);
 	tmp.CopyRowToVecId(wordid_);
+    //std::vector<int32> host(wordid_.Dim());
+    //wordid_.CopyToVec(&host);
 	out->CopyRows(wordvector_, wordid_);
   }
 

@@ -250,7 +250,7 @@ private:
 	    ClassAffineTransform *class_affine = NULL;
 	    WordVectorTransform *word_transf = NULL;
 	    CBSoftmax *cb_softmax = NULL;
-	    for (int32 c=0; c < nnet.NumComponents(); c++)
+	    for (int32 c = 0; c < nnet.NumComponents(); c++)
 	    {
 	    	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
 	    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
@@ -329,6 +329,8 @@ private:
 	    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
 	    Vector<BaseFloat> sorted_frame_mask(batch_size * num_stream, kSetZero);
 	    Vector<BaseFloat> feat(batch_size * num_stream, kSetZero);
+        Matrix<BaseFloat> featmat(batch_size * num_stream, 1, kSetZero);
+        CuMatrix<BaseFloat> words(batch_size * num_stream, 1, kSetZero);
 	    std::vector<int32> target(batch_size * num_stream, kSetZero);
 	    std::vector<int32> sorted_target(batch_size * num_stream, kSetZero);
 	    std::vector<int32> sortedclass_target(batch_size * num_stream, kSetZero);
@@ -435,8 +437,8 @@ private:
 	        word_transf->SetUpdateWordId(sortedword_id, sortedword_id_index);
 
 	        // forward pass
-	        CuMatrix<BaseFloat> words(feat.Dim(), 1);
-	        words.CopyColFromVec(CuVector<BaseFloat>(feat), 0);
+	        featmat.CopyColFromVec(feat, 0);
+            words.CopyFromMat(featmat);
 
 	        nnet.Propagate(words, &nnet_out);
 

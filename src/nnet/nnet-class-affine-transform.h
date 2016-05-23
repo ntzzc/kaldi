@@ -287,10 +287,10 @@ class ClassAffineTransform : public UpdatableComponent {
 	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
 	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
 	    const BaseFloat mmt = opts_.momentum;
-	    //const BaseFloat l2 = opts_.l2_penalty;
+	    const BaseFloat l2 = opts_.l2_penalty;
 	    //const BaseFloat l1 = opts_.l1_penalty;
 	    // we will also need the number of frames in the mini-batch
-	    //const int32 num_frames = input.NumRows();
+	    const int32 num_frames = input.NumRows();
 		local_lrate = -lr;
 		local_lrate_bias = -lr_bias;
 
@@ -302,15 +302,22 @@ class ClassAffineTransform : public UpdatableComponent {
 	   	SetStream(out_diff_patches_, streamlist_);
 	    SetStream(input_patches_, streamlist_);
 	    SetStream(updateclass_bias_corr_, streamlist_);
+	    SetStream(updateclass_linearity_, streamlist_);
 
 		AddMatMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_linearity_corr_, out_diff_patches_, kTrans,
 																input_patches_, kNoTrans, static_cast<BaseFloat>(mmt));
 		AddRowSumMatStreamed(static_cast<BaseFloat>(1.0f), updateclass_bias_corr_, out_diff_patches_, mmt);
 
+        // l2 regularization
+        if (l2 != 0.0) {
+            AddMatStreamed(-lr*l2*num_frames, updateclass_linearity_, updateclass_linearity_);
+        }
+
 		ResetStream(updateclass_linearity_corr_);
 		ResetStream(out_diff_patches_);
 		ResetStream(input_patches_);
 		ResetStream(updateclass_bias_corr_);
+	    ResetStream(updateclass_linearity_);
   }
 
   void UpdateGradient()
