@@ -399,6 +399,7 @@ void CBXent::Eval() {
   entropy_ += entropy;
   correct_ += correct;
   frames_ += num_frames;
+  ppl_ = exp(loss_/frames_);
 
   // progressive loss reporting
   {
@@ -407,12 +408,13 @@ void CBXent::Eval() {
     loss_progress_ += cross_entropy;
     entropy_progress_ += entropy;
     correct_progress_ += correct;
+    ppl_progress_ = exp(loss_progress_/frames_progress_);
     if (frames_progress_ > progress_step) {
       KALDI_VLOG(1) << "ProgressLoss[last "
                     << static_cast<int>(frames_progress_/100/3600) << "(1h words) of "
                     << static_cast<int>(frames_/100/3600) << "(1h words)]: "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
-                    << exp((loss_progress_-entropy_progress_)/frames_progress_) << " (PPL) "
+                    << ppl_progress_ << " (PPL) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store
       loss_vec_.push_back((loss_progress_-entropy_progress_)/frames_progress_);
@@ -428,7 +430,7 @@ void CBXent::Eval() {
 std::string CBXent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
-      << "Perplexity: " << exp((loss_-entropy_)/frames_) << " (PPL), "
+      << "Perplexity: " << ppl_ << " (PPL), "
       << "[AvgXent " << loss_/frames_
       << ", AvgTargetEnt " << entropy_/frames_
       << ", frames " << frames_ << "]" << std::endl;
@@ -438,7 +440,7 @@ std::string CBXent::Report() {
      oss << "]" << std::endl;
   }
   if (correct_ >= 0.0) {
-    oss << "FRAME_ACCURACY >> " << 100.0*correct_/frames_ << "% <<" << std::endl;
+    oss << "PPL >> " << ppl_ << " <<" << std::endl;
   }
   return oss.str();
 }
@@ -450,11 +452,13 @@ void CBXent::Add(CBXent *xent)
 	  this->correct_ += xent->correct_;
 	  this->loss_ += xent->loss_;
 	  this->entropy_ += xent->entropy_;
+	  this->ppl_ = exp(loss_/frames_);
 
 	  // partial results during training
 	  frames_progress_ += xent->frames_progress_;
 	  loss_progress_ += xent->loss_progress_;
 	  entropy_progress_+= xent->entropy_progress_;
+	  ppl_progress_ = exp(loss_progress_/frames_progress_);
 
 	  for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
 		  this->loss_vec_[i] += xent->loss_vec_[i];
@@ -477,6 +481,8 @@ void CBXent::Merge(int myid, int root)
 
 	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->entropy_));
 	MPI_Reduce(addr, (void*)(&this->entropy_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+
+	this->ppl_ = exp(loss_/frames_);
 }
 
 /* Mse */

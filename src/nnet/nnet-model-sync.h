@@ -45,14 +45,14 @@ struct NnetParallelOptions{
 
 	NnetParallelOptions():
 									 num_threads(1),
-									 merge_size(40000),
+									 merge_size(120000),
 									 num_merge(0),
 									 num_procs(-1),
 									 myid(0),
 									 thread_level(0),
 									 global_momentum(-1.0),
 									 asgd_lock(true),
-									 merge_func("globalada"),
+									 merge_func("globalgradient"),
 									 log_file("")
 									 { }
 

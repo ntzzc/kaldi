@@ -155,12 +155,14 @@ class CBXent {
   double correct_;
   double loss_;
   double entropy_;
+  double ppl_;
 
   // partial results during training
   double frames_progress_;
   double loss_progress_;
   double entropy_progress_;
   double correct_progress_;
+  double ppl_progress_;
   std::vector<float> loss_vec_;
 
   // weigting buffer,

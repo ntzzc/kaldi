@@ -1,4 +1,4 @@
-// nnet/nnet-train-lstm-streams-parallel-mpi.cc
+// nnet/nnet-train-lstm-lm-parallel.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -25,7 +25,7 @@
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "cudamatrix/cu-device.h"
-#include "nnet/nnet-compute-lstm-asgd.h"
+#include "nnet/nnet-compute-lstm-lm-parallel.h"
 
 #include <iomanip>
 #include <unistd.h>
@@ -40,9 +40,9 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform one iteration of Neural Network training by mini-batch Stochastic Gradient Descent.\n"
         "This version use pdf-posterior as targets, prepared typically by ali-to-post.\n"
-        "Usage:  nnet-train-lstm-streams-parallel-mpi [options] <feature-rspecifier> <targets-rspecifier> <model-in> [<model-out>]\n"
+        "Usage:  nnet-train-lstm-lm-parallel-mpi [options] <feature-rspecifier> <model-in> [<model-out>]\n"
         "e.g.: \n"
-        " nnet-train-lstm-streams-parallel-mpi scp:feature.scp ark:posterior.ark nnet.init nnet.iter1\n";
+        " nnet-train-lstm-lm-parallel-mpi scp:feature.scp ark:posterior.ark nnet.init nnet.iter1\n";
 
     ParseOptions po(usage);
 
@@ -61,23 +61,22 @@ int main(int argc, char *argv[]) {
 
     parallel_opts.Register(&po);
 
-    NnetLstmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
+    NnetLstmLmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
     opts.Register(&po);
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 4-(opts.crossvalidate?1:0)) {
+    if (po.NumArgs() != 3-(opts.crossvalidate?1:0)) {
       po.PrintUsage();
       exit(1);
     }
 
     std::string feature_rspecifier = po.GetArg(1),
-      targets_rspecifier = po.GetArg(2),
-      model_filename = po.GetArg(3);
+      model_filename = po.GetArg(2);
         
     std::string target_model_filename;
     if (!opts.crossvalidate) {
-      target_model_filename = po.GetArg(4);
+      target_model_filename = po.GetArg(3);
     }
 
     //mpi
@@ -123,17 +122,16 @@ int main(int argc, char *argv[]) {
 
 
     Nnet nnet;
-    NnetStats stats;
+    NnetLmStats stats;
 
     Timer time;
     double time_now = 0;
     KALDI_LOG << "TRAINING STARTED";
 
 
-    NnetLstmUpdateAsgd(&opts,
+    NnetLstmLmUpdateParallel(&opts,
 					model_filename,
 					feature_rspecifier,
-					targets_rspecifier,
 								&nnet,
 								&stats);
 
@@ -152,22 +150,22 @@ int main(int argc, char *argv[]) {
 #endif
 
     //restore stderr
-     fflush(stderr);
-     dup2(fd, fileno(stderr));
-     close(fd);
-     clearerr(stderr);
-     fsetpos(stderr, &pos);
+    fflush(stderr);
+    dup2(fd, fileno(stderr));
+    close(fd);
+    clearerr(stderr);
+    fsetpos(stderr, &pos);
 
-     //merge global statistic data
-     stats.MergeStats(&opts, 0);
+    //merge global statistic data
+    stats.MergeStats(&opts, 0);
 
-     if (parallel_opts.myid == 0)
-     {
-         time_now = time.Elapsed();
-         stats.Print(&opts, time_now);
-     }
+    if (parallel_opts.myid == 0)
+    {
+        time_now = time.Elapsed();
+        stats.Print(&opts, time_now);
+    }
 
-     MPI_Finalize();
+    MPI_Finalize();
 
     return 0;
   } catch(const std::exception &e) {
