@@ -212,13 +212,18 @@ void ModelGlobalGradientMerge::Init()
 
 void ModelGlobalGradientMerge::Merge(int root)
 {
-
+    double t1, t2, tk;
+    Timer tm;
 	void *srcaddr = (void *) (opts->myid==root ? MPI_IN_PLACE : this->model_sync_->data_);
 
+	t1 = MPI_Wtime();
 	MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Reduce(srcaddr, (void*)(this->model_sync_->data_),
 			this->model_sync_->dim_, MPI_FLOAT, MPI_SUM, root, MPI_COMM_WORLD);
+	t2 = MPI_Wtime();
+    KALDI_VLOG(2) << "MPI_Reduce: " << t2-t1;
 
+    tm.Reset();
 	if (opts->myid == root)
 	{
 		// average W(t)
@@ -235,20 +240,20 @@ void ModelGlobalGradientMerge::Merge(int root)
 		// NBM: W(t) = W(t-1) + delta(t) + mmt*delta(t)
 		cblas_Xaxpy(this->dim_, 1.0+mmt, this->gradient_data_, 1, this->nnet_data_, 1);
 	}
+    tk = tm.Elapsed();
+    KALDI_VLOG(2) << "MKL merge: " << tk;
 
 
 	//std::cout<<"Adagrad Reduce finished!"<<std::endl;
-			//t1 = MPI_Wtime();
+	t1 = MPI_Wtime();
 	MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Bcast((void*)(this->nnet_data_), dim_, MPI_FLOAT, root, MPI_COMM_WORLD);
+	t2 = MPI_Wtime();
+    KALDI_VLOG(2) << "MPI_Bcast: " << t2-t1;
 
 	//std::memcpy(model_sync->data_, this->nnet_data_, dim_ * sizeof(BaseFloat));
 	CU_SAFE_CALL(cudaMemcpy(this->model_sync_->data_, this->nnet_data_, dim_ * sizeof(BaseFloat), cudaMemcpyHostToHost));
 
-	//t2 = MPI_Wtime();
-			//c = (t2-t1)*1000;
-			//std::cout<<"Bcast finished!"<<std::endl;
-			//printf("ModelAdagrad ---- Reduce, Adagrad, Bcast, total time: %.2lf %.2lf %.2lf %.2lf ms.\n",a,b,c,a+b+c);
 
 	this->mLeftMerge--;
 

@@ -83,7 +83,6 @@ int main(int argc, char *argv[]) {
     	NnetParallelUtil util;
 	    std::string scpfile;
 	    feature_rspecifier = util.AddSuffix(feature_rspecifier, parallel_opts.myid);
-	    targets_rspecifier = util.AddSuffix(targets_rspecifier, parallel_opts.myid);
 	    scpfile = util.GetFilename(feature_rspecifier);
 	    if (parallel_opts.myid == 0)
 	    {
