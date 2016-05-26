@@ -57,7 +57,7 @@ NnetModelSync::Init(Nnet *nnet)
 	if (NULL != data)
 	{
 		this->data_ = static_cast<BaseFloat*> (data);
-		this->free_data_ = static_cast<BaseFloat*> (free_data_);
+		this->free_data_ = static_cast<BaseFloat*> (free_data);
 		this->dim_ = dim;
 	}
 	else

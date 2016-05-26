@@ -80,6 +80,8 @@ class Xent : public LossItf {
              const std::vector<int32> &target,
              CuMatrix<BaseFloat> *diff);
 
+   void GetTargetWordPosterior(Vector<BaseFloat> &tgt);
+
   /// Generate string with error report,
   std::string Report();
 
@@ -136,6 +138,8 @@ class CBXent {
             const CuMatrixBase<BaseFloat> &net_out,
 			const std::vector<int32> &target,
             CuMatrix<BaseFloat> *diff);
+
+  void GetTargetWordPosterior(Vector<BaseFloat> &tgt);
 
   /// Generate string with error report,
   std::string Report();

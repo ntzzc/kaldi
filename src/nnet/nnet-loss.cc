@@ -183,6 +183,13 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  Eval(frame_weights, net_out, tgt_mat_, diff);
  }
 
+ void Xent::GetTargetWordPosterior(Vector<BaseFloat> &tgt)
+ {
+	 CuVector<BaseFloat> tgt_post(xentropy_aux_.NumRows(), kUndefined);
+	 tgt_post.AddColSumMat(1.0, xentropy_aux_, 0.0);
+	 tgt = tgt_post;
+ }
+
 std::string Xent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
@@ -258,6 +265,17 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  num_pdf = net_out.NumCols();
 
 	  KALDI_ASSERT(num_frames == target.size());
+
+      for (int p = 0; p < class_frame_weights_.size(); p++)
+      {
+            delete class_frame_weights_[p];
+            delete class_target_sum_[p];
+            delete class_target_[p];
+            delete class_netout_[p];
+            delete class_diff_[p];
+            delete class_xentropy_aux_[p];
+            delete class_entropy_aux_[p];
+      }
 
 	  if (tgt_mat_.NumRows() != num_frames)
 	  {
@@ -336,17 +354,6 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  ResetStream(class_diff_);
 	  ResetStream(class_xentropy_aux_);
 	  ResetStream(class_entropy_aux_);
-
-      for (int p = 0; p < class_frame_weights_.size(); p++)
-      {
-            delete class_frame_weights_[p];
-            delete class_target_sum_[p];
-            delete class_target_[p];
-            delete class_netout_[p];
-            delete class_diff_[p];
-            delete class_xentropy_aux_[p];
-            delete class_entropy_aux_[p];
-      }
 }
 
 
@@ -425,6 +432,19 @@ void CBXent::Eval() {
       correct_progress_ = 0.0;
     }
   }
+}
+
+void CBXent::GetTargetWordPosterior(Vector<BaseFloat> &tgt)
+{
+	SetStream(class_target_sum_, streamlist_);
+	AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_target_sum_, class_entropy_aux_, static_cast<BaseFloat>(0.0f));
+	ResetStream(class_target_sum_);
+
+	Vector<BaseFloat> tgt_post = target_sum_;
+	int size = tgt_post.Dim()/2;
+	tgt.Resize(size);
+	for (int i = 0; i < size; i++)
+		tgt(i) = tgt_post(i) + tgt_post(size+i);
 }
 
 std::string CBXent::Report() {

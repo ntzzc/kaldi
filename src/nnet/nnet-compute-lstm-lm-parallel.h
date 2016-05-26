@@ -124,6 +124,31 @@ typedef struct Word_
 	  int32  classid;
 }Word;
 
+class NnetLmUtil
+{
+public:
+	static bool compare_classid(const Word &a, const Word &b)
+	{
+		return a.classid < b.classid;
+	}
+
+	static bool compare_wordid(const Word &a, const Word &b)
+	{
+		return a.wordid < b.wordid;
+	}
+
+	void SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
+				std::vector<int32>& sortedclass_id, std::vector<int32>& sortedclass_id_index, std::vector<int32>& sortedclass_id_reindex,
+					const Vector<BaseFloat>& frame_mask, Vector<BaseFloat>& sorted_frame_mask, const std::vector<int32> &word2class);
+
+	void SortUpdateWord(const Vector<BaseFloat>& update_id,
+				std::vector<int32>& sortedword_id, std::vector<int32>& sortedword_id_index);
+
+	void NnetLmUtil::SetClassBoundary(const Vector<BaseFloat>& classinfo,
+			std::vector<int32> &class_boundary, std::vector<int32> &word2class);
+
+};
+
 
 void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,

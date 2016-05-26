@@ -72,88 +72,6 @@ private:
 
     std::vector<int32> class_boundary_, word2class_;
 
-    static bool compare_classid(const Word &a, const Word &b)
-    {
-    	return a.classid < b.classid;
-    }
-
-    static bool compare_wordid(const Word &a, const Word &b)
-    {
-    	return a.wordid < b.wordid;
-    }
-
-    void SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
-    		std::vector<int32>& sortedclass_id, std::vector<int32>& sortedclass_id_index, std::vector<int32>& sortedclass_id_reindex,
-				const Vector<BaseFloat>& frame_mask, Vector<BaseFloat>& sorted_frame_mask)
-    {
-		int size = update_id.size();
-		std::vector<Word> words(size);
-
-		for (int i = 0; i < size; i++)
-		{
-			words[i].idx = i;
-			words[i].wordid = update_id[i];
-			words[i].classid = this->word2class_[update_id[i]];
-		}
-
-		std::sort(words.begin(), words.end(), compare_classid);
-
-		sorted_id.resize(size);
-		sortedclass_id.resize(size);
-		sortedclass_id_index.resize(size);
-		sortedclass_id_reindex.resize(size);
-
-		for (int i = 0; i < size; i++)
-		{
-			sorted_id[i] = words[i].wordid;
-			sortedclass_id[i] = words[i].classid;
-			sortedclass_id_index[i] = words[i].idx;
-			sortedclass_id_reindex[words[i].idx] = i;
-			sorted_frame_mask(i) = frame_mask(words[i].idx);
-		}
-    }
-
-    void SortUpdateWord(const Vector<BaseFloat>& update_id,
-    		std::vector<int32>& sortedword_id, std::vector<int32>& sortedword_id_index)
-    {
-    	int size = update_id.Dim();
-		std::vector<Word> words(size);
-
-		for (int i = 0; i < size; i++)
-		{
-			words[i].idx = i;
-			words[i].wordid = (int32)update_id(i);
-			words[i].classid = (int32)update_id(i);
-		}
-
-		std::sort(words.begin(), words.end(), compare_wordid);
-		sortedword_id.resize(size);
-		sortedword_id_index.resize(size);
-
-		for (int i = 0; i < size; i++)
-		{
-			sortedword_id[i] = words[i].wordid;
-			sortedword_id_index[i] = words[i].idx;
-		}
-    }
-
-    void SetClassBoundary(const Vector<BaseFloat>& classinfo)
-    {
-	    class_boundary_.resize(classinfo.Dim());
-		int32 num_class = class_boundary_.size()-1;
-	    for (int i = 0; i < classinfo.Dim(); i++)
-	    	class_boundary_[i] = classinfo(i);
-		int i,j = 0;
-		word2class_.resize(class_boundary_[num_class]);
-		for (i = 0; i < class_boundary_[num_class]; i++)
-		{
-			if (i>=class_boundary_[j] && i<class_boundary_[j+1])
-				word2class_[i] = j;
-			else
-				word2class_[i] = ++j;
-		}
-    }
-
  public:
   // This constructor is only called for a temporary object
   // that we pass to the RunMultiThreaded function.
@@ -247,6 +165,7 @@ private:
 
 	    nnet.SetTrainOptions(*trn_opts);
 
+		NnetLmUtil util;
 	    ClassAffineTransform *class_affine = NULL;
 	    WordVectorTransform *word_transf = NULL;
 	    CBSoftmax *cb_softmax = NULL;
@@ -267,7 +186,7 @@ private:
 		    in.OpenTextMode(classboundary_file);
 		    classinfo.Read(in.Stream(), false);
 		    in.Close();
-		    SetClassBoundary(classinfo);
+		    util.SetClassBoundary(classinfo, class_boundary_, word2class_);
 	    }
 
 	    if (opts->dropout_retention > 0.0) {
@@ -426,14 +345,14 @@ private:
         if (NULL != class_affine)
         {
 	        // sort output class id
-	        SortUpdateClass(target, sorted_target, sortedclass_target,
-	        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask);
+        	util.SortUpdateClass(target, sorted_target, sortedclass_target,
+	        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask, word2class_);
 	        class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
 	        cb_softmax->SetUpdateClassId(sortedclass_target);
         }
 
 	        // sort input word id
-	        SortUpdateWord(feat, sortedword_id, sortedword_id_index);
+	        util.SortUpdateWord(feat, sortedword_id, sortedword_id_index);
 	        word_transf->SetUpdateWordId(sortedword_id, sortedword_id_index);
 
 	        // forward pass
@@ -600,6 +519,78 @@ private:
 
 };
 
+void NnetLmUtil::SortUpdateClass(const std::vector<int32>& update_id, std::vector<int32>& sorted_id,
+		std::vector<int32>& sortedclass_id, std::vector<int32>& sortedclass_id_index, std::vector<int32>& sortedclass_id_reindex,
+			const Vector<BaseFloat>& frame_mask, Vector<BaseFloat>& sorted_frame_mask, const std::vector<int32> &word2class)
+{
+	int size = update_id.size();
+	std::vector<Word> words(size);
+
+	for (int i = 0; i < size; i++)
+	{
+		words[i].idx = i;
+		words[i].wordid = update_id[i];
+		words[i].classid = word2class[update_id[i]];
+	}
+
+	std::sort(words.begin(), words.end(), NnetLmUtil::compare_classid);
+
+	sorted_id.resize(size);
+	sortedclass_id.resize(size);
+	sortedclass_id_index.resize(size);
+	sortedclass_id_reindex.resize(size);
+
+	for (int i = 0; i < size; i++)
+	{
+		sorted_id[i] = words[i].wordid;
+		sortedclass_id[i] = words[i].classid;
+		sortedclass_id_index[i] = words[i].idx;
+		sortedclass_id_reindex[words[i].idx] = i;
+		sorted_frame_mask(i) = frame_mask(words[i].idx);
+	}
+}
+
+void NnetLmUtil::SortUpdateWord(const Vector<BaseFloat>& update_id,
+		std::vector<int32>& sortedword_id, std::vector<int32>& sortedword_id_index)
+{
+	int size = update_id.Dim();
+	std::vector<Word> words(size);
+
+	for (int i = 0; i < size; i++)
+	{
+		words[i].idx = i;
+		words[i].wordid = (int32)update_id(i);
+		words[i].classid = (int32)update_id(i);
+	}
+
+	std::sort(words.begin(), words.end(), NnetLmUtil::compare_wordid);
+	sortedword_id.resize(size);
+	sortedword_id_index.resize(size);
+
+	for (int i = 0; i < size; i++)
+	{
+		sortedword_id[i] = words[i].wordid;
+		sortedword_id_index[i] = words[i].idx;
+	}
+}
+
+void NnetLmUtil::SetClassBoundary(const Vector<BaseFloat>& classinfo,
+		std::vector<int32> &class_boundary, std::vector<int32> &word2class)
+{
+	class_boundary.resize(classinfo.Dim());
+	int32 num_class = class_boundary.size()-1;
+    for (int i = 0; i < classinfo.Dim(); i++)
+    	class_boundary[i] = classinfo(i);
+	int i,j = 0;
+	word2class.resize(class_boundary[num_class]);
+	for (i = 0; i < class_boundary[num_class]; i++)
+	{
+		if (i>=class_boundary[j] && i<class_boundary[j+1])
+			word2class[i] = j;
+		else
+			word2class[i] = ++j;
+	}
+}
 
 void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 		std::string	model_filename,
