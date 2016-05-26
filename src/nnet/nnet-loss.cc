@@ -186,8 +186,9 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
  void Xent::GetTargetWordPosterior(Vector<BaseFloat> &tgt)
  {
 	 CuVector<BaseFloat> tgt_post(xentropy_aux_.NumRows(), kUndefined);
-	 tgt_post.AddColSumMat(1.0, xentropy_aux_, 0.0);
-	 tgt = tgt_post;
+	 tgt_post.AddColSumMat(-1.0, xentropy_aux_, 0.0);
+	 tgt.Resize(tgt_post.Dim(), kUndefined);
+	 tgt.CopyFromVec(tgt_post);
  }
 
 std::string Xent::Report() {
@@ -437,14 +438,14 @@ void CBXent::Eval() {
 void CBXent::GetTargetWordPosterior(Vector<BaseFloat> &tgt)
 {
 	SetStream(class_target_sum_, streamlist_);
-	AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_target_sum_, class_entropy_aux_, static_cast<BaseFloat>(0.0f));
+	AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_target_sum_, class_xentropy_aux_, static_cast<BaseFloat>(0.0f));
 	ResetStream(class_target_sum_);
 
-	Vector<BaseFloat> tgt_post = target_sum_;
+	Vector<BaseFloat> tgt_post(target_sum_);
 	int size = tgt_post.Dim()/2;
-	tgt.Resize(size);
+	tgt.Resize(size, kUndefined);
 	for (int i = 0; i < size; i++)
-		tgt(i) = tgt_post(i) + tgt_post(size+i);
+		tgt(i) = -(tgt_post(i) + tgt_post(size+i));
 }
 
 std::string CBXent::Report() {

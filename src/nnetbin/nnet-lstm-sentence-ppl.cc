@@ -26,6 +26,9 @@
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "nnet/nnet-compute-lstm-lm-parallel.h"
+#include "nnet/nnet-activation.h"
+#include "nnet/nnet-class-affine-transform.h"
+#include "nnet/nnet-word-vector-transform.h"
 
 
 int main(int argc, char *argv[]) {
@@ -37,12 +40,12 @@ int main(int argc, char *argv[]) {
         "\n"
         "Usage:  nnet-lstm-sentence-ppl [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
         "e.g.: \n"
-        " nnet-lstm-sentence-ppl nnet ark:features.ark ark,t:mlpoutput.txt\n";
+        " nnet-lstm-sentence-ppl --num-stream=40 --batch-size=15 --class-boundary=data/lang/class_boundary.txt nnet ark:features.ark ark,t:mlpoutput.txt\n";
 
     ParseOptions po(usage);
 
     std::string classboundary_file = "";
-    po->Register("class-boundary", &classboundary_file, "The fist index of each class(and final class class) in class based language model");
+    po.Register("class-boundary", &classboundary_file, "The fist index of each class(and final class class) in class based language model");
 
     std::string use_gpu="no";
     po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
@@ -55,8 +58,8 @@ int main(int argc, char *argv[]) {
     int32 batch_size = 15;
     int32 num_stream = 1;
     po.Register("time-shift", &time_shift, "LSTM : repeat last input frame N-times, discrad N initial output frames."); 
-    po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
-    po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
+    po.Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
+    po.Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
 
     po.Read(argc, argv);
 
@@ -79,14 +82,14 @@ int main(int argc, char *argv[]) {
 
     NnetLmUtil util;
     ClassAffineTransform *class_affine = NULL;
-    WordVectorTransform *word_transf = NULL;
+    //WordVectorTransform *word_transf = NULL;
     CBSoftmax *cb_softmax = NULL;
     for (int32 c = 0; c < nnet.NumComponents(); c++)
     {
     	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
     		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
-    	else if (nnet.GetComponent(c).GetType() == Component::kWordVectorTransform)
-    		word_transf = &(dynamic_cast<WordVectorTransform&>(nnet.GetComponent(c)));
+    	/*else if (nnet.GetComponent(c).GetType() == Component::kWordVectorTransform)
+    		word_transf = &(dynamic_cast<WordVectorTransform&>(nnet.GetComponent(c))); */
     	else if (nnet.GetComponent(c).GetType() == Component::kCBSoftmax)
     		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
     }
@@ -104,6 +107,13 @@ int main(int argc, char *argv[]) {
 
     CBXent cbxent;
     Xent xent;
+
+    if (NULL != class_affine)
+    {
+	    class_affine->SetClassBoundary(class_boundary);
+        cb_softmax->SetClassBoundary(class_boundary);
+        cbxent.SetClassBoundary(class_boundary);
+    }
 
     // disable dropout,
     nnet.SetDropoutRetention(1.0);
@@ -166,11 +176,11 @@ int main(int argc, char *argv[]) {
 
     	    		if (utt_curt[s] > 0 && !utt_copied[s])
     	    		{
-    	    			feature_writer->Write(keys[s], utt_feats[s]);
+    	    			feature_writer.Write(keys[s], utt_feats[s]);
     	    			utt_copied[s] = true;
     	    		}
 
-    	    		for (; !feature_reader.Done(); feature_reader.Next())
+    	    		if(!feature_reader.Done())
     	    		{
     	    			keys[s] = feature_reader.Key();
     	    	    	feats[s] = feature_reader.Value();
@@ -185,7 +195,7 @@ int main(int argc, char *argv[]) {
     	                utt_copied[s] = false;
     	                utt_curt[s] = 0;
 
-    	                break;
+                        feature_reader.Next();
     	    		}
     	    	}
 
@@ -213,13 +223,13 @@ int main(int argc, char *argv[]) {
     		                    target[t * num_stream + s] = feats[s][curt[s]-time_shift+1];
     		                } else {
     		                    frame_mask(t * num_stream + s) = 0;
-    		                    target[t * num_stream + s] = feats[s][lent[s]-1];
+    		                    target[t * num_stream + s] = 0; //feats[s][lent[s]-1];
     		                }
     		                // feat shifting & padding
     		                if (curt[s] < lent[s]) {
     		                    feat(t * num_stream + s) = feats[s][curt[s]];
     		                } else {
-    		                    feat(t * num_stream + s) = feats[s][lent[s]-1];
+    		                    feat(t * num_stream + s) = 0; //feats[s][lent[s]-1];
 
     		                }
 
@@ -260,7 +270,7 @@ int main(int argc, char *argv[]) {
     		        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff);
     		        	cbxent.GetTargetWordPosterior(log_post_tgt_sorted);
     	   		    	for (int i = 0; i <= num_frames; i++)
-    	   		    		log_post_tgt(i) = log_post_tgt_sorted(sortedclass_target_reindex(i));
+    	   		    		log_post_tgt(i) = log_post_tgt_sorted(sortedclass_target_reindex[i]);
     		        } else {
     		        	xent.Eval(frame_mask, nnet_out, target, &nnet_diff);
     		        	xent.GetTargetWordPosterior(log_post_tgt);

@@ -144,7 +144,7 @@ public:
 	void SortUpdateWord(const Vector<BaseFloat>& update_id,
 				std::vector<int32>& sortedword_id, std::vector<int32>& sortedword_id_index);
 
-	void NnetLmUtil::SetClassBoundary(const Vector<BaseFloat>& classinfo,
+	void SetClassBoundary(const Vector<BaseFloat>& classinfo,
 			std::vector<int32> &class_boundary, std::vector<int32> &word2class);
 
 };

@@ -459,14 +459,15 @@ protected:
   std::vector<int32> sortedclass_id_index_;
   std::vector<int32> sortedclass_id_reindex_;
 
-  int32 num_class_;
 
   BaseFloat learn_rate_coef_;
   BaseFloat bias_learn_rate_coef_;
-  BaseFloat max_norm_;
 
   BaseFloat local_lrate;
   BaseFloat local_lrate_bias;
+
+  BaseFloat max_norm_;
+  int32 num_class_;
 
 #if HAVE_CUDA == 1
   std::vector<cudaStream_t > streamlist_;
