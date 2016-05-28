@@ -38,6 +38,7 @@ struct NnetParallelOptions{
 	int myid;
 	int thread_level;
 	BaseFloat global_momentum;
+	BaseFloat global_learnrate;
 	bool asgd_lock;
 	std::string merge_func;
 	std::string log_file;
@@ -51,6 +52,7 @@ struct NnetParallelOptions{
 									 myid(0),
 									 thread_level(0),
 									 global_momentum(-1.0),
+									 global_learnrate(1.0),
 									 asgd_lock(true),
 									 merge_func("globalgradient"),
 									 log_file("")
@@ -59,6 +61,7 @@ struct NnetParallelOptions{
 	  void Register(OptionsItf *po) {
 		  po->Register("num-threads", &num_threads, "Number of threads(GPUs) to use");
 		  po->Register("global-momentum", &global_momentum, "Global momentum used in multi-machine paralization.");
+		  po->Register("global-learnrate", &global_learnrate, "Global learning rate used in multi-machine paralization.");
 		  po->Register("asgd-lock", &asgd_lock, "Apply lock on asgd training.");
 
 	      if (this->num_procs >= 1)
