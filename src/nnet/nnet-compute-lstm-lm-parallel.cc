@@ -616,7 +616,7 @@ void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
 	    NnetExample *example;
 	    std::vector<NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new LmNnetExample(&feature_reader, &model_sync, stats, opts);
+	    	example = new LmNnetExample(&feature_reader, opts);
 	    	if (example->PrepareData(examples))
 	    	{
 	    		for (int i = 0; i < examples.size(); i++)

@@ -28,116 +28,12 @@
 #include "cudamatrix/cu-device.h"
 #include <mpi.h>
 
+#include "nnet/nnet-model-sync.h"
+
 namespace kaldi {
 namespace lm {
 typedef nnet1::Nnet Nnet;
 typedef nnet1::NnetParallelOptions NnetParallelOptions;
-
-class LmModelSync{
-public:
-	LmModelSync(Nnet *nnet, const NnetParallelOptions *opts=NULL):
-		initialized_(false),is_lastmerge_(false),data_(NULL),free_data_(NULL),gradient_data_(NULL),
-		dim_(0),num_threads_(opts->num_threads),left_merge_(opts->num_merge),
-		mmt_(opts->global_momentum),learnrate_(opts->global_learnrate),nnet(nnet),opts_(opts)
-
-	{
-		MultiMachineInit();
-	}
-
-	~LmModelSync()
-	{
-		Destory();
-	}
-
-	void LockModel() {
-		model_mutex_.Lock();
-	}
-	void UnlockModel(){
-		model_mutex_.Unlock();
-	}
-
-	void LockStates() {
-		stats_mutex_.Lock();
-	}
-	void UnlockStates(){
-		stats_mutex_.Unlock();
-	}
-
-	void GetWeight(Nnet *nnet, int32 thread_idx = -1);
-
-	void SetWeight(Nnet *nnet, int32 thread_idx = -1);
-
-	void ThreadSync(int32 thread_idx, int status);
-
-	void Destory();
-
-	int32 Dim(){return this->dim_;};
-
-	void CopyToHost(Nnet *nnet)
-	{
-		*(this->nnet) = *nnet;
-	}
-
-	void MultiMachineInit();
-
-	void Initialize(Nnet *nnet)
-	{
-		model_mutex_.Lock();
-		if (!initialized_)
-		{
-			barrier_.SetThreshold(num_threads_);
-			this->GetWeight(nnet);
-			initialized_ = true;
-		}
-		model_mutex_.Unlock();
-	}
-
-private:
-
-
-	int GetDim(Nnet *nnet);
-	void Init(Nnet *nnet);
-	void CrossMachineSync(int status);
-
-	bool	initialized_;
-	bool	is_lastmerge_;
-	BaseFloat *data_;
-	BaseFloat *free_data_;
-	BaseFloat *gradient_data_;
-	int32 dim_;
-	int32 num_threads_;
-	int32 left_merge_;
-	BaseFloat mmt_;
-	BaseFloat learnrate_;
-	Nnet *nnet;
-	const NnetParallelOptions *opts_;
-
-	Barrier barrier_;
-	Mutex model_mutex_;
-	Mutex stats_mutex_;
-	std::vector<BaseFloat*>	thread_data_;
-	std::vector<BaseFloat*> thread_free_data_;
-
-
-public:
-
-#if HAVE_CUDA == 1
-  kaldi::MPIGpuInfo *gpuinfo_;
-  MPI_Win win;
-  StreamCache stream_cache_;
-#endif
-};
-
-
-
-class LmParallelUtil{
-public:
-	std::string AddSuffix(std::string filename, int idx);
-	std::string FAddSuffix(std::string filename, int idx);
-	std::string GetFilename(std::string filename);
-	int NumofMerge(std::string fn, int merge_size);
-	int NumofCEMerge(std::string fn, int merge_size);
-};
 
 #if HAVE_CUDA == 1
 class StreamCache {
@@ -173,6 +69,119 @@ private:
 	std::vector<cudaStream_t > streamlist_;
 };
 #endif
+
+class LmModelSync{
+public:
+	LmModelSync(Nnet *nnet, const NnetParallelOptions *opts=NULL):
+		initialized_(false),is_lastmerge_(false),data_(NULL),free_data_(NULL),gradient_data_(NULL),
+		dim_(0),num_threads_(opts->num_threads),left_merge_(opts->num_merge),
+		mmt_(opts->global_momentum),learnrate_(opts->global_learnrate),nnet(nnet),opts_(opts)
+
+	{
+		MultiMachineInit();
+	}
+
+	~LmModelSync()
+	{
+		Destory();
+	}
+
+	void LockModel() {
+		model_mutex_.Lock();
+	}
+	void UnlockModel(){
+		model_mutex_.Unlock();
+	}
+
+	void LockStates() {
+		stats_mutex_.Lock();
+	}
+	void UnlockStates(){
+		stats_mutex_.Unlock();
+	}
+
+	void GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx=-1);
+
+	void SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx=-1);
+
+	void ThreadSync(int32 thread_idx, int status);
+
+	void Destory();
+
+	int32 Dim(){return this->dim_;};
+
+	void CopyToHost(Nnet *nnet)
+	{
+		*(this->nnet) = *nnet;
+	}
+
+	void MultiMachineInit();
+
+    int32 leftMerge(){ return left_merge_;}
+
+	void Initialize(Nnet *nnet, int32 thread_idx)
+	{
+		model_mutex_.Lock();
+		if (!initialized_)
+		{
+			barrier_.SetThreshold(num_threads_);
+            stream_cache_.resize(num_threads_, NULL);
+            if (NULL == stream_cache_[thread_idx])
+                stream_cache_[thread_idx] = new StreamCache;
+			this->GetWeight(nnet, thread_idx);
+			initialized_ = true;
+		}
+        if (NULL == stream_cache_[thread_idx])
+           stream_cache_[thread_idx] = new StreamCache;
+		model_mutex_.Unlock();
+	}
+
+private:
+
+
+	int GetDim(Nnet *nnet);
+	void Init(Nnet *nnet);
+	void CrossMachineSync(int status);
+
+	bool	initialized_;
+	bool	is_lastmerge_;
+	BaseFloat *data_;
+	BaseFloat *free_data_;
+	BaseFloat *gradient_data_;
+	int32 dim_;
+	int32 num_threads_;
+	int32 left_merge_;
+	BaseFloat mmt_;
+	BaseFloat learnrate_;
+	Nnet *nnet;
+	const NnetParallelOptions *opts_;
+
+	Barrier barrier_;
+	Mutex model_mutex_;
+	Mutex stats_mutex_;
+	std::vector<BaseFloat*>	thread_data_;
+	std::vector<BaseFloat*> thread_free_data_;
+
+
+public:
+
+#if HAVE_CUDA == 1
+  kaldi::MPIGpuInfo *gpuinfo_;
+  MPI_Win win;
+  std::vector<StreamCache*> stream_cache_;
+#endif
+};
+
+
+
+class LmParallelUtil{
+public:
+	std::string AddSuffix(std::string filename, int idx);
+	std::string FAddSuffix(std::string filename, int idx);
+	std::string GetFilename(std::string filename);
+	int NumofMerge(std::string fn, int merge_size);
+	int NumofCEMerge(std::string fn, int merge_size);
+};
 
 } // namespace nnet
 } // namespace kaldi

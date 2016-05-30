@@ -28,11 +28,17 @@
 
 
 namespace kaldi {
+
+namespace lm {
+class LmModelSync;
+}
+
 namespace nnet1 {
 
 class ClassAffineTransform : public UpdatableComponent {
 
 	friend class NnetModelSync;
+    friend class lm::LmModelSync;
 
  public:
 	ClassAffineTransform(int32 dim_in, int32 dim_out)

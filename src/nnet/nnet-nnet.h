@@ -31,11 +31,17 @@
 #include "nnet/nnet-component.h"
 
 namespace kaldi {
+
+namespace lm {
+class LmModelSync;
+}
+
 namespace nnet1 {
 
 class Nnet {
 
 	friend class NnetModelSync;
+    friend class lm::LmModelSync;
 
  public:
   Nnet() {}

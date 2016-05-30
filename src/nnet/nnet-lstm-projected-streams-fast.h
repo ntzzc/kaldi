@@ -41,18 +41,25 @@
  *************************************/
 
 namespace kaldi {
+
+namespace lm {
+class LmModelSync;
+}
+
 namespace nnet1 {
 
 class LstmProjectedStreamsFast : public UpdatableComponent {
 	friend class NnetModelSync;
+	friend class lm::LmModelSync;
  public:
   LstmProjectedStreamsFast(int32 input_dim, int32 output_dim) :
     UpdatableComponent(input_dim, output_dim),
     ncell_(0),
     nrecur_(output_dim),
     nstream_(0),
+    ntruncated_bptt_size_(0),
     clip_gradient_(0.0),
-	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0), ntruncated_bptt_size_(0)
+	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
     //, dropout_rate_(0.0)
   { }
 
@@ -613,10 +620,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 
 	    // we use following hyperparameters from the option class
 	    const BaseFloat lr = opts_.learn_rate * learn_rate_coef_;
-	    const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
+	    //const BaseFloat lr_bias = opts_.learn_rate * bias_learn_rate_coef_;
 	    //const BaseFloat mmt = opts_.momentum;
 	    const BaseFloat l2 = opts_.l2_penalty;
-	    const BaseFloat l1 = opts_.l1_penalty;
+	    //const BaseFloat l1 = opts_.l1_penalty;
 	    // we will also need the number of frames in the mini-batch
 	    const int32 num_frames = input.NumRows();
 

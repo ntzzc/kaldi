@@ -27,7 +27,7 @@
 #include <iomanip>
 #include <mpi.h>
 
-#include "nnet-trnopts.h"
+#include "nnet/nnet-trnopts.h"
 #include "nnet/nnet-randomizer.h"
 #include "nnet/nnet-loss.h"
 #include "nnet/nnet-nnet.h"

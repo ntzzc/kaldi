@@ -62,8 +62,8 @@ void LmModelSync::Init(Nnet *nnet)
 		}
 	}
 
-	this->data_ = thread_data_.back() - 1;
-	this->gradient_data_ = thread_data_.back();
+	this->data_ = thread_data_[num_threads_];
+	this->gradient_data_ = thread_data_[num_threads_+1];
 
 	CU_SAFE_CALL(cudaMemset(this->gradient_data_, 0, dim_*sizeof(BaseFloat)));
 
@@ -102,7 +102,7 @@ int LmModelSync::GetDim(Nnet *nnet)
 	int dim = 0;
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
-	nnet1::LstmProjectedStreams *plstm_t;
+	//nnet1::LstmProjectedStreams *plstm_t;
 	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
@@ -154,22 +154,22 @@ int LmModelSync::GetDim(Nnet *nnet)
 	return dim;
 }
 
-void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
+void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 {
 	if (NULL == this->data_)
 	{
 		this->Init(nnet);
 	}
 
-	KALDI_ASSERT(thread_idx <= num_threads_ - 1 );
+	KALDI_ASSERT(thread_idx <= num_threads_ - 1);
 
 	int32 pos = 0;
-	void *host_data_ = thread_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
-	int32 dst_pitch, src_pitch, width, row, size;
+	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
+	int32 dst_pitch, src_pitch, width, size;
 	MatrixDim dim;
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
-	nnet1::LstmProjectedStreams *plstm_t;
+	//nnet1::LstmProjectedStreams *plstm_t;
 	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
@@ -177,6 +177,7 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
         Timer tim;
+      StreamCache *stream_cache = stream_cache_[thread_idx];
       for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
@@ -188,7 +189,7 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, lstm_t->w_gifo_x_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += lstm_t->w_gifo_x_.SizeInBytes();
 
 				dim = lstm_t->w_gifo_r_.Dim();
@@ -196,27 +197,27 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, lstm_t->w_gifo_r_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += lstm_t->w_gifo_r_.SizeInBytes();
 
 				size = lstm_t->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, lstm_t->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = lstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, lstm_t->peephole_i_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = lstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, lstm_t->peephole_f_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = lstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, lstm_t->peephole_o_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				dim = lstm_t->w_r_m_.Dim();
@@ -224,20 +225,20 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, lstm_t->w_r_m_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += lstm_t->w_r_m_.SizeInBytes();
 
 				break;
 
 			case nnet1::Component::kLstmStreams:
-				stlstm_t = (LstmStreams*)(nnet->components_[n]);
+				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
 
 				dim = stlstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, stlstm_t->w_gifo_x_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += stlstm_t->w_gifo_x_.SizeInBytes();
 
 				dim = stlstm_t->w_gifo_m_.Dim();
@@ -245,45 +246,46 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, stlstm_t->w_gifo_m_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += stlstm_t->w_gifo_m_.SizeInBytes();
 
 				size = stlstm_t->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, stlstm_t->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = stlstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, stlstm_t->peephole_i_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = stlstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, stlstm_t->peephole_f_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = stlstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, stlstm_t->peephole_o_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 				pos += size;
 
 				break;
 
 			case nnet1::Component::kAffineTransform:
+                aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
 				dim = aff_t->linearity_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, aff_t->linearity_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 
 				pos += aff_t->linearity_.SizeInBytes();
 
 				size = aff_t->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, aff_t->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 
 				pos += size;
 				break;
@@ -296,13 +298,13 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 				width = dim.cols*sizeof(BaseFloat);
 
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, class_affine->linearity_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 
 				pos += class_affine->linearity_.SizeInBytes();
 
 				size = class_affine->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(host_data_+pos, class_affine->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 
 				pos += size;
 				break;
@@ -315,7 +317,7 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 				width = dim.cols*sizeof(BaseFloat);
 
 				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, word_transf->wordvector_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache_.GetCudaStream());
+						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
 
 				pos += word_transf->wordvector_.SizeInBytes();
 				break;
@@ -338,19 +340,19 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx)
 
 }
 
-void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
+void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 {
 	KALDI_ASSERT(this->data_ != NULL);
 
-	KALDI_ASSERT(thread_idx <= num_threads_ - 1 );
+	KALDI_ASSERT(thread_idx <= num_threads_ - 1);
 
 	int32 pos = 0;
-	void *host_data_ = thread_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
+	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
 	int32 dst_pitch, src_pitch, width,  size;
 	MatrixDim dim;
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
-	nnet1::LstmProjectedStreams *plstm_t;
+	//nnet1::LstmProjectedStreams *plstm_t;
 	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
@@ -358,6 +360,7 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
         Timer tim;
+    StreamCache *stream_cache = stream_cache_[thread_idx];
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
@@ -369,7 +372,7 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(lstm_t->w_gifo_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += lstm_t->w_gifo_x_.SizeInBytes();
 
 				dim = lstm_t->w_gifo_r_.Dim();
@@ -377,27 +380,27 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(lstm_t->w_gifo_r_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += lstm_t->w_gifo_r_.SizeInBytes();
 
 				size = lstm_t->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(lstm_t->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = lstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(lstm_t->peephole_i_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = lstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(lstm_t->peephole_f_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = lstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(lstm_t->peephole_o_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				dim = lstm_t->w_r_m_.Dim();
@@ -405,19 +408,19 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(lstm_t->w_r_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += lstm_t->w_r_m_.SizeInBytes();
 				break;
 
 			case nnet1::Component::kLstmStreams:
-				stlstm_t = (LstmStreams*)(nnet->components_[n]);
+				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
 
 				dim = stlstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(stlstm_t->w_gifo_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += stlstm_t->w_gifo_x_.SizeInBytes();
 
 				dim = stlstm_t->w_gifo_m_.Dim();
@@ -425,27 +428,27 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 				dst_pitch = src_pitch;
 				width = dim.cols*sizeof(BaseFloat);
 				cudaMemcpy2DAsync(stlstm_t->w_gifo_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += stlstm_t->w_gifo_m_.SizeInBytes();
 
 				size = stlstm_t->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(stlstm_t->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = stlstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(stlstm_t->peephole_i_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = stlstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(stlstm_t->peephole_f_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				size = stlstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(stlstm_t->peephole_o_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 				pos += size;
 
 				break;
@@ -459,14 +462,14 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 
 
 				cudaMemcpy2DAsync(aff_t->linearity_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 
 				pos += aff_t->linearity_.SizeInBytes();
 
 				size = aff_t->bias_.Dim()*sizeof(BaseFloat);
 
 				cudaMemcpyAsync(aff_t->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 
 				pos += size;
 
@@ -479,13 +482,13 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 				width = dim.cols*sizeof(BaseFloat);
 
 				cudaMemcpy2DAsync(class_affine->linearity_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 
 				pos += class_affine->linearity_.SizeInBytes();
 
 				size = class_affine->bias_.Dim()*sizeof(BaseFloat);
 				cudaMemcpyAsync(class_affine->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 
 				pos += size;
 				break;
@@ -497,7 +500,7 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx)
 				width = dim.cols*sizeof(BaseFloat);
 
 				cudaMemcpy2DAsync(word_transf->wordvector_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache_.GetCudaStream());
+						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
 
 				pos += word_transf->wordvector_.SizeInBytes();
 				break;
@@ -538,21 +541,21 @@ void LmModelSync::CrossMachineSync(int status)
 		void *dstaddr = (void *) this->thread_data_[0];
 		MPI_Barrier(MPI_COMM_WORLD);
 		MPI_Reduce(srcaddr, dstaddr, this->dim_, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
-		left_merge_--;
 	}
 }
 
 void LmModelSync::ThreadSync(int32 thread_idx, int status)
 {
-	double t1, t2, tk;
+	//double t1, t2, tk;
 	Timer tm;
 
 	tm.Reset();
 	this->barrier_.Wait();
 
-	BaseFloat *cur_model, *thread_data, *last_model, *gradient;
+	BaseFloat *cur_model, *thread_model, *last_model, *gradient;
 	int offset = this->dim_/num_threads_ * thread_idx;
 	int len = (thread_idx == num_threads_-1 ? dim_-offset : dim_/num_threads_);
+    int num_jobs = num_threads_;
 
 	cur_model = this->thread_data_[0] + offset;
 	last_model = this->data_ + offset;
@@ -560,17 +563,19 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 
 	for (int i = 1; i < num_threads_; i++)
 	{
-		thread_data = this->thread_data_[i] + offset;
-		cblas_Xaxpy(len, 1.0, thread_data, 1, cur_model, 1);
+		thread_model = this->thread_data_[i] + offset;
+		cblas_Xaxpy(len, 1.0, thread_model, 1, cur_model, 1);
 	}
 
-	KALDI_VLOG(1) << "THREAD_Reduce: " << tm.Elapsed();
+	KALDI_VLOG(2) << "THREAD_Reduce: " << tm.Elapsed();
 
 	tm.Reset();
 	// cross machine reduce
 	if (opts_->num_procs > 1)
 	{
 		CrossMachineSync(status);
+        num_jobs *= opts_->num_procs;
+
 		this->barrier_.Wait();
 	}
 	KALDI_VLOG(1) << "MPI_Reduce: " << tm.Elapsed();
@@ -578,22 +583,23 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 	tm.Reset();
 	// model merge ...
 	// average W(t)
-	cblas_Xscal(len, 1.0/num_threads_, cur_model, 1);
+	cblas_Xscal(len, 1.0/num_jobs, cur_model, 1);
 	// global gradient G(t) = average W(t) - W(t-1)
 	cblas_Xaxpy(len, -1, last_model, 1, cur_model, 1);
 	// delta(t) = mmt * delta_(t-1) + lr * G(t)
-	if (mmt_ < 0.0) mmt_ = 1.0 - 1.0/num_threads_;
-	cblas_Xscal(this->dim_, mmt_, gradient, 1);
-	cblas_Xaxpy(this->dim_, learnrate_, cur_model, 1, gradient, 1);
+	if (mmt_ < 0.0) mmt_ = 1.0 - 1.0/num_jobs;
+	cblas_Xscal(len, mmt_, gradient, 1);
+	cblas_Xaxpy(len, learnrate_, cur_model, 1, gradient, 1);
 
 	// CBM: W(t) = W(t-1) + delta(t)
 	//cblas_Xaxpy(this->dim_, 1.0, this->gradient_data_, 1, this->nnet_data_, 1);
 	// NBM: W(t) = W(t-1) + delta(t) + mmt*delta(t)
-	cblas_Xaxpy(this->dim_, 1.0+mmt_, gradient, 1, last_model, 1);
+	cblas_Xaxpy(len, 1.0+mmt_, gradient, 1, last_model, 1);
 
 	this->barrier_.Wait();
 	KALDI_VLOG(2) << "THREAD_Merge: " << tm.Elapsed();
 
+    if (thread_idx == 0) left_merge_--;
 }
 
 /*

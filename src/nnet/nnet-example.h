@@ -131,18 +131,14 @@ struct LmNnetExample : NnetExample
 {
 	SequentialInt32VectorReader *wordid_reader;
 
-	NnetModelSync *model_sync;
-	NnetLmStats *stats;
 	const NnetUpdateOptions *opts;
 
 	std::vector<int32> input_wordids;
 
 	LmNnetExample(SequentialInt32VectorReader *wordid_reader,
-					NnetModelSync *model_sync,
-					NnetStats *stats,
 					const NnetUpdateOptions *opts):
-	NnetExample(NULL), wordid_reader(wordid_reader),
-	model_sync(model_sync), stats(stats), opts(opts){}
+	NnetExample(NULL), wordid_reader(wordid_reader), opts(opts)
+    {}
 
 
 	bool PrepareData(std::vector<NnetExample*> &examples);
@@ -201,7 +197,7 @@ class ExamplesRepository {
   /// ExamplesDone() has been called.
   NnetExample *ProvideExample();
 
-  ExamplesRepository(): buffer_size_(128),
+  ExamplesRepository(int32 buffer_size = 128): buffer_size_(buffer_size),
                                       empty_semaphore_(buffer_size_),
                                       done_(false) { }
  private:

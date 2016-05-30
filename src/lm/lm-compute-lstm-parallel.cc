@@ -216,7 +216,7 @@ private:
 	    	si_nnet.Read(si_model_filename);
 	    }
 
-	    model_sync->Initialize(&nnet);
+	    model_sync->Initialize(&nnet, this->thread_id_);
 
 	    nnet1::CBXent cbxent;
         nnet1::Xent xent;
@@ -341,7 +341,7 @@ private:
 							<< time_now/60 << " min; processed " << total_frames/time_now
 							<< " frames per second.";
 			}
-
+    
 	        // for streams with new utterance, history states need to be reset
 	        nnet.ResetLstmStreams(new_utt_flags);
 
@@ -373,7 +373,6 @@ private:
 	            KALDI_ERR << "Unknown objective function code : " << objective_function;
 	        }
 
-
 		        // backward pass
 				if (!crossvalidate) {
 
@@ -385,19 +384,23 @@ private:
 							update_frames + num_frames > parallel_opts->merge_size)
 					{
 						// upload current model
-						model_sync->GetWeight(&nnet, this->thread_id_);
+						model_sync->GetWeight(&nnet, this->thread_id_, this->thread_id_);
 
 						// model merge
 						model_sync->ThreadSync(this->thread_id_, 1);
 
 						// download last model
-						model_sync->GetWeight(&nnet);
+						model_sync->SetWeight(&nnet, this->thread_id_);
 
 						nnet.ResetGradient();
+
+                        KALDI_VLOG(1) << "Thread " << thread_id_ << " merge NO." 
+                                        << parallel_opts->num_merge - model_sync->leftMerge()
+                                            << " Current mergesize = " << update_frames << " frames.";
 						update_frames = 0;
 					}
 				}
-
+        
 				monitor(&nnet, total_frames, num_frames);
 
 				// increase time counter
@@ -431,7 +434,7 @@ private:
 			if (parallel_opts->num_threads > 1 || parallel_opts->num_procs > 1)
 			{
 				// upload current model
-				model_sync->GetWeight(&nnet, this->thread_id_);
+				model_sync->GetWeight(&nnet, this->thread_id_, this->thread_id_);
 				// model merge
 				model_sync->ThreadSync(this->thread_id_, 0);
 			}
@@ -439,7 +442,7 @@ private:
 			if (this->thread_id_ == 0)
 			{
 				// download last model
-				model_sync->GetWeight(&nnet);
+				model_sync->SetWeight(&nnet, this->thread_id_);
 				model_sync->CopyToHost(&nnet);
 				KALDI_VLOG(1) << "Last thread upload model to host.";
 			}
@@ -527,7 +530,7 @@ void LstmlmUpdateParallel(const LstmlmUpdateOptions *opts,
 		Nnet *nnet,
 		LmStats *stats)
 {
-		nnet1::ExamplesRepository repository;
+		nnet1::ExamplesRepository repository(128*30);
 		LmModelSync model_sync(nnet, opts->parallel_opts);
 
 		TrainLstmlmParallelClass c(opts, &model_sync,
@@ -545,7 +548,7 @@ void LstmlmUpdateParallel(const LstmlmUpdateOptions *opts,
 	    nnet1::NnetExample *example;
 	    std::vector<nnet1::NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new nnet1::LmNnetExample(&feature_reader, &model_sync, stats, opts);
+	    	example = new nnet1::LmNnetExample(&feature_reader, opts);
 	    	if (example->PrepareData(examples))
 	    	{
 	    		for (int i = 0; i < examples.size(); i++)

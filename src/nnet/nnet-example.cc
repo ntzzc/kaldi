@@ -324,7 +324,7 @@ bool LmNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     LmNnetExample *example = NULL;
     for (int i = 0; i < sweep_time; i++)
     {
-    	example = new LmNnetExample(wordid_reader, model_sync, stats, opts);
+    	example = new LmNnetExample(wordid_reader, opts);
     	example->utt = utt;
     	example->input_wordids = input_wordids;
 
