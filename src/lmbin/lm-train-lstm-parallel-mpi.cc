@@ -56,9 +56,9 @@ int main(int argc, char *argv[]) {
     NnetParallelOptions parallel_opts;
 
     //multi-machine
-    MPI_Init_thread(&argc,&argv, MPI_THREAD_SINGLE, &parallel_opts.thread_level);
-    MPI_Comm_size(MPI_COMM_WORLD,&parallel_opts.num_procs);
-    MPI_Comm_rank(MPI_COMM_WORLD,&parallel_opts.myid);
+    MPI_Init_thread(&argc,&argv, MPI_THREAD_MULTIPLE, &parallel_opts.thread_level);
+    MPI_Comm_size(MPI_COMM_WORLD, &parallel_opts.num_procs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &parallel_opts.myid);
 
     parallel_opts.Register(&po);
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
 								&stats);
 
 
-    if (!opts.crossvalidate) {
+    if (parallel_opts.myid == 0 && !opts.crossvalidate) {
       nnet.Write(target_model_filename, opts.binary);
     }
 

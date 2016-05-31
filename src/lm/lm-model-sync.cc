@@ -537,10 +537,11 @@ void LmModelSync::CrossMachineSync(int status)
 
 	if (left_merge_ > 1 || !is_lastmerge_)
 	{
-		void *srcaddr = (void *) (opts_->myid==0 ? MPI_IN_PLACE : this->thread_data_[0]);
+		//void *srcaddr = (void *) (opts_->myid==0 ? MPI_IN_PLACE : this->thread_data_[0]);
+		void *srcaddr = (void *) MPI_IN_PLACE;
 		void *dstaddr = (void *) this->thread_data_[0];
 		MPI_Barrier(MPI_COMM_WORLD);
-		MPI_Reduce(srcaddr, dstaddr, this->dim_, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI_Allreduce(srcaddr, dstaddr, this->dim_, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 	}
 }
 
@@ -573,10 +574,13 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 	// cross machine reduce
 	if (opts_->num_procs > 1)
 	{
-		CrossMachineSync(status);
+	    this->barrier_.Wait();
+
+        if (thread_idx == 0)
+		    CrossMachineSync(status);
         num_jobs *= opts_->num_procs;
 
-		this->barrier_.Wait();
+	    this->barrier_.Wait();
 	}
 	KALDI_VLOG(1) << "MPI_Reduce: " << tm.Elapsed();
 

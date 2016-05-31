@@ -360,7 +360,7 @@ private:
 
 	        // forward pass
 	        featmat.CopyColFromVec(feat, 0);
-            words.CopyFromMat(featmat);
+            	words.CopyFromMat(featmat);
 
 	        nnet.Propagate(words, &nnet_out);
 
@@ -372,7 +372,6 @@ private:
 	        } else {
 	            KALDI_ERR << "Unknown objective function code : " << objective_function;
 	        }
-
 		        // backward pass
 				if (!crossvalidate) {
 
@@ -400,7 +399,6 @@ private:
 						update_frames = 0;
 					}
 				}
-        
 				monitor(&nnet, total_frames, num_frames);
 
 				// increase time counter
@@ -437,12 +435,12 @@ private:
 				model_sync->GetWeight(&nnet, this->thread_id_, this->thread_id_);
 				// model merge
 				model_sync->ThreadSync(this->thread_id_, 0);
+				// download last model
+				model_sync->SetWeight(&nnet, this->thread_id_);
 			}
 
 			if (this->thread_id_ == 0)
 			{
-				// download last model
-				model_sync->SetWeight(&nnet, this->thread_id_);
 				model_sync->CopyToHost(&nnet);
 				KALDI_VLOG(1) << "Last thread upload model to host.";
 			}

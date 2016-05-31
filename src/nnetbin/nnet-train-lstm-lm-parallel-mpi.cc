@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
 								&stats);
 
 
-    if (!opts.crossvalidate) {
+    if (parallel_opts.myid == 0 && !opts.crossvalidate) {
       nnet.Write(target_model_filename, opts.binary);
     }
 
