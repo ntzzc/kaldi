@@ -522,9 +522,8 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 }
 
-void LmModelSync::CrossMachineSync(int status)
+void LmModelSync::CrossMachineSyncStatus(int status)
 {
-	// cross machine reduce
 	int total_status = 0;
 	if (left_merge_ <= 1 && !is_lastmerge_)
 	{
@@ -534,20 +533,27 @@ void LmModelSync::CrossMachineSync(int status)
 		if (total_status < opts_->num_procs)
 			is_lastmerge_ = true;
 	}
+}
 
-	if (left_merge_ > 1 || !is_lastmerge_)
-	{
-		//void *srcaddr = (void *) (opts_->myid==0 ? MPI_IN_PLACE : this->thread_data_[0]);
-		void *srcaddr = (void *) MPI_IN_PLACE;
-		void *dstaddr = (void *) this->thread_data_[0];
-		MPI_Barrier(MPI_COMM_WORLD);
-		MPI_Allreduce(srcaddr, dstaddr, this->dim_, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-	}
+void LmModelSync::CrossMachineSync()
+{
+	// cross machine reduce
+	//void *srcaddr = (void *) (opts_->myid==0 ? MPI_IN_PLACE : this->thread_data_[0]);
+	void *srcaddr = (void *) MPI_IN_PLACE;
+	void *dstaddr = (void *) this->thread_data_[0];
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Allreduce(srcaddr, dstaddr, this->dim_, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 }
 
 void LmModelSync::ThreadSync(int32 thread_idx, int status)
 {
-	//double t1, t2, tk;
+	if (opts_->num_procs > 1)
+	{
+		CrossMachineSyncStatus(status);
+		if (this->is_lastmerge_ && status == 1)
+			return;
+	}
+
 	Timer tm;
 
 	tm.Reset();

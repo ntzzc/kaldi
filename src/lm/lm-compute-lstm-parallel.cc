@@ -380,7 +380,7 @@ private:
 					update_frames += num_frames;
 
 					if ((parallel_opts->num_threads > 1 || parallel_opts->num_procs > 1) &&
-							update_frames + num_frames > parallel_opts->merge_size)
+							update_frames + num_frames > parallel_opts->merge_size && !model_sync->isLastMerge())
 					{
 						// upload current model
 						model_sync->GetWeight(&nnet, this->thread_id_, this->thread_id_);
@@ -389,14 +389,17 @@ private:
 						model_sync->ThreadSync(this->thread_id_, 1);
 
 						// download last model
-						model_sync->SetWeight(&nnet, this->thread_id_);
+						if (!model_sync->isLastMerge())
+						{
+							model_sync->SetWeight(&nnet, this->thread_id_);
 
-						nnet.ResetGradient();
+							nnet.ResetGradient();
 
-                        KALDI_VLOG(1) << "Thread " << thread_id_ << " merge NO." 
-                                        << parallel_opts->num_merge - model_sync->leftMerge()
-                                            << " Current mergesize = " << update_frames << " frames.";
-						update_frames = 0;
+	                        KALDI_VLOG(1) << "Thread " << thread_id_ << " merge NO."
+	                                        << parallel_opts->num_merge - model_sync->leftMerge()
+	                                            << " Current mergesize = " << update_frames << " frames.";
+							update_frames = 0;
+						}
 					}
 				}
 				monitor(&nnet, total_frames, num_frames);
@@ -433,10 +436,16 @@ private:
 			{
 				// upload current model
 				model_sync->GetWeight(&nnet, this->thread_id_, this->thread_id_);
-				// model merge
+
+				// last model merge
 				model_sync->ThreadSync(this->thread_id_, 0);
+
 				// download last model
 				model_sync->SetWeight(&nnet, this->thread_id_);
+
+				KALDI_VLOG(1) << "Thread " << thread_id_ << " merge NO."
+								<< parallel_opts->num_merge - model_sync->leftMerge()
+									<< " Current mergesize = " << update_frames << " frames.";
 			}
 
 			if (this->thread_id_ == 0)

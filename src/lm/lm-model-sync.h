@@ -106,6 +106,10 @@ public:
 
 	void ThreadSync(int32 thread_idx, int status);
 
+	void CrossMachineSyncStatus(int32 status);
+
+	bool isLastMerge() { return is_lastmerge_;}
+
 	void Destory();
 
 	int32 Dim(){return this->dim_;};
