@@ -549,7 +549,10 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 {
 	if (opts_->num_procs > 1)
 	{
-		CrossMachineSyncStatus(status);
+        if (thread_idx == 0)
+		    CrossMachineSyncStatus(status);
+
+	    this->barrier_.Wait();
 		if (this->is_lastmerge_ && status == 1)
 			return;
 	}
@@ -583,7 +586,7 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 	    this->barrier_.Wait();
 
         if (thread_idx == 0)
-		    CrossMachineSync(status);
+		    CrossMachineSync();
         num_jobs *= opts_->num_procs;
 
 	    this->barrier_.Wait();
