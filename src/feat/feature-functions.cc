@@ -437,6 +437,16 @@ void SlidingWindowCmnInternal(const SlidingWindowCmnOptions &opts,
                               const MatrixBase<double> &input,
                               MatrixBase<double> *output, const Matrix<double> *global_stats = NULL) {
   opts.Check();
+
+    SubVector<double> *global_mean = NULL;
+    double global_count = 0;
+    if (NULL != global_stats && global_stats->NumRows() != 0)
+    {
+        global_mean = new SubVector<double>(const_cast<double*>(global_stats->RowData(0)), global_stats->NumCols()-1); 
+        global_count = (*global_stats)(0, global_stats->NumCols()-1);
+    }
+        
+        
   int32 num_frames = input.NumRows(), dim = input.NumCols();
 
   int32 last_window_start = -1, last_window_end = -1;
@@ -498,12 +508,11 @@ void SlidingWindowCmnInternal(const SlidingWindowCmnOptions &opts,
     output_frame.CopyFromVec(input_frame);
 
     // global mean normalization for the first min_window frames
-    if (NULL != global_stats && last_window_end <= opts.min_window && global_stats->NumRows() != 0)
+    if (t < opts.min_window && NULL != global_mean)
     {
-    	SubVector<double> global_mean(global_stats->RowData(0), global_stats->NumCols()-1); //const_cast<double*>
-    	double global_count = (*global_stats)(0, global_stats->NumCols()-1);
-    	cur_sum.Scale(0.5);
-    	cur_sum.AddVec(0.5*window_frames/global_count, global_mean);
+        double alpha = (1.0*t+1)/window_frames;
+    	cur_sum.Scale(alpha);
+    	cur_sum.AddVec((1-alpha)*window_frames/global_count, *global_mean);
     }
 
     output_frame.AddVec(-1.0 / window_frames, cur_sum);
