@@ -145,7 +145,7 @@ private:
 
 	int GetDim(Nnet *nnet);
 	void Init(Nnet *nnet);
-	void CrossMachineSync(int status);
+	void CrossMachineSync();
 
 	bool	initialized_;
 	bool	is_lastmerge_;
