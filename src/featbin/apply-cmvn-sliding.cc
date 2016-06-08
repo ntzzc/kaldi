@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
         "on frame being normalized; otherwise it precedes it in time.\n"
         "Useful for speaker-id; see also apply-cmvn-online\n"
         "\n"
-        "Usage: apply-cmvn-sliding [options] <feats-rspecifier> <feats-wspecifier>\n";
+        "Usage: apply-cmvn-sliding [options] <feats-rspecifier> <feats-wspecifier> [<global-cmvn-stats>]\n";
     
     ParseOptions po(usage);
     SlidingWindowCmnOptions opts;
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 2) {
+    if (po.NumArgs() < 2 || po.NumArgs() > 3) {
       po.PrintUsage();
       exit(1);
     }
@@ -51,6 +51,12 @@ int main(int argc, char *argv[]) {
     
     std::string feat_rspecifier = po.GetArg(1);
     std::string feat_wspecifier = po.GetArg(2);
+    std::string global_stats_rxfilename = po.GetOptArg(3);
+
+    // global_cmvn_stats helps us initialize to online CMVN to
+        // reasonable values at the beginning of the utterance.
+	Matrix<double> global_cmvn_stats;
+	ReadKaldiObject(global_stats_rxfilename, &global_cmvn_stats);
 
     SequentialBaseFloatMatrixReader feat_reader(feat_rspecifier);
     BaseFloatMatrixWriter feat_writer(feat_wspecifier);
@@ -66,7 +72,7 @@ int main(int argc, char *argv[]) {
       Matrix<BaseFloat> cmvn_feat(feat.NumRows(),
                                   feat.NumCols(), kUndefined);
 
-      SlidingWindowCmn(opts, feat, &cmvn_feat);
+      SlidingWindowCmn(opts, feat, &cmvn_feat, &global_cmvn_stats);
       
       feat_writer.Write(utt, cmvn_feat);
       num_done++;

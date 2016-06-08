@@ -435,7 +435,7 @@ void SlidingWindowCmnOptions::Check() const {
 // Internal version of SlidingWindowCmn with double-precision arguments.
 void SlidingWindowCmnInternal(const SlidingWindowCmnOptions &opts,
                               const MatrixBase<double> &input,
-                              MatrixBase<double> *output) {
+                              MatrixBase<double> *output, const Matrix<double> *global_stats = NULL) {
   opts.Check();
   int32 num_frames = input.NumRows(), dim = input.NumCols();
 
@@ -496,6 +496,16 @@ void SlidingWindowCmnInternal(const SlidingWindowCmnOptions &opts,
     SubVector<double> input_frame(input, t),
         output_frame(*output, t);
     output_frame.CopyFromVec(input_frame);
+
+    // global mean normalization for the first min_window frames
+    if (NULL != global_stats && last_window_end <= opts.min_window && global_stats->NumRows() != 0)
+    {
+    	SubVector<double> global_mean(global_stats->RowData(0), global_stats->NumCols()-1); //const_cast<double*>
+    	double global_count = (*global_stats)(0, global_stats->NumCols()-1);
+    	cur_sum.Scale(0.5);
+    	cur_sum.AddVec(0.5*window_frames/global_count, global_mean);
+    }
+
     output_frame.AddVec(-1.0 / window_frames, cur_sum);
 
     if (opts.normalize_variance) {
@@ -522,11 +532,11 @@ void SlidingWindowCmnInternal(const SlidingWindowCmnOptions &opts,
 
 void SlidingWindowCmn(const SlidingWindowCmnOptions &opts,
                       const MatrixBase<BaseFloat> &input,
-                      MatrixBase<BaseFloat> *output) {
+                      MatrixBase<BaseFloat> *output, const Matrix<double> *global_stats) {
   KALDI_ASSERT(SameDim(input, *output) && input.NumRows() > 0);
   Matrix<double> input_dbl(input), output_dbl(input.NumRows(), input.NumCols());
   // calll double-precision version
-  SlidingWindowCmnInternal(opts, input_dbl, &output_dbl);
+  SlidingWindowCmnInternal(opts, input_dbl, &output_dbl, global_stats);
   output->CopyFromMat(output_dbl);
 }
 

@@ -167,8 +167,8 @@ public:
 	    		{
 	    	    	std::string key = example->utt;
 	    	    	Matrix<BaseFloat> &mat = example->input_frames;
-			// forward the features through a feature-transform,
-                        nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
+	    	    	// forward the features through a feature-transform,
+                    nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feats_transf);
 
 	    	    	num_done++;
 

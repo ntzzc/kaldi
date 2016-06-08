@@ -342,7 +342,7 @@ struct SlidingWindowCmnOptions {
 /// dimension.
 void SlidingWindowCmn(const SlidingWindowCmnOptions &opts,
                       const MatrixBase<BaseFloat> &input,
-                      MatrixBase<BaseFloat> *output);
+                      MatrixBase<BaseFloat> *output, const Matrix<double> *global_stats = NULL);
 
 
 /// @} End of "addtogroup feat"
