@@ -68,10 +68,12 @@ int main(int argc, char *argv[]) {
     ParseOptions po(usage);
     std::string spk2utt_rspecifier, weights_rspecifier;
     bool binary = true;
+    int32 limit = 0;
     po.Register("spk2utt", &spk2utt_rspecifier, "rspecifier for speaker to utterance-list map");
     po.Register("binary", &binary, "write in binary mode (applies only to global CMN/CVN)");
     po.Register("weights", &weights_rspecifier, "rspecifier for a vector of floats "
                 "for each utterance, that's a per-frame weight.");
+    po.Register("limit", &limit, "only compute the limit frames CMN/CVN from the begin of the utterance.");
     
     po.Read(argc, argv);
 
@@ -131,7 +133,13 @@ int main(int argc, char *argv[]) {
         for (; !feat_reader.Done(); feat_reader.Next()) {
           std::string utt = feat_reader.Key();
           Matrix<double> stats;
-          const Matrix<BaseFloat> &feats = feat_reader.Value();
+          Matrix<BaseFloat> feats;
+          //const Matrix<BaseFloat> &feats = feat_reader.Value();
+          Matrix<BaseFloat> &mat = feat_reader.Value();
+          if (limit > mat.NumRows() || limit < 0) limit = 0;
+          if (limit > 0) feats = mat.RowRange(0, limit);
+          else feats = mat;
+
           InitCmvnStats(feats.NumCols(), &stats);
 
           if (!AccCmvnStatsWrapper(utt, feats, &weights_reader, &stats)) {
