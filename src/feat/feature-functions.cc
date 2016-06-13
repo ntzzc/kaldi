@@ -538,6 +538,57 @@ void SlidingWindowCmnInternal(const SlidingWindowCmnOptions &opts,
   }
 }
 
+// Internal version of SlidingWindowCmn with double-precision arguments.
+void SlidingWindowCmnInternalHTK(const SlidingWindowCmnOptions &opts,
+                              const MatrixBase<double> &input,
+                              MatrixBase<double> *output) {
+  int32 num_frames = input.NumRows(), dim = input.NumCols();
+
+  int32 last_window_end = 0, window_end = 0, window_frames = 0;
+  Vector<double> cur_sum(dim), cur_sumsq(dim);
+
+  for (int32 t = 0; t < num_frames; t++) {
+	  window_end = t + 1;
+
+	  window_end = std::max(window_end, opts.min_window);
+	  window_end = std::min(window_end, num_frames);
+
+	  if (last_window_end == 0 || window_end - last_window_end == opts.update_window) {
+		  SubMatrix<double> input_part(input, last_window_end, window_end - last_window_end, 0, dim);
+		  cur_sum.AddRowSumMat(1.0, input_part , 1.0);
+		  if (opts.normalize_variance)
+			  cur_sumsq.AddDiagMat2(1.0, input_part, kTrans, 0.0);
+
+		  last_window_end = window_end;
+		  window_frames = last_window_end;
+	  }
+
+	  SubVector<double> input_frame(input, t), output_frame(*output, t);
+
+	  output_frame.CopyFromVec(input_frame);
+	  output_frame.AddVec(-1.0 / window_frames, cur_sum);
+
+	    if (opts.normalize_variance) {
+	      if (window_frames == 1) {
+	        output_frame.Set(0.0);
+	      } else {
+	        Vector<double> variance(cur_sumsq);
+	        variance.Scale(1.0 / window_frames);
+	        variance.AddVec2(-1.0 / (window_frames * window_frames), cur_sum);
+	        // now "variance" is the variance of the features in the window,
+	        // around their own mean.
+	        int32 num_floored = variance.ApplyFloor(1.0e-10);
+	        if (num_floored > 0 && num_frames > 1) {
+	          KALDI_WARN << "Flooring variance When normalizing variance, floored " << num_floored
+	                     << " elements; num-frames was " << window_frames;
+	        }
+	        variance.ApplyPow(-0.5); // get inverse standard deviation.
+	        output_frame.MulElements(variance);
+	      }
+	    }
+  }
+
+}
 
 void SlidingWindowCmn(const SlidingWindowCmnOptions &opts,
                       const MatrixBase<BaseFloat> &input,
@@ -545,10 +596,13 @@ void SlidingWindowCmn(const SlidingWindowCmnOptions &opts,
   KALDI_ASSERT(SameDim(input, *output) && input.NumRows() > 0);
   Matrix<double> input_dbl(input), output_dbl(input.NumRows(), input.NumCols());
   // calll double-precision version
-  SlidingWindowCmnInternal(opts, input_dbl, &output_dbl, global_stats);
+  if (opts.update_window == 0)
+	  SlidingWindowCmnInternal(opts, input_dbl, &output_dbl, global_stats);
+  else
+	  SlidingWindowCmnInternalHTK(opts, input_dbl, &output_dbl);
+
   output->CopyFromMat(output_dbl);
 }
-
 
 
 }  // namespace kaldi
