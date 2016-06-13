@@ -311,12 +311,14 @@ BaseFloat ComputeLpc(const VectorBase<BaseFloat> &autocorr_in,
 struct SlidingWindowCmnOptions {
   int32 cmn_window;
   int32 min_window;
+  int32 update_window;
   bool normalize_variance;
   bool center;
 
   SlidingWindowCmnOptions():
       cmn_window(600),
       min_window(100),
+	  update_window(0),
       normalize_variance(false),
       center(false) { }
 
@@ -326,6 +328,7 @@ struct SlidingWindowCmnOptions {
     opts->Register("min-cmn-window", &min_window, "Minimum CMN window "
                    "used at start of decoding (adds latency only at start). "
                    "Only applicable if center == false, ignored if center==true");
+    opts->Register("update-window", &update_window, "Window in frames for update CMN");
     opts->Register("norm-vars", &normalize_variance, "If true, normalize "
                    "variance to one."); // naming this as in apply-cmvn.cc
     opts->Register("center", &center, "If true, use a window centered on the "
@@ -344,7 +347,9 @@ void SlidingWindowCmn(const SlidingWindowCmnOptions &opts,
                       const MatrixBase<BaseFloat> &input,
                       MatrixBase<BaseFloat> *output, const Matrix<double> *global_stats = NULL);
 
-
+void SlidingWindowCmnHTK(const SlidingWindowCmnOptions &opts,
+                      const MatrixBase<BaseFloat> &input,
+                      MatrixBase<BaseFloat> *output);
 /// @} End of "addtogroup feat"
 }  // namespace kaldi
 
