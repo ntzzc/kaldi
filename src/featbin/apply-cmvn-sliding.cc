@@ -55,8 +55,9 @@ int main(int argc, char *argv[]) {
 
     // global_cmvn_stats helps us initialize to online CMVN to
         // reasonable values at the beginning of the utterance.
-	Matrix<double> global_cmvn_stats;
-	ReadKaldiObject(global_stats_rxfilename, &global_cmvn_stats);
+    Matrix<double> global_cmvn_stats;
+    if (global_stats_rxfilename != "")
+	    ReadKaldiObject(global_stats_rxfilename, &global_cmvn_stats);
 
     SequentialBaseFloatMatrixReader feat_reader(feat_rspecifier);
     BaseFloatMatrixWriter feat_writer(feat_wspecifier);

@@ -135,8 +135,9 @@ int main(int argc, char *argv[]) {
           Matrix<double> stats;
           Matrix<BaseFloat> feats;
           //const Matrix<BaseFloat> &feats = feat_reader.Value();
-          Matrix<BaseFloat> &mat = feat_reader.Value();
-          if (limit > mat.NumRows() || limit < 0) limit = 0;
+          const Matrix<BaseFloat> &mat = feat_reader.Value();
+          if (limit > mat.NumRows()) limit = mat.NumRows(); 
+	  if (limit < 0) limit = 0;
           if (limit > 0) feats = mat.RowRange(0, limit);
           else feats = mat;
 
