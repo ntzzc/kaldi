@@ -202,7 +202,7 @@ private:
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
 
 		//double t1, t2, t3, t4;
-		int32 update_frames = 0, num_frames = 0, num_done = 0;
+		int32 update_frames = 0, num_frames = 0, num_done = 0, num_dump = 0;
 		kaldi::int64 total_frames = 0;
 
 		int32 num_stream = opts->num_stream;
@@ -425,6 +425,19 @@ private:
 				// increase time counter
 		        update_frames += num_frames;
 		        total_frames += num_frames;
+
+		        // track training process
+			    if (this->thread_id_ == 0 && opts->dump_time > 0)
+				{
+					if (total_frames/(3600*100*opts->dump_time) > num_dump)
+					{
+						char name[512];
+						num_dump++;
+						sprintf(name, "%s_%d_%d", model_filename.c_str(), num_dump, total_frames);
+						nnet.Write(string(name), true);
+					}
+				}
+
 		        fflush(stderr);
 		        fsync(fileno(stderr));
 		}
