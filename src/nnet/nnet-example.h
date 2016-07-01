@@ -157,7 +157,7 @@ struct SequentialNnetExample : NnetExample
 			KALDI_ERR << "Invalid sweep-frames string " << opts->sweep_frames_str;
 
 		if (sweep_frames[0] > opts->skip_frames || sweep_frames.size() > 1)
-			KALDI_ERR << "invalid sweep frames indexes";
+			KALDI_ERR << "invalid sweep frame index";
 	}
 
 	bool PrepareData(std::vector<NnetExample*> &examples);

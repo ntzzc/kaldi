@@ -100,7 +100,7 @@ struct NnetUpdateOptions {
 
 	      sweep_time = skip_frames;
 
-	      po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training");
+	      po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training(Deprecated, use --sweep-frames instead)");
 	      po->Register("sweep-frames", &sweep_frames_str, "Sweep frames indexes for each utterance in skip frames training, e.g. 0:1 for skip_frames = 2");
 
 	      po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");

@@ -43,12 +43,13 @@ struct NnetForwardOptions {
     int32 dump_interval;
     int32 skip_frames;
     int32 sweep_time;
+    std::string sweep_frames_str;
 
     const PdfPriorOptions *prior_opts;
 
     NnetForwardOptions(const PdfPriorOptions *prior_opts)
     	:feature_transform(""),no_softmax(false),apply_log(false),copy_posterior(true),use_gpu("no"),num_threads(1),
-		 	 	 	 	 	 	 time_shift(0),batch_size(20),num_stream(0),dump_interval(0), skip_frames(1), sweep_time(1), prior_opts(prior_opts)
+		 	 	 	 	 	 	 time_shift(0),batch_size(20),num_stream(0),dump_interval(0), skip_frames(1), sweep_time(1), sweep_frames_str("0"), prior_opts(prior_opts)
     {
 
     }
@@ -74,7 +75,8 @@ struct NnetForwardOptions {
         //</jiayu>
 
         sweep_time = skip_frames;
-        po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training");
+        po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training(Deprecated, use --sweep-frames instead)");
+        po->Register("sweep-frames", &sweep_frames_str, "Sweep frames index for each utterance in skip frames decoding, e.g. 0");
     }
 
 };

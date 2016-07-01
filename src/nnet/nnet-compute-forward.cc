@@ -107,6 +107,13 @@ public:
 	    nnet_transf.SetDropoutRetention(1.0);
 	    nnet.SetDropoutRetention(1.0);
 
+		std::vector<int32> sweep_frames;
+		if (!kaldi::SplitStringToIntegers(opts->sweep_frames_str, ":", false, &sweep_frames))
+			KALDI_ERR << "Invalid sweep-frames string " << opts->sweep_frames_str;
+
+		if (sweep_frames[0] > opts->skip_frames || sweep_frames.size() > 1)
+			KALDI_ERR << "invalid sweep frame index";
+
 	    CuMatrix<BaseFloat>  cufeat, feats_transf, nnet_out;
 
 	    std::vector<std::string> keys(num_stream);
@@ -177,11 +184,14 @@ public:
 	                feats[s].Resize(feats_transf.NumRows(), feats_transf.NumCols());
 	                feats_transf.CopyToMat(&feats[s]);
 	                //feats[s] = mat;
-	                curt[s] = 0;
+	                curt[s] = sweep_frames[0];
 	                lent[s] = feats[s].NumRows();
 	                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
 
-	                frame_num_utt[s] = (lent[s]+skip_frames-1)/skip_frames;
+	                //frame_num_utt[s] = (lent[s]+skip_frames-1)/skip_frames;
+	                frame_num_utt[s] = lent[s]/skip_frames;
+	                frame_num_utt[s] += lent[s]%skip_frames > sweep_frames[0] ? 1 : 0;
+	                lent[s] = lent[s] > frame_num_utt[s]*skip_frames ? frame_num_utt[s]*skip_frames : lent[s];
 	                int32 utt_frames = opts->copy_posterior ? lent[s]:frame_num_utt[s];
 	                utt_feats[s].Resize(utt_frames, out_dim, kUndefined);
 	                utt_copied[s] = false;
