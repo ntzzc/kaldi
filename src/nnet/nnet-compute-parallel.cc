@@ -200,7 +200,7 @@ private:
 	    Timer time, mpi_time;
 
 		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff;
-		CuMatrix<BaseFloat> si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
+		CuMatrix<BaseFloat> si_nnet_out, *p_si_nnet_out = NULL;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
 
 		DNNNnetExample *example;
@@ -380,13 +380,13 @@ private:
 		        total_frames += num_frames;
 
 		        // track training process
-			    if (this->thread_id_ == 0 && opts->dump_time > 0)
+			    if (!crossvalidate && this->thread_id_ == 0 && opts->dump_time > 0)
 				{
-					if (total_frames/(3600*100*opts->dump_time) > num_dump)
+					if ((total_frames*parallel_opts->num_threads)/(3600*100*opts->dump_time) > num_dump)
 					{
 						char name[512];
 						num_dump++;
-						sprintf(name, "%s_%d_%d", model_filename.c_str(), num_dump, total_frames);
+						sprintf(name, "%s_%d_%ld", model_filename.c_str(), num_dump, total_frames);
 						nnet.Write(string(name), true);
 					}
 				}

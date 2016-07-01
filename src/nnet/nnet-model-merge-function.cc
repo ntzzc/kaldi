@@ -66,6 +66,7 @@ int ModelMergeFunction:: MergeStatus(int status)
 /**
  * Model average.
  */
+/*
 void ModelAverageMerge::Merge(int root)
 {
 
@@ -90,8 +91,21 @@ void ModelAverageMerge::Merge(int root)
 	//std::cout<<"Bcast finished!"<<std::endl;
 	this->mLeftMerge--;
 }
+*/
 
+void ModelAverageMerge::Merge(int root)
+{
 
+    void *srcaddr = (void *) MPI_IN_PLACE;
+    void *dstaddr = (void *) this->model_sync_->data_;
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Allreduce(srcaddr, dstaddr, this->model_sync_->dim_, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+
+    cblas_Xscal(model_sync_->Dim(), 1.0/opts->num_procs, model_sync_->data_, 1);
+
+    this->mLeftMerge--;
+}
 
 void
 ModelGlobalSumMerge::Init()

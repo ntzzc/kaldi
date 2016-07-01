@@ -962,11 +962,11 @@ private:
 		        // track training process
 			    if (this->thread_id_ == 0 && opts->dump_time > 0)
 				{
-					if (total_frames/(3600*100*opts->dump_time) > num_dump)
+					if ((total_frames*parallel_opts->num_threads)/(3600*100*opts->dump_time) > num_dump)
 					{
 						char name[512];
 						num_dump++;
-						sprintf(name, "%s_%d_%d", model_filename.c_str(), num_dump, total_frames);
+						sprintf(name, "%s_%d_%ld", model_filename.c_str(), num_dump, total_frames);
 						nnet.Write(string(name), true);
 					}
 				}
