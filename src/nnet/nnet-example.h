@@ -60,6 +60,7 @@ struct DNNNnetExample : NnetExample
 
 	Posterior targets;
 	Vector<BaseFloat> frames_weights;
+	std::vector<int32> sweep_frames;
 
 	DNNNnetExample(SequentialBaseFloatMatrixReader *feature_reader,
 					RandomAccessPosteriorReader *targets_reader,
@@ -69,7 +70,22 @@ struct DNNNnetExample : NnetExample
 					NnetStats *stats,
 					const NnetUpdateOptions *opts):
 	NnetExample(feature_reader), targets_reader(targets_reader), weights_reader(weights_reader),
-	model_sync(model_sync), stats(stats), opts(opts) {}
+	model_sync(model_sync), stats(stats), opts(opts)
+	{
+		if (!kaldi::SplitStringToIntegers(opts->sweep_frames_str, ":", false, &sweep_frames))
+			KALDI_ERR << "Invalid sweep-frames string " << opts->sweep_frames_str;
+
+		bool flag = true;
+		for (int i = 0; i < sweep_frames.size(); i++)
+		{
+			if (sweep_frames[i] >= opts->skip_frames)
+			{
+				flag = false;break;
+			}
+		}
+		if (!flag)
+			KALDI_ERR << "invalid sweep frames indexes";
+	}
 
 	bool PrepareData(std::vector<NnetExample*> &examples);
 };
@@ -83,6 +99,7 @@ struct CTCNnetExample : NnetExample
 	const NnetUpdateOptions *opts;
 
 	std::vector<int32> targets;
+	std::vector<int32> sweep_frames;
 
 	CTCNnetExample(SequentialBaseFloatMatrixReader *feature_reader,
 					RandomAccessInt32VectorReader *targets_reader,
@@ -91,7 +108,22 @@ struct CTCNnetExample : NnetExample
 					NnetCtcStats *stats,
 					const NnetUpdateOptions *opts):
 	NnetExample(feature_reader), targets_reader(targets_reader),
-	model_sync(model_sync), stats(stats), opts(opts){}
+	model_sync(model_sync), stats(stats), opts(opts)
+	{
+		if (!kaldi::SplitStringToIntegers(opts->sweep_frames_str, ":", false, &sweep_frames))
+			KALDI_ERR << "Invalid sweep-frames string " << opts->sweep_frames_str;
+
+		bool flag = true;
+		for (int i = 0; i < sweep_frames.size(); i++)
+		{
+			if (sweep_frames[i] >= opts->skip_frames)
+			{
+				flag = false;break;
+			}
+		}
+		if (!flag)
+			KALDI_ERR << "invalid sweep frames indexes";
+	}
 
 
 	bool PrepareData(std::vector<NnetExample*> &examples);
@@ -109,6 +141,7 @@ struct SequentialNnetExample : NnetExample
 	std::vector<int32> num_ali;
 	Lattice den_lat;
 	std::vector<int32> state_times;
+	std::vector<int32> sweep_frames;
 
 
 	SequentialNnetExample(SequentialBaseFloatMatrixReader *feature_reader,
@@ -119,9 +152,13 @@ struct SequentialNnetExample : NnetExample
 							const NnetSequentialUpdateOptions *opts):
 								NnetExample(feature_reader), den_lat_reader(den_lat_reader),
 								num_ali_reader(num_ali_reader),model_sync(model_sync),stats(stats),opts(opts)
-							{
+	{
+		if (!kaldi::SplitStringToIntegers(opts->sweep_frames_str, ":", false, &sweep_frames))
+			KALDI_ERR << "Invalid sweep-frames string " << opts->sweep_frames_str;
 
-							}
+		if (sweep_frames[0] > opts->skip_frames || sweep_frames.size() > 1)
+			KALDI_ERR << "invalid sweep frames indexes";
+	}
 
 	bool PrepareData(std::vector<NnetExample*> &examples);
 

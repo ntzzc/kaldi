@@ -53,6 +53,7 @@ struct NnetSequentialUpdateOptions {
 
   std::string silence_phones_str; // colon-separated list of integer ids of silence phones,
                                   // for MPE/SMBR only.
+  std::string sweep_frames_str;
 
   int32 update_frames;
   int32 max_frames; // Allow segments maximum of one minute by default
@@ -77,7 +78,7 @@ struct NnetSequentialUpdateOptions {
 
   NnetSequentialUpdateOptions(const NnetTrainOptions *trn_opts, const PdfPriorOptions *prior_opts, const NnetParallelOptions *parallel_opts): criterion("mmi"),
 		  	  	  	  	  	  	 acoustic_scale(0.1), lm_scale(0.1), old_acoustic_scale(0.0), kld_scale(-1.0), frame_smooth(-1.0),
-		  	  	  	  	  	  	 drop_frames(true), one_silence_class(false), boost(0.0),
+		  	  	  	  	  	  	 drop_frames(true), one_silence_class(false), boost(0.0), sweep_frames_str("0"),
 								 update_frames(-1),
 				                 max_frames(6000),
   	  	  	  	  	  	  	  	 use_gpu("yes"),
@@ -117,6 +118,7 @@ struct NnetSequentialUpdateOptions {
       po->Register("silence-phones", &silence_phones_str,
                      "For MPFE or SMBR, colon-separated list of integer ids of "
                      "silence phones, e.g. 1:2:3");
+      po->Register("sweep-frames", &sweep_frames_str, "Sweep frames index for each utterance in skip frames training, e.g. 0");
 
       po->Register("update-frames",&update_frames, "Every update-frames frames each client exchange gradient");
       po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");

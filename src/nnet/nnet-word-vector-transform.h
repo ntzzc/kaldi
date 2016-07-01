@@ -1,6 +1,6 @@
 	// nnet/nnet-word-vector-transform.h
 
-// Copyright 2011-2014  Brno University of Technology (author: Karel Vesely)
+// Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
 // See ../../COPYING for clarification regarding multiple authors
 //
