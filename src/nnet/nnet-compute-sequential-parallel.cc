@@ -533,20 +533,13 @@ private:
 	    // Read the class-frame-counts, compute priors
 	    PdfPrior log_prior(*prior_opts);
 
-	    // Read transition model
-	    TransitionModel *trans_model = NULL;
-	    if (transition_model_filename != "")
-	    {
-	    	trans_model = new TransitionModel();
-	    	ReadKaldiObject(transition_model_filename, trans_model);
-	    }
 
 		int32 time_shift = opts->targets_delay;
 		const PdfPriorOptions *prior_opts = opts->prior_opts;
 		int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
 		int32 frame_limit = opts->frame_limit;
-		int32 skip_frames = 1;
+		int32 skip_frames = opts->skip_frames;
 
 
 	    int32 num_done = 0, num_frm_drop = 0;
@@ -559,6 +552,15 @@ private:
 	    double total_mmi_obj = 0.0;
 	    double total_post_on_ali = 0.0;
 	    double total_frame_acc = 0.0;
+
+	    // Read transition model
+	    TransitionModel *trans_model = NULL;
+	    if (transition_model_filename != "")
+	    {
+	    	trans_model = new TransitionModel();
+	    	ReadKaldiObject(transition_model_filename, trans_model);
+	    	skip_frames = 1; // for CTC
+	    }
 
 		Nnet nnet_transf;
 	    if (feature_transform != "") {
@@ -675,7 +677,7 @@ private:
 						num_frames += lent[s];
 
 						// skip frames
-						frame_num_utt[s] = (lent[s]+skip_frames-1)/skip_frames;
+						frame_num_utt[s] = example->num_ali.size();
 						utt_feats[s].Resize(frame_num_utt[s], out_dim, kSetZero);
 						diff_utt_feats[s].Resize(frame_num_utt[s], out_dim, kSetZero);
 						utt_copied[s] = false;
@@ -689,7 +691,6 @@ private:
 						example = dynamic_cast<SequentialNnetExample*>(repository_->ProvideExample());
 					}
 
-					max_frame_num = (max_frame_num+skip_frames-1)/skip_frames;
 					cur_stream_num = s;
 					new_utt_flags.resize(cur_stream_num, 1);
 
@@ -705,13 +706,13 @@ private:
 					// fill a multi-stream bptt batch
 					 // * feat: first shifted to achieve targets delay; then padded to batch_size
 					 for (int s = 0; s < cur_stream_num; s++) {
-						 for (int t = 0; t < frame_num_utt[s]; t++) {
+						 for (int t = 0; t < lent[s]; t++) {
 							// feat shifting & padding
-							if (curt[s] + time_shift < frame_num_utt[s]) {
-								feat.Row(t * cur_stream_num + s).CopyFromVec(feats[s].Row((curt[s]+time_shift)*skip_frames));
+							if (curt[s] + time_shift < lent[s]) {
+								feat.Row(t * cur_stream_num + s).CopyFromVec(feats[s].Row(curt[s]+time_shift));
 							} else {
-								int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
-								feat.Row(t * cur_stream_num + s).CopyFromVec(feats[s].Row(last));
+								//int last = (frame_num_utt[s]-1)*skip_frames; //lent[s]-1
+								feat.Row(t * cur_stream_num + s).CopyFromVec(feats[s].Row(lent[s]-1));
 							}
 							curt[s]++;
 						}
@@ -741,12 +742,14 @@ private:
 					nnet_out.CopyToMat(&nnet_out_host);
 
 					for (int s = 0; s < cur_stream_num; s++) {
-						for (int t = 0; t < frame_num_utt[s]; t++) {
+						for (int t = 0; t < lent[s]; t++) {
 							   // feat shifting & padding
-							   if (utt_curt[s] < frame_num_utt[s]) {
-								   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * cur_stream_num + s));
-								   utt_curt[s]++;
-							   }
+							   for (int k = 0; k < skip_frames; k++) {
+								   if (utt_curt[s] < frame_num_utt[s]) {
+									   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * cur_stream_num + s));
+									   utt_curt[s]++;
+								   }
+								}
 						   }
 					}
 
@@ -775,14 +778,17 @@ private:
 					}
 
 					for (int s = 0; s < cur_stream_num; s++) {
-						for (int t = 0; t < frame_num_utt[s]; t++) {
+						for (int t = 0; t < lent[s]; t++) {
 							// feat shifting & padding
-							if (diff_curt[s] + time_shift < frame_num_utt[s]) {
-								diff_feat.Row(t * cur_stream_num + s).CopyFromVec(diff_utt_feats[s].Row(diff_curt[s]+time_shift));
-							} else {
-								//diff_feat.Row(t * cur_stream_num + s).SetZero();
+							for (int k = 0; k < skip_frames; k++) {
+								if (diff_curt[s] + time_shift < frame_num_utt[s]) {
+									diff_feat[s].Row(t * cur_stream_num + s).AddVec(1.0, diff_utt_feats[s].Row(diff_curt[s]+time_shift));
+									//diff_feat.Row(t * cur_stream_num + s).CopyFromVec(diff_utt_feats[s].Row(diff_curt[s]+time_shift));
+								} else {
+									//diff_feat.Row(t * cur_stream_num + s).SetZero();
+								}
+								diff_curt[s]++;
 							}
-							diff_curt[s]++;
 						}
 					}
 
