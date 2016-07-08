@@ -552,7 +552,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       //   Version 2 (Alex Graves' PhD dissertation):
       //   only backprop g(t+1) to r(t)
       CuSubMatrix<BaseFloat> w_g_r_(w_gifo_r_.RowRange(0, ncell_));
-      d_r.AddMatMat(1.0, DG.RowRange((t+1)*S,S), kNoTrans, w_g_r_, kNoTrans, 1.0);
+      d_r[t]->AddMatMat(bptt, *d_g[t+1], kNoTrans, w_g_r_, kNoTrans, 1.0);
       */
 
       /*
