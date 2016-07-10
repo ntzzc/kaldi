@@ -559,8 +559,8 @@ private:
 	    {
 	    	trans_model = new TransitionModel();
 	    	ReadKaldiObject(transition_model_filename, trans_model);
-	    	skip_frames = 1; // for CTC
 	    }
+        else skip_frames = 1; // for CTC
 
 		Nnet nnet_transf;
 	    if (feature_transform != "") {
@@ -782,12 +782,12 @@ private:
 							// feat shifting & padding
 							for (int k = 0; k < skip_frames; k++) {
 								if (diff_curt[s] + time_shift < frame_num_utt[s]) {
-									diff_feat[s].Row(t * cur_stream_num + s).AddVec(1.0, diff_utt_feats[s].Row(diff_curt[s]+time_shift));
+									diff_feat.Row(t * cur_stream_num + s).AddVec(1.0, diff_utt_feats[s].Row(diff_curt[s]+time_shift));
+								    diff_curt[s]++;
 									//diff_feat.Row(t * cur_stream_num + s).CopyFromVec(diff_utt_feats[s].Row(diff_curt[s]+time_shift));
 								} else {
 									//diff_feat.Row(t * cur_stream_num + s).SetZero();
 								}
-								diff_curt[s]++;
 							}
 						}
 					}
