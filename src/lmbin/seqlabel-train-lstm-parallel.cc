@@ -1,4 +1,4 @@
-// lm/lm-train-lstm-parallel.cc
+// lm/seqlabel-train-lstm-parallel.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -25,7 +25,7 @@
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "cudamatrix/cu-device.h"
-#include "lm/lm-compute-lstm-parallel.h"
+#include "lm/seqlabel-compute-lstm-parallel.h"
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
@@ -36,10 +36,10 @@ int main(int argc, char *argv[]) {
   try {
     const char *usage =
         "Perform one iteration of Neural Network training by mini-batch Stochastic Gradient Descent.\n"
-        "This version use for lstm language model training.\n"
-        "Usage:  nnet-train-lstm-lm-parallel [options] <feature-rspecifier> <model-in> [<model-out>]\n"
+        "This version use for sequence labeling task.\n"
+        "Usage:  seqlabel-train-lstm-parallel [options] <feature-rspecifier> <label-rspecifier> <model-in> [<model-out>]\n"
         "e.g.: \n"
-        " lm-train-lstm-parallel scp:feature.scp nnet.init nnet.iter1\n";
+        " seqlabel-train-lstm-parallel scp:feature.scp ark:label.ark nnet.init nnet.iter1\n";
 
     ParseOptions po(usage);
 
@@ -52,22 +52,23 @@ int main(int argc, char *argv[]) {
     NnetParallelOptions parallel_opts;
     parallel_opts.Register(&po);
 
-    LstmlmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
+    SeqLabelLstmUpdateOptions opts(&trn_opts, &rnd_opts, &parallel_opts);
     opts.Register(&po);
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 3-(opts.crossvalidate?1:0)) {
+    if (po.NumArgs() != 4-(opts.crossvalidate?1:0)) {
       po.PrintUsage();
       exit(1);
     }
 
     std::string feature_rspecifier = po.GetArg(1),
-      model_filename = po.GetArg(2);
+      label_rspecifier = po.GetArg(2),
+      model_filename = po.GetArg(3);
         
     std::string target_model_filename;
     if (!opts.crossvalidate) {
-      target_model_filename = po.GetArg(3);
+      target_model_filename = po.GetArg(4);
     }
 
     using namespace kaldi;
@@ -82,16 +83,17 @@ int main(int argc, char *argv[]) {
 
 
     Nnet nnet;
-    LmStats stats;
+    SeqLabelStats stats;
 
     Timer time;
     double time_now = 0;
     KALDI_LOG << "TRAINING STARTED";
 
 
-    LstmlmUpdateParallel(&opts,
+    SeqLabelLstmParallel(&opts,
 					model_filename,
 					feature_rspecifier,
+					label_rspecifier,
 								&nnet,
 								&stats);
 

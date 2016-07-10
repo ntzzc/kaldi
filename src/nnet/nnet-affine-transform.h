@@ -136,6 +136,8 @@ class AffineTransform : public UpdatableComponent {
 
   int32 NumParams() const { return linearity_.NumRows()*linearity_.NumCols() + bias_.Dim(); }
   
+  int32 GetDim() const { return linearity_.SizeInBytes()/sizeof(BaseFloat) + bias_.Dim(); }
+
   void GetParams(Vector<BaseFloat>* wei_copy) const {
     wei_copy->Resize(NumParams());
     int32 linearity_num_elem = linearity_.NumRows() * linearity_.NumCols(); 
@@ -350,6 +352,46 @@ class AffineTransform : public UpdatableComponent {
 
     (*b)->bias_ = this->bias_;
     (*b)->linearity_ = U;
+  }
+
+
+  int WeightCopy(BaseFloat *host, int direction, int copykind)
+  {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+        Timer tim;
+
+        int32 dst_pitch, src_pitch, width,  size;
+        int pos = 0;
+        void *src, *dst;
+        MatrixDim dim;
+        cudaMemcpyKind kind = copykind;
+
+		dim = linearity_.Dim();
+		src_pitch = dim.stride*sizeof(BaseFloat);
+		dst_pitch = src_pitch;
+		width = dim.cols*sizeof(BaseFloat);
+		dst = (void*) direction==0 ? (host+pos) : linearity_.Data();
+		src = (void*) direction==0 ? linearity_.Data() : (host+pos);
+		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+		pos += linearity_.SizeInBytes();
+
+		size = bias_.Dim()*sizeof(BaseFloat);
+		dst = (void*) direction==0 ? (host+pos) : bias_.Data();
+		src = (void*) direction==0 ? bias_.Data() : (host+pos);
+		cudaMemcpy(dst, src, size, kind);
+		pos += size;
+
+  	  CU_SAFE_CALL(cudaGetLastError());
+
+  	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+
+  	  return pos;
+  }else
+#endif
+  	{
+  		// not implemented for CPU yet
+  	}
   }
 
 protected:

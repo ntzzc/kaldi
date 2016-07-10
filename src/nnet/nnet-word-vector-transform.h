@@ -119,6 +119,8 @@ class WordVectorTransform : public UpdatableComponent {
 
   int32 NumParams() const { return wordvector_.NumRows()*wordvector_.NumCols(); }
   
+  int32 GetDim() const { return wordvector_.SizeInBytes()/sizeof(BaseFloat); }
+
   void GetParams(Vector<BaseFloat>* wei_copy) const {
     wei_copy->Resize(NumParams());
     int32 wordvector_num_elem = wordvector_.NumRows() * wordvector_.NumCols();
@@ -246,6 +248,41 @@ class WordVectorTransform : public UpdatableComponent {
 
   const CuMatrixBase<BaseFloat>& GetLinearityCorr() const {
     return wordvector_corr_;
+  }
+
+
+  int WeightCopy(BaseFloat *host, int direction, int copykind)
+  {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+        Timer tim;
+
+        int32 dst_pitch, src_pitch, width,  size;
+        int pos = 0;
+        void *src, *dst;
+        MatrixDim dim;
+        cudaMemcpyKind kind = copykind;
+
+		dim = wordvector_.Dim();
+		src_pitch = dim.stride*sizeof(BaseFloat);
+		dst_pitch = src_pitch;
+		width = dim.cols*sizeof(BaseFloat);
+		dst = (void*) direction==0 ? (host+pos) : wordvector_.Data();
+		src = (void*) direction==0 ? wordvector_.Data() : (host+pos);
+		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+		pos += wordvector_.SizeInBytes();
+
+
+  	  CU_SAFE_CALL(cudaGetLastError());
+
+  	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+
+  	  return pos;
+  }else
+#endif
+  	{
+  		// not implemented for CPU yet
+  	}
   }
 
 protected:

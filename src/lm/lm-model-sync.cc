@@ -113,36 +113,19 @@ int LmModelSync::GetDim(Nnet *nnet)
 				switch (nnet->components_[n]->GetType()) {
 				case nnet1::Component::kLstmProjectedStreamsFast:
 					lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
-					dim += lstm_t->w_gifo_x_.SizeInBytes()/sizeof(BaseFloat);
-					dim += lstm_t->w_gifo_r_.SizeInBytes()/sizeof(BaseFloat);
-					dim += lstm_t->bias_.Dim();
-					dim += lstm_t->peephole_i_c_.Dim();
-					dim += lstm_t->peephole_f_c_.Dim();
-					dim += lstm_t->peephole_o_c_.Dim();
-					dim += lstm_t->w_r_m_.SizeInBytes()/sizeof(BaseFloat);
-					break;
-				case nnet1::Component::kLstmStreams:
-					stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
-					dim += stlstm_t->w_gifo_x_.SizeInBytes()/sizeof(BaseFloat);
-					dim += stlstm_t->w_gifo_m_.SizeInBytes()/sizeof(BaseFloat);
-					dim += stlstm_t->bias_.Dim();
-					dim += stlstm_t->peephole_i_c_.Dim();
-					dim += stlstm_t->peephole_f_c_.Dim();
-					dim += stlstm_t->peephole_o_c_.Dim();
+					dim += lstm_t->GetDim();
 					break;
 				case nnet1::Component::kAffineTransform:
 					aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
-					dim += aff_t->linearity_.SizeInBytes()/sizeof(BaseFloat);
-					dim += aff_t->bias_.Dim();
+					dim += aff_t->GetDim();
 					break;
 				case nnet1::Component::kClassAffineTransform:
 					class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
-					dim += class_affine->linearity_.SizeInBytes()/sizeof(BaseFloat);
-					dim += class_affine->bias_.Dim();
+					dim += class_affine->GetDim();
 					break;
 				case nnet1::Component::kWordVectorTransform:
 					word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
-					dim += word_transf->wordvector_.SizeInBytes()/sizeof(BaseFloat);
+					dim += word_transf->GetDim();
 					break;
 				default:
 						KALDI_ERR<< "Unimplemented access to parameters "
@@ -165,163 +148,37 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 	int32 pos = 0;
 	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
-	int32 dst_pitch, src_pitch, width, size;
-	MatrixDim dim;
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
-	//nnet1::LstmProjectedStreams *plstm_t;
 	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
 
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
-        Timer tim;
-      StreamCache *stream_cache = stream_cache_[thread_idx];
       for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
 			case nnet1::Component::kLstmProjectedStreamsFast:
 				lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
-
-				dim = lstm_t->w_gifo_x_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, lstm_t->w_gifo_x_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += lstm_t->w_gifo_x_.SizeInBytes();
-
-				dim = lstm_t->w_gifo_r_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, lstm_t->w_gifo_r_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += lstm_t->w_gifo_r_.SizeInBytes();
-
-				size = lstm_t->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, lstm_t->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = lstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, lstm_t->peephole_i_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = lstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, lstm_t->peephole_f_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = lstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, lstm_t->peephole_o_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				dim = lstm_t->w_r_m_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, lstm_t->w_r_m_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += lstm_t->w_r_m_.SizeInBytes();
+				pos += lstm_t->WeightCopy(host_data_+pos, 0, cudaMemcpyDeviceToHost);
 
 				break;
-
-			case nnet1::Component::kLstmStreams:
-				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
-
-				dim = stlstm_t->w_gifo_x_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, stlstm_t->w_gifo_x_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += stlstm_t->w_gifo_x_.SizeInBytes();
-
-				dim = stlstm_t->w_gifo_m_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, stlstm_t->w_gifo_m_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += stlstm_t->w_gifo_m_.SizeInBytes();
-
-				size = stlstm_t->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, stlstm_t->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = stlstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, stlstm_t->peephole_i_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = stlstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, stlstm_t->peephole_f_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = stlstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, stlstm_t->peephole_o_c_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-				pos += size;
-
-				break;
-
 			case nnet1::Component::kAffineTransform:
                 aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
-				dim = aff_t->linearity_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
+				pos += aff_t->WeightCopy(host_data_+pos, 0, cudaMemcpyDeviceToHost);
 
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, aff_t->linearity_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-
-				pos += aff_t->linearity_.SizeInBytes();
-
-				size = aff_t->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, aff_t->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-
-				pos += size;
 				break;
-
 			case nnet1::Component::kClassAffineTransform:
 				class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
-				dim = class_affine->linearity_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
+				pos += class_affine->WeightCopy(host_data_+pos, 0, cudaMemcpyDeviceToHost);
 
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, class_affine->linearity_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-
-				pos += class_affine->linearity_.SizeInBytes();
-
-				size = class_affine->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(host_data_+pos, class_affine->bias_.Data(), size,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-
-				pos += size;
 				break;
-
 			case nnet1::Component::kWordVectorTransform:
 				word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
-				dim = word_transf->wordvector_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
+				pos += word_transf->WeightCopy(host_data_+pos, 0, cudaMemcpyDeviceToHost);
 
-				cudaMemcpy2DAsync(host_data_+pos, dst_pitch, word_transf->wordvector_.Data(), src_pitch, width, dim.rows,
-						cudaMemcpyDeviceToHost, stream_cache->GetCudaStream());
-
-				pos += word_transf->wordvector_.SizeInBytes();
 				break;
-
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "
 				<< "of updatable component "
@@ -329,9 +186,6 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 			}
 		}
       }
-	  CU_SAFE_CALL(cudaGetLastError());
-
-	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
 } else
 #endif
 	{
@@ -348,8 +202,6 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 	int32 pos = 0;
 	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
-	int32 dst_pitch, src_pitch, width,  size;
-	MatrixDim dim;
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
 	//nnet1::LstmProjectedStreams *plstm_t;
@@ -359,161 +211,36 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
-        Timer tim;
-    StreamCache *stream_cache = stream_cache_[thread_idx];
-	for (int32 n = 0; n < nnet->components_.size(); n++) {
-		if (nnet->components_[n]->IsUpdatable()) {
-			switch (nnet->components_[n]->GetType()) {
-			case nnet1::Component::kLstmProjectedStreamsFast:
-				lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
+	   for (int32 n = 0; n < nnet->components_.size(); n++) {
+			if (nnet->components_[n]->IsUpdatable()) {
+				switch (nnet->components_[n]->GetType()) {
+				case nnet1::Component::kLstmProjectedStreamsFast:
+					lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
+					pos += lstm_t->WeightCopy(host_data_+pos, 1, cudaMemcpyHostToDevice);
 
-				dim = lstm_t->w_gifo_x_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(lstm_t->w_gifo_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += lstm_t->w_gifo_x_.SizeInBytes();
+					break;
+				case nnet1::Component::kAffineTransform:
+	                aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
+					pos += aff_t->WeightCopy(host_data_+pos, 1, cudaMemcpyHostToDevice);
 
-				dim = lstm_t->w_gifo_r_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(lstm_t->w_gifo_r_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += lstm_t->w_gifo_r_.SizeInBytes();
+					break;
+				case nnet1::Component::kClassAffineTransform:
+					class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
+					pos += class_affine->WeightCopy(host_data_+pos, 1, cudaMemcpyHostToDevice);
 
-				size = lstm_t->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(lstm_t->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
+					break;
+				case nnet1::Component::kWordVectorTransform:
+					word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
+					pos += word_transf->WeightCopy(host_data_+pos, 1, cudaMemcpyHostToDevice);
 
-				size = lstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(lstm_t->peephole_i_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = lstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(lstm_t->peephole_f_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = lstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(lstm_t->peephole_o_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				dim = lstm_t->w_r_m_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(lstm_t->w_r_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += lstm_t->w_r_m_.SizeInBytes();
-				break;
-
-			case nnet1::Component::kLstmStreams:
-				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
-
-				dim = stlstm_t->w_gifo_x_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(stlstm_t->w_gifo_x_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += stlstm_t->w_gifo_x_.SizeInBytes();
-
-				dim = stlstm_t->w_gifo_m_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-				cudaMemcpy2DAsync(stlstm_t->w_gifo_m_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += stlstm_t->w_gifo_m_.SizeInBytes();
-
-				size = stlstm_t->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(stlstm_t->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = stlstm_t->peephole_i_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(stlstm_t->peephole_i_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = stlstm_t->peephole_f_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(stlstm_t->peephole_f_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				size = stlstm_t->peephole_o_c_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(stlstm_t->peephole_o_c_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-				pos += size;
-
-				break;
-			case nnet1::Component::kAffineTransform:
-				// get the component
-				aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
-				dim = aff_t->linearity_.Dim();
-				dst_pitch = dim.stride*sizeof(BaseFloat);
-				src_pitch = dst_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-
-
-				cudaMemcpy2DAsync(aff_t->linearity_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-
-				pos += aff_t->linearity_.SizeInBytes();
-
-				size = aff_t->bias_.Dim()*sizeof(BaseFloat);
-
-				cudaMemcpyAsync(aff_t->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-
-				pos += size;
-
-				break;
-			case nnet1::Component::kClassAffineTransform:
-				class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
-				dim = class_affine->linearity_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-
-				cudaMemcpy2DAsync(class_affine->linearity_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-
-				pos += class_affine->linearity_.SizeInBytes();
-
-				size = class_affine->bias_.Dim()*sizeof(BaseFloat);
-				cudaMemcpyAsync(class_affine->bias_.Data(), host_data_+pos, size,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-
-				pos += size;
-				break;
-			case nnet1::Component::kWordVectorTransform:
-				word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
-				dim = word_transf->wordvector_.Dim();
-				src_pitch = dim.stride*sizeof(BaseFloat);
-				dst_pitch = src_pitch;
-				width = dim.cols*sizeof(BaseFloat);
-
-				cudaMemcpy2DAsync(word_transf->wordvector_.Data(), dst_pitch, host_data_+pos, src_pitch, width, dim.rows,
-						cudaMemcpyHostToDevice, stream_cache->GetCudaStream());
-
-				pos += word_transf->wordvector_.SizeInBytes();
-				break;
-			default:
-				KALDI_ERR<< "Unimplemented access to parameters "
-				<< "of updatable component "
-				<< nnet1::Component::TypeToMarker(nnet->components_[n]->GetType());
+					break;
+				default:
+					KALDI_ERR<< "Unimplemented access to parameters "
+					<< "of updatable component "
+					<< nnet1::Component::TypeToMarker(nnet->components_[n]->GetType());
+				}
 			}
-		}
-	}
-	  CU_SAFE_CALL(cudaGetLastError());
-
-	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	      }
 } else
 #endif
 	{

@@ -181,6 +181,50 @@ struct LmNnetExample : NnetExample
 	bool PrepareData(std::vector<NnetExample*> &examples);
 };
 
+struct SluNnetExample : NnetExample
+{
+	SequentialInt32VectorReader *wordid_reader;
+	RandomAccessInt32VectorReader *slot_reader;
+	RandomAccessInt32VectorReader *intent_reader;
+
+	const NnetUpdateOptions *opts;
+
+	std::vector<int32> input_wordids;
+	std::vector<int32> input_slotids;
+	std::vector<int32> input_intentids;
+
+	SluNnetExample(const NnetUpdateOptions *opts,
+					SequentialInt32VectorReader *wordid_reader,
+					RandomAccessInt32VectorReader *slot_reader = NULL,
+					RandomAccessInt32VectorReader *intent_reader = NULL):
+	NnetExample(NULL), opts(opts), wordid_reader(wordid_reader),
+	slot_reader(slot_reader), intent_reader(intent_reader)
+    {}
+
+
+	bool PrepareData(std::vector<NnetExample*> &examples);
+};
+
+struct SeqLabelNnetExample : NnetExample
+{
+	SequentialInt32VectorReader *wordid_reader;
+	RandomAccessInt32VectorReader *label_reader;
+
+	const NnetUpdateOptions *opts;
+
+	std::vector<int32> input_wordids;
+	std::vector<int32> input_labelids;
+
+	SeqLabelNnetExample(const NnetUpdateOptions *opts,
+					SequentialInt32VectorReader *wordid_reader,
+					RandomAccessInt32VectorReader *label_reader):
+	NnetExample(NULL), opts(opts), wordid_reader(wordid_reader),
+	label_reader(label_reader)
+    {}
+
+
+	bool PrepareData(std::vector<NnetExample*> &examples);
+};
 
 struct LstmNnetExample: NnetExample
 {

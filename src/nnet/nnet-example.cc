@@ -358,6 +358,130 @@ bool LmNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     return true;
 }
 
+bool SluNnetExample::PrepareData(std::vector<NnetExample*> &examples)
+{
+    utt = wordid_reader->Key();
+    KALDI_VLOG(3) << "Reading " << utt;
+
+    // check that we have targets
+	if (slot_reader != NULL && !slot_reader->HasKey(utt)) {
+	  KALDI_WARN << utt << ", missing slot labels";
+	  return false;
+	}
+
+	// check that we have targets
+	if (intent_reader != NULL && !intent_reader->HasKey(utt)) {
+	  KALDI_WARN << utt << ", missing intent labels";
+	  return false;
+	}
+
+    // get feature
+    input_wordids = wordid_reader->Value();
+    input_slotids = slot_reader->Value(utt);
+    input_intentids = intent_reader->Value(utt);
+
+    // split feature
+    int32 skip_frames = opts->skip_frames;
+    int32 sweep_time = opts->sweep_time;
+    int32 lent, cur;
+
+    if (sweep_time>skip_frames)
+    {
+    	KALDI_WARN << "sweep time for each utterance should less than skip frames (it reset to skip frames)";
+    	sweep_time = skip_frames;
+    }
+
+    examples.resize(sweep_time);
+
+    if (sweep_time <= 1)
+    {
+    	examples[0] = this;
+    	return true;
+    }
+
+    SluNnetExample *example = NULL;
+    for (int i = 0; i < sweep_time; i++)
+    {
+    	example = new SluNnetExample(opts, wordid_reader, slot_reader, intent_reader);
+    	example->utt = utt;
+    	example->input_wordids = input_wordids;
+    	example->input_slotids = input_slotids;
+    	example->input_intentids = input_intentids;
+
+    	lent = input_wordids.size()/skip_frames;
+    	lent += input_wordids.size()%skip_frames > i ? 1 : 0;
+    	example->input_wordids.resize(lent);
+    	cur = i;
+    	for (int j = 0; j < example->input_wordids.size(); j++)
+    	{
+    		example->input_wordids[j] = input_wordids[cur];
+    		cur += skip_frames;
+    	}
+
+    	examples[i] = example;
+    }
+
+    return true;
+}
+
+bool SeqLabelNnetExample::PrepareData(std::vector<NnetExample*> &examples)
+{
+    utt = wordid_reader->Key();
+    KALDI_VLOG(3) << "Reading " << utt;
+
+    // check that we have targets
+	if (!label_reader->HasKey(utt)) {
+	  KALDI_WARN << utt << ", missing slot labels";
+	  return false;
+	}
+
+    // get feature
+    input_wordids = wordid_reader->Value();
+    input_labelids = label_reader->Value(utt);
+
+    // split feature
+    int32 skip_frames = opts->skip_frames;
+    int32 sweep_time = opts->sweep_time;
+    int32 lent, cur;
+
+    if (sweep_time>skip_frames)
+    {
+    	KALDI_WARN << "sweep time for each utterance should less than skip frames (it reset to skip frames)";
+    	sweep_time = skip_frames;
+    }
+
+    examples.resize(sweep_time);
+
+    if (sweep_time <= 1)
+    {
+    	examples[0] = this;
+    	return true;
+    }
+
+    SeqLabelNnetExample *example = NULL;
+    for (int i = 0; i < sweep_time; i++)
+    {
+    	example = new SeqLabelNnetExample(opts, wordid_reader, label_reader);
+    	example->utt = utt;
+    	example->input_wordids = input_wordids;
+    	example->input_labelids = input_labelids;
+
+    	lent = input_wordids.size()/skip_frames;
+    	lent += input_wordids.size()%skip_frames > i ? 1 : 0;
+    	example->input_wordids.resize(lent);
+    	cur = i;
+    	for (int j = 0; j < example->input_wordids.size(); j++)
+    	{
+    		example->input_wordids[j] = input_wordids[cur];
+    		cur += skip_frames;
+    	}
+
+    	examples[i] = example;
+    }
+
+    return true;
+}
+
 bool LstmNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {
 	examples.resize(1);
