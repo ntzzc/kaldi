@@ -556,13 +556,14 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       // r
       //   Version 1 (precise gradients):
       //   backprop error from g(t+1), i(t+1), f(t+1), o(t+1) to r(t)
+      if (ntruncated_bptt_size_ >= 0)
       d_r[t]->AddMatMat(bptt, *d_gifo[t+1], kNoTrans, w_gifo_r_, kNoTrans, 1.0);
 
       /*
       //   Version 2 (Alex Graves' PhD dissertation):
       //   only backprop g(t+1) to r(t)
       CuSubMatrix<BaseFloat> w_g_r_(w_gifo_r_.RowRange(0, ncell_));
-      d_r.AddMatMat(1.0, DG.RowRange((t+1)*S,S), kNoTrans, w_g_r_, kNoTrans, 1.0);
+      d_r[t]->AddMatMat(bptt, *d_g[t+1], kNoTrans, w_g_r_, kNoTrans, 1.0);
       */
 
       /*
@@ -589,9 +590,9 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       // 4. diff from f(t+1) (via peephole)
       // 5. diff from o(t)   (via peephole, not recurrent)
       d_c[t]->AddMat(1.0, *d_h[t]);
-      d_c[t]->AddMatMatElements(1.0, *d_c[t+1], *y_f[t+1], 1.0);
-      d_c[t]->AddMatDiagVec(1.0, *d_i[t+1], kNoTrans, peephole_i_c_, 1.0);
-      d_c[t]->AddMatDiagVec(1.0, *d_f[t+1], kNoTrans, peephole_f_c_, 1.0);
+      d_c[t]->AddMatMatElements(bptt, *d_c[t+1], *y_f[t+1], 1.0);
+      d_c[t]->AddMatDiagVec(bptt, *d_i[t+1], kNoTrans, peephole_i_c_, 1.0);
+      d_c[t]->AddMatDiagVec(bptt, *d_f[t+1], kNoTrans, peephole_f_c_, 1.0);
       d_c[t]->AddMatDiagVec(1.0, *d_o[t]  , kNoTrans, peephole_o_c_, 1.0);
 
       // f
