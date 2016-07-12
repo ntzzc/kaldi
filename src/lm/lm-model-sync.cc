@@ -103,7 +103,7 @@ int LmModelSync::GetDim(Nnet *nnet)
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
 	//nnet1::LstmProjectedStreams *plstm_t;
-	//nnet1::LstmStreams *stlstm_t;
+	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
 
@@ -114,6 +114,10 @@ int LmModelSync::GetDim(Nnet *nnet)
 				case nnet1::Component::kLstmProjectedStreamsFast:
 					lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
 					dim += lstm_t->GetDim();
+					break;
+				case nnet1::Component::kLstmStreams:
+					stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
+					dim += stlstm_t->GetDim();
 					break;
 				case nnet1::Component::kAffineTransform:
 					aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
@@ -150,7 +154,7 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
-	//nnet1::LstmStreams *stlstm_t;
+	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
 
@@ -162,6 +166,11 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 			case nnet1::Component::kLstmProjectedStreamsFast:
 				lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
 				pos += lstm_t->WeightCopy(host_data_+pos, 0, 2); // cudaMemcpyDeviceToHost
+
+				break;
+			case nnet1::Component::kLstmStreams:
+				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
+				pos += stlstm_t->WeightCopy(host_data_+pos, 0, 2); // cudaMemcpyDeviceToHost
 
 				break;
 			case nnet1::Component::kAffineTransform:
@@ -205,7 +214,7 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 	nnet1::AffineTransform* aff_t;
 	nnet1::LstmProjectedStreamsFast *lstm_t;
 	//nnet1::LstmProjectedStreams *plstm_t;
-	//nnet1::LstmStreams *stlstm_t;
+	nnet1::LstmStreams *stlstm_t;
 	nnet1::ClassAffineTransform *class_affine;
 	nnet1::WordVectorTransform *word_transf;
 
@@ -217,6 +226,11 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 				case nnet1::Component::kLstmProjectedStreamsFast:
 					lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
 					pos += lstm_t->WeightCopy(host_data_+pos, 1, 1); // cudaMemcpyHostToDevice
+
+					break;
+				case nnet1::Component::kLstmStreams:
+					stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
+					pos += stlstm_t->WeightCopy(host_data_+pos, 1, 1); // cudaMemcpyHostToDevice
 
 					break;
 				case nnet1::Component::kAffineTransform:
