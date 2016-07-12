@@ -432,7 +432,7 @@ class ClassAffineTransform : public UpdatableComponent {
   }
 
 
-  int WeightCopy(BaseFloat *host, int direction, int copykind)
+  int WeightCopy(void *host, int direction, int copykind)
   {
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
@@ -442,20 +442,38 @@ class ClassAffineTransform : public UpdatableComponent {
         int pos = 0;
         void *src, *dst;
         MatrixDim dim;
-        cudaMemcpyKind kind = copykind;
+        cudaMemcpyKind kind;
+        switch(copykind)
+        {
+            case 0:
+                kind = cudaMemcpyHostToHost;
+                break;
+            case 1:
+                kind = cudaMemcpyHostToDevice;
+                break;
+            case 2:
+                kind = cudaMemcpyDeviceToHost;
+                break;
+            case 3:
+                kind = cudaMemcpyDeviceToDevice;
+                break;
+            default:
+                KALDI_ERR << "Default based unified virtual address space";
+                break;
+        }
 
 		dim = linearity_.Dim();
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : linearity_.Data();
-		src = (void*) direction==0 ? linearity_.Data() : (host+pos);
+		dst = (void*) (direction==0 ? (host+pos) : linearity_.Data());
+		src = (void*) (direction==0 ? linearity_.Data() : (host+pos));
 		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += linearity_.SizeInBytes();
 
 		size = bias_.Dim()*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : bias_.Data();
-		src = (void*) direction==0 ? bias_.Data() : (host+pos);
+		dst = (void*) (direction==0 ? (host+pos) : bias_.Data());
+		src = (void*) (direction==0 ? bias_.Data() : (host+pos));
 		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
@@ -468,6 +486,7 @@ class ClassAffineTransform : public UpdatableComponent {
 #endif
   	{
   		// not implemented for CPU yet
+  		return 0;
   	}
   }
 

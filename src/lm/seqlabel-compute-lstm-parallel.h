@@ -110,7 +110,7 @@ struct SeqLabelStats: nnet1::NnetStats {
 };
 
 
-void SeqLabelLstmParallel(const LstmlmUpdateOptions *opts,
+void SeqLabelLstmParallel(const SeqLabelLstmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		std::string label_rspecifier,

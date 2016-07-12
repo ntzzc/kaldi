@@ -592,7 +592,7 @@ void NnetLmUtil::SetClassBoundary(const Vector<BaseFloat>& classinfo,
 	}
 }
 
-void NnetLstmLmUpdateParallel(const NnetLstmUpdateOptions *opts,
+void NnetLstmLmUpdateParallel(const NnetLstmLmUpdateOptions *opts,
 		std::string	model_filename,
 		std::string feature_rspecifier,
 		Nnet *nnet,

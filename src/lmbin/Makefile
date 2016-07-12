@@ -9,7 +9,8 @@ LDLIBS += $(CUDA_LDLIBS)
 LDLIBS += $(MPICH_LDLIBS)
 
 BINFILES = arpa2fst arpa-to-const-arpa \
-			lm-train-lstm-parallel lm-train-lstm-parallel-mpi
+			lm-train-lstm-parallel lm-train-lstm-parallel-mpi \
+			seqlabel-train-lstm-parallel
 
 OBJFILES =
 

@@ -67,7 +67,7 @@ private:
 				si_model_filename;
 
 	ExamplesRepository *repository_;
-    LmStats *stats_;
+    SeqLabelStats *stats_;
 
     const NnetTrainOptions *trn_opts;
     const NnetDataRandomizerOptions *rnd_opts;
@@ -90,7 +90,7 @@ private:
 			std::string	model_filename,
 			ExamplesRepository *repository,
 			Nnet *nnet,
-			LmStats *stats):
+			SeqLabelStats *stats):
 				opts(opts),
 				model_sync(model_sync),
 				model_filename(model_filename),
@@ -215,7 +215,7 @@ private:
 	    //  book-keeping for multi-streams
 	    std::vector<std::string> keys(num_stream);
 	    std::vector<std::vector<int32> > feats(num_stream);
-	    std::vector<Posterior> targets(num_stream);
+	    std::vector<std::vector<int32> > targets(num_stream);
 	    std::vector<int> curt(num_stream, 0);
 	    std::vector<int> lent(num_stream, 0);
 	    std::vector<int> new_utt_flags(num_stream, 0);

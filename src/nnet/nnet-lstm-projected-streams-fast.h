@@ -746,7 +746,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   }
 
 
-  int WeightCopy(BaseFloat *host, int direction, int copykind)
+  int WeightCopy(void *host, int direction, int copykind)
   {
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
@@ -756,57 +756,75 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
         int pos = 0;
         void *src, *dst;
         MatrixDim dim;
-        cudaMemcpyKind kind = copykind;
+        cudaMemcpyKind kind;
+        switch(copykind)
+        {
+            case 0:
+                kind = cudaMemcpyHostToHost;
+                break;
+            case 1:
+                kind = cudaMemcpyHostToDevice;
+                break;
+            case 2:
+                kind = cudaMemcpyDeviceToHost;
+                break;
+            case 3:
+                kind = cudaMemcpyDeviceToDevice;
+                break;
+            default:
+                KALDI_ERR << "Default based unified virtual address space";
+                break;
+        }
 
         dim = w_gifo_x_.Dim();
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : w_gifo_x_.Data();
-		src = (void*) direction==0 ? w_gifo_x_.Data() : (host+pos);
-		cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+		dst = (void*) (direction==0 ? (host+pos) : w_gifo_x_.Data());
+		src = (void*) (direction==0 ? w_gifo_x_.Data() : (host+pos));
+		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += w_gifo_x_.SizeInBytes();
 
 		dim = w_gifo_r_.Dim();
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : w_gifo_r_.Data();
-		src = (void*) direction==0 ? w_gifo_r_.Data() : (host+pos);
-		cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+		dst = (void*) (direction==0 ? (host+pos) : w_gifo_r_.Data());
+		src = (void*) (direction==0 ? w_gifo_r_.Data() : (host+pos));
+		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += w_gifo_r_.SizeInBytes();
 
 		size = bias_.Dim()*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : bias_.Data();
-		src = (void*) direction==0 ? bias_.Data() : (host+pos);
-		cudaMemcpyAsync(dst, src, size, kind);
+		dst = (void*) (direction==0 ? (host+pos) : bias_.Data());
+		src = (void*) (direction==0 ? bias_.Data() : (host+pos));
+		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		size = peephole_i_c_.Dim()*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : peephole_i_c_.Data();
-		src = (void*) direction==0 ? peephole_i_c_.Data() : (host+pos);
-		cudaMemcpyAsync(dst, src, size, kind);
+		dst = (void*) (direction==0 ? (host+pos) : peephole_i_c_.Data());
+		src = (void*) (direction==0 ? peephole_i_c_.Data() : (host+pos));
+		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		size = peephole_f_c_.Dim()*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : peephole_f_c_.Data();
-		src = (void*) direction==0 ? peephole_f_c_.Data() : (host+pos);
-		cudaMemcpyAsync(dst, src, size, kind);
+		dst = (void*) (direction==0 ? (host+pos) : peephole_f_c_.Data());
+		src = (void*) (direction==0 ? peephole_f_c_.Data() : (host+pos));
+		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		size = peephole_o_c_.Dim()*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : peephole_o_c_.Data();
-		src = (void*) direction==0 ? peephole_o_c_.Data() : (host+pos);
-		cudaMemcpyAsync(dst, src, size, kind);
+		dst = (void*) (direction==0 ? (host+pos) : peephole_o_c_.Data());
+		src = (void*) (direction==0 ? peephole_o_c_.Data() : (host+pos));
+		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		dim = w_r_m_.Dim();
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) direction==0 ? (host+pos) : w_r_m_.Data();
-		src = (void*) direction==0 ? w_r_m_.Data() : (host+pos);
-		cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+		dst = (void*) (direction==0 ? (host+pos) : w_r_m_.Data());
+		src = (void*) (direction==0 ? w_r_m_.Data() : (host+pos));
+		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += w_r_m_.SizeInBytes();
 
 
@@ -818,6 +836,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 #endif
   	{
   		// not implemented for CPU yet
+  		return 0;
   	}
   }
 

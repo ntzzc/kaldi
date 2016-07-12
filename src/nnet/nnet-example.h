@@ -183,11 +183,10 @@ struct LmNnetExample : NnetExample
 
 struct SluNnetExample : NnetExample
 {
+	const NnetUpdateOptions *opts;
 	SequentialInt32VectorReader *wordid_reader;
 	RandomAccessInt32VectorReader *slot_reader;
 	RandomAccessInt32VectorReader *intent_reader;
-
-	const NnetUpdateOptions *opts;
 
 	std::vector<int32> input_wordids;
 	std::vector<int32> input_slotids;
@@ -207,10 +206,9 @@ struct SluNnetExample : NnetExample
 
 struct SeqLabelNnetExample : NnetExample
 {
+	const NnetUpdateOptions *opts;
 	SequentialInt32VectorReader *wordid_reader;
 	RandomAccessInt32VectorReader *label_reader;
-
-	const NnetUpdateOptions *opts;
 
 	std::vector<int32> input_wordids;
 	std::vector<int32> input_labelids;
