@@ -285,8 +285,8 @@ class WordVectorTransform : public UpdatableComponent {
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : wordvector_.Data());
-		src = (void*) (direction==0 ? wordvector_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)wordvector_.Data());
+		src = (void*) (direction==0 ? (char *)wordvector_.Data() : ((char *)host+pos));
 		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += wordvector_.SizeInBytes();
 

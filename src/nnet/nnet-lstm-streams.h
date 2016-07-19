@@ -770,8 +770,8 @@ class LstmStreams : public UpdatableComponent {
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : w_gifo_x_.Data());
-		src = (void*) (direction==0 ? w_gifo_x_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)w_gifo_x_.Data());
+		src = (void*) (direction==0 ? (char *)w_gifo_x_.Data() : ((char *)host+pos));
 		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += w_gifo_x_.SizeInBytes();
 
@@ -779,32 +779,32 @@ class LstmStreams : public UpdatableComponent {
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : w_gifo_m_.Data());
-		src = (void*) (direction==0 ? w_gifo_m_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)w_gifo_m_.Data());
+		src = (void*) (direction==0 ? (char *)w_gifo_m_.Data() : ((char *)host+pos));
 		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += w_gifo_m_.SizeInBytes();
 
 		size = bias_.Dim()*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : bias_.Data());
-		src = (void*) (direction==0 ? bias_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)bias_.Data());
+		src = (void*) (direction==0 ? (char *)bias_.Data() : ((char *)host+pos));
 		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		size = peephole_i_c_.Dim()*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : peephole_i_c_.Data());
-		src = (void*) (direction==0 ? peephole_i_c_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)peephole_i_c_.Data());
+		src = (void*) (direction==0 ? (char *)peephole_i_c_.Data() : ((char *)host+pos));
 		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		size = peephole_f_c_.Dim()*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : peephole_f_c_.Data());
-		src = (void*) (direction==0 ? peephole_f_c_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)peephole_f_c_.Data());
+		src = (void*) (direction==0 ? (char *)peephole_f_c_.Data() : ((char *)host+pos));
 		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 
 		size = peephole_o_c_.Dim()*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : peephole_o_c_.Data());
-		src = (void*) (direction==0 ? peephole_o_c_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)peephole_o_c_.Data());
+		src = (void*) (direction==0 ? (char *)peephole_o_c_.Data() : ((char *)host+pos));
 		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 

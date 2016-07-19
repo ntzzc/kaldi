@@ -466,14 +466,14 @@ class ClassAffineTransform : public UpdatableComponent {
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : linearity_.Data());
-		src = (void*) (direction==0 ? linearity_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)linearity_.Data());
+		src = (void*) (direction==0 ? (char *)linearity_.Data() : ((char *)host+pos));
 		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += linearity_.SizeInBytes();
 
 		size = bias_.Dim()*sizeof(BaseFloat);
-		dst = (void*) (direction==0 ? (host+pos) : bias_.Data());
-		src = (void*) (direction==0 ? bias_.Data() : (host+pos));
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)bias_.Data());
+		src = (void*) (direction==0 ? (char *)bias_.Data() : ((char *)host+pos));
 		cudaMemcpy(dst, src, size, kind);
 		pos += size;
 

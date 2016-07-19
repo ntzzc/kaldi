@@ -200,7 +200,7 @@ private:
 	    Timer time, mpi_time;
 
 		CuMatrix<BaseFloat> feats, feats_transf, nnet_out, nnet_diff;
-		CuMatrix<BaseFloat> si_nnet_out, *p_si_nnet_out = NULL;
+		CuMatrix<BaseFloat> si_nnet_out; // *p_si_nnet_out = NULL;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
 
 		DNNNnetExample *example;
@@ -273,7 +273,7 @@ private:
 			    if (this->kld_scale > 0)
 			    {
 			      	si_nnet.Propagate(nnet_in, &si_nnet_out);
-			      	p_si_nnet_out = &si_nnet_out;
+			      	//p_si_nnet_out = &si_nnet_out;
 						  // convert posterior to matrix,
 					PosteriorToMatrix(nnet_tgt, nnet.OutputDim(), &tgt_mat);
 					tgt_mat.Scale(1-this->kld_scale);

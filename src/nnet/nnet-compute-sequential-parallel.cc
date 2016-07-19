@@ -973,7 +973,9 @@ private:
 						char name[512];
 						num_dump++;
 						sprintf(name, "%s_%d_%ld", model_filename.c_str(), num_dump, total_frames);
+                        nnet.AppendComponent(new Softmax(nnet.OutputDim(),nnet.OutputDim()));
 						nnet.Write(string(name), true);
+                        nnet.RemoveComponent(nnet.NumComponents()-1);
 					}
 				}
 
