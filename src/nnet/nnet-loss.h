@@ -40,7 +40,7 @@ class LossItf {
   virtual void Eval(const VectorBase<BaseFloat> &frame_weights, 
             const CuMatrixBase<BaseFloat> &net_out, 
             const CuMatrixBase<BaseFloat> &target,
-            CuMatrix<BaseFloat> *diff) = 0;
+			CuMatrixBase<BaseFloat> *diff) = 0;
 
   /// Evaluate cross entropy using target-posteriors (supports soft labels),
   virtual void Eval(const VectorBase<BaseFloat> &frame_weights, 
@@ -59,14 +59,15 @@ class LossItf {
 class Xent : public LossItf {
  public:
   Xent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), 
-           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0) { }
+           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0),
+		   correct_progress_(0.0) { }
   ~Xent() { }
 
   /// Evaluate cross entropy using target-matrix (supports soft labels),
   void Eval(const VectorBase<BaseFloat> &frame_weights, 
             const CuMatrixBase<BaseFloat> &net_out, 
             const CuMatrixBase<BaseFloat> &target,
-            CuMatrix<BaseFloat> *diff);
+			CuMatrixBase<BaseFloat> *diff);
 
   /// Evaluate cross entropy using target-posteriors (supports soft labels),
   void Eval(const VectorBase<BaseFloat> &frame_weights, 
@@ -78,7 +79,7 @@ class Xent : public LossItf {
    void Eval(const VectorBase<BaseFloat> &frame_weights,
              const CuMatrixBase<BaseFloat> &net_out,
              const std::vector<int32> &target,
-             CuMatrix<BaseFloat> *diff);
+			 CuMatrixBase<BaseFloat> *diff);
 
    void GetTargetWordPosterior(Vector<BaseFloat> &tgt);
 
@@ -124,8 +125,9 @@ class Xent : public LossItf {
 
 class CBXent {
  public:
-	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0),
-           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0) { }
+	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), ppl_(0.0),
+           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0),
+		   correct_progress_(0.0), ppl_progress_(0.0) { }
   ~CBXent() { }
 
   void SetClassBoundary(const std::vector<int32>& class_boundary);
@@ -137,7 +139,7 @@ class CBXent {
   void Eval(const VectorBase<BaseFloat> &frame_weights,
             const CuMatrixBase<BaseFloat> &net_out,
 			const std::vector<int32> &target,
-            CuMatrix<BaseFloat> *diff);
+			CuMatrixBase<BaseFloat> *diff);
 
   void GetTargetWordPosterior(Vector<BaseFloat> &tgt);
 

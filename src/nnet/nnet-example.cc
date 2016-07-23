@@ -1,4 +1,4 @@
-// nnet/nnet-example.h
+// nnet/nnet-example.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -382,8 +382,10 @@ bool SluNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
     // get feature
     input_wordids = wordid_reader->Value();
-    input_slotids = slot_reader->Value(utt);
-    input_intentids = intent_reader->Value(utt);
+    if (slot_reader != NULL)
+    	input_slotids = slot_reader->Value(utt);
+    if (intent_reader != NULL)
+    	input_intentids = intent_reader->Value(utt);
 
     // split feature
     int32 skip_frames = opts->skip_frames;
@@ -409,17 +411,18 @@ bool SluNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     {
     	example = new SluNnetExample(opts, wordid_reader, slot_reader, intent_reader);
     	example->utt = utt;
-    	example->input_wordids = input_wordids;
-    	example->input_slotids = input_slotids;
-    	example->input_intentids = input_intentids;
 
     	lent = input_wordids.size()/skip_frames;
     	lent += input_wordids.size()%skip_frames > i ? 1 : 0;
     	example->input_wordids.resize(lent);
+    	example->input_slotids.resize(lent);
+    	example->input_intentids.resize(lent);
     	cur = i;
     	for (int j = 0; j < example->input_wordids.size(); j++)
     	{
     		example->input_wordids[j] = input_wordids[cur];
+        	example->input_slotids[j] = input_slotids[cur];
+        	example->input_intentids[j] = input_intentids[cur];
     		cur += skip_frames;
     	}
 
@@ -436,7 +439,7 @@ bool SeqLabelNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 
     // check that we have targets
 	if (!label_reader->HasKey(utt)) {
-	  KALDI_WARN << utt << ", missing slot labels";
+	  KALDI_WARN << utt << ", missing labels";
 	  return false;
 	}
 
@@ -468,16 +471,16 @@ bool SeqLabelNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     {
     	example = new SeqLabelNnetExample(opts, wordid_reader, label_reader);
     	example->utt = utt;
-    	example->input_wordids = input_wordids;
-    	example->input_labelids = input_labelids;
 
     	lent = input_wordids.size()/skip_frames;
     	lent += input_wordids.size()%skip_frames > i ? 1 : 0;
     	example->input_wordids.resize(lent);
+    	example->input_labelids.resize(lent);
     	cur = i;
     	for (int j = 0; j < example->input_wordids.size(); j++)
     	{
     		example->input_wordids[j] = input_wordids[cur];
+    		example->input_labelids[j] = input_labelids[cur];
     		cur += skip_frames;
     	}
 

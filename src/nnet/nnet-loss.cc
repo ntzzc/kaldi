@@ -1,6 +1,7 @@
 // nnet/nnet-loss.cc
 
 // Copyright 2011-2015  Brno University of Technology (author: Karel Vesely)
+// Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -65,7 +66,7 @@ inline void CountCorrectFramesWeighted(const CuArray<T> &v1,
 void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
                 const CuMatrixBase<BaseFloat> &net_out, 
                 const CuMatrixBase<BaseFloat> &targets, 
-                CuMatrix<BaseFloat> *diff) {
+				CuMatrixBase<BaseFloat> *diff) {
   // check inputs,
   KALDI_ASSERT(net_out.NumCols() == targets.NumCols());
   KALDI_ASSERT(net_out.NumRows() == targets.NumRows());
@@ -91,7 +92,11 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   KALDI_ASSERT(num_frames >= 0.0);
 
   // compute derivative wrt. activations of last layer of neurons,
-  *diff = net_out;
+  //*diff = net_out;
+  if (diff->NumRows() != net_out.NumRows())
+	  (dynamic_cast<CuMatrix<BaseFloat>*>(diff))->Resize(net_out.NumRows(), net_out.NumCols(), kUndefined);
+
+  diff->CopyFromMat(net_out);
   diff->AddMat(-1.0, targets);
   diff->MulRowsVec(frame_weights_); // weighting,
 
@@ -170,7 +175,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
  void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
            const CuMatrixBase<BaseFloat> &net_out,
            const std::vector<int32> &target,
-           CuMatrix<BaseFloat> *diff) {
+		   CuMatrixBase<BaseFloat> *diff) {
 	  int32 num_frames = net_out.NumRows(),
 			  num_pdf = net_out.NumCols();
 	  KALDI_ASSERT(num_frames == target.size());
@@ -260,7 +265,7 @@ inline void CBCountCorrectFramesWeighted(const CuArray<T> &v1,
 void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
           const CuMatrixBase<BaseFloat> &net_out,
 		  const std::vector<int32> &target,
-          CuMatrix<BaseFloat> *diff) {
+		  CuMatrixBase<BaseFloat> *diff) {
 
 	  int32 num_frames = net_out.NumRows(),
 	  num_pdf = net_out.NumCols();
@@ -284,10 +289,12 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 		  tgt_mat_.Resize(num_frames, num_pdf, kSetZero);
 		  xentropy_aux_.Resize(num_frames, num_pdf, kSetZero);
 		  entropy_aux_.Resize(num_frames, num_pdf, kSetZero);
-		  diff->Resize(num_frames, num_pdf, kSetZero);
 		  target_sum_.Resize(2*num_frames);
 		  tgt_id_.Resize(2*num_frames);
 	  }
+
+	  if (diff->NumRows() != num_frames || diff->NumCols() != num_pdf)
+		  (dynamic_cast<CuMatrix<BaseFloat>*>(diff))->Resize(num_frames, num_pdf, kSetZero);
 
 	  frame_weights_ = frame_weights;
 

@@ -52,11 +52,11 @@ class Nnet {
 
  public:
   /// Perform forward pass through the network
-  void Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
+  void Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out);
   /// Perform backward pass through the network
   ///void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff);
   /// Perform backward pass through the network
-  void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff, bool update=true);
+  void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff, bool update=true);
   /// Perform update gradient pass through the network
   void Update();
   void ResetGradient();
@@ -119,6 +119,10 @@ class Nnet {
   void SetWeights(const Vector<BaseFloat>& wei_src);
   /// Get the gradient stored in the network
   void GetGradient(Vector<BaseFloat>* grad_copy) const;
+
+  /// transform weights between nnet component and buffer
+  int WeightCopy(void *buffer, int direction, int copykind);
+  int GetDim() const;
 
   /// Set the dropout rate
   void SetDropoutRetention(BaseFloat r);

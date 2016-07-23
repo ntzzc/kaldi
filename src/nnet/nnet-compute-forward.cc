@@ -300,17 +300,23 @@ public:
 	        }
 			*/
 
-	    	// time-shift, copy the last frame of LSTM input N-times,
-	    	if (time_shift > 0) {
-	    	  int32 last_row = mat.NumRows() - 1; // last row,
-	    	  mat.Resize(mat.NumRows() + time_shift, mat.NumCols(), kCopyData);
-	    	  for (int32 r = last_row+1; r<mat.NumRows(); r++) {
-	    	    mat.CopyRowFromVec(mat.Row(last_row), r); // copy last row,
-	    	  }
-	    	}
+	    	if (time_shift > 0 || skip_frames > 1)
+	    	{
+				int32 len = mat.NumRows()/skip_frames, cur = 0;
+				len += mat.NumRows()%skip_frames > sweep_frames[0] ? 1 : 0;
+				feat.Resize(len, mat.NumCols(), kUndefined);
 
-	    	// push it to gpu,
-	    	cufeat = mat;
+				for (int32 i = 0; i < len; i++)
+				{
+					feat.Row(i).CopyFromVec(mat.Row(cur+time_shift*skip_frames));
+					cur += skip_frames;
+				}
+
+				cufeat = feat; // push it to gpu,
+	    	}
+	    	else
+	    		cufeat = mat; // push it to gpu,
+
 	        // fwd-pass, feature transform,
 	        nnet_transf.Feedforward(cufeat, &feats_transf);
 
@@ -343,17 +349,29 @@ public:
 	    	nnet_out_host.Resize(nnet_out.NumRows(), nnet_out.NumCols());
 	    	nnet_out.CopyToMat(&nnet_out_host);
 
-	    	// time-shift, remove N first frames of LSTM output,
-	    	if (time_shift > 0) {
-	    	  Matrix<BaseFloat> tmp(nnet_out_host);
-	    	  nnet_out_host = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
+	    	// check there's no nan/inf,
+			if (!KALDI_ISFINITE(nnet_out_host.Sum())) {
+			  KALDI_ERR << "NaN or inf found in final output nn-output for " << utt;
+			}
+
+	    	if (opts->copy_posterior)
+	    	{
+	    		Matrix<BaseFloat> tmp(nnet_out_host);
+	    		nnet_out_host.Resize(mat.NumRows(), nnet_out.NumCols());
+
+	    		int32 cur = 0;
+	    		for (int32 i = 0; i < tmp.NumRows(); i++)
+	    		{
+						for (int k = 0; k < skip_frames; k++) {
+							if (cur < mat.NumRows()) {
+								nnet_out_host.Row(cur).CopyFromVec(tmp.Row(i));
+								cur++;
+							}
+						}
+	    		}
 	    	}
 
 	    	// write,
-	    	if (!KALDI_ISFINITE(nnet_out_host.Sum())) { // check there's no nan/inf,
-	    	  KALDI_ERR << "NaN or inf found in final output nn-output for " << utt;
-	    	}
-
 	    	examples_mutex->Lock();
 	    	feature_writer->Write(utt, nnet_out_host);
 	    	examples_mutex->Unlock();

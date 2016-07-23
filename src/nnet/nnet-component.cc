@@ -52,6 +52,7 @@
 #include "nnet/nnet-parallel-component.h"
 #include "nnet/nnet-word-vector-transform.h"
 #include "nnet/nnet-class-affine-transform.h"
+#include "nnet/nnet-parallel-component-multitask.h"
 
 #include <sstream>
 
@@ -98,6 +99,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kSimpleSentenceAveragingComponent,"<SimpleSentenceAveragingComponent>"},
   { Component::kFramePoolingComponent, "<FramePoolingComponent>"},
   { Component::kParallelComponent, "<ParallelComponent>"},
+  { Component::kParallelComponentMultiTask, "<ParallelComponentMultiTask>"},
 };
 
 
@@ -242,6 +244,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kParallelComponent :
       ans = new ParallelComponent(input_dim, output_dim);
+      break;
+    case Component::kParallelComponentMultiTask :
+      ans = new kParallelComponentMultiTask(input_dim, output_dim);
       break;
     case Component::kUnknown :
     default :

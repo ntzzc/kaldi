@@ -290,13 +290,6 @@ class ExamplesRepository {
   KALDI_DISALLOW_COPY_AND_ASSIGN(ExamplesRepository);
 };
 
-
-
-
-
-
-
-
 } // namespace nnet
 } // namespace kaldi
 

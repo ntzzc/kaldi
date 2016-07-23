@@ -94,7 +94,8 @@ class Component {
     kMaxPooling2DComponent,
     kMaxPooling2DComponentFast,
     kFramePoolingComponent, 
-    kParallelComponent
+    kParallelComponent,
+	kParallelComponentMultiTask
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
@@ -208,6 +209,11 @@ class UpdatableComponent : public Component {
   virtual int32 NumParams() const = 0;
   virtual void GetParams(Vector<BaseFloat> *params) const = 0;
 
+  /// transform weights between update component and buffer
+  virtual int WeightCopy(void *buffer, int direction, int copykind) {return 0;}
+  /// Number of parameter in align memory buffer
+  virtual int GetDim() {return 0;}
+
   /// Compute gradient and update parameters
   virtual void Update(const CuMatrixBase<BaseFloat> &input,
                       const CuMatrixBase<BaseFloat> &diff) = 0;
@@ -266,6 +272,7 @@ inline void Component::Backpropagate(const CuMatrixBase<BaseFloat> &in,
   // Target buffer NULL : backpropagate only through components with nested nnets.
   if (in_diff == NULL) {
     if (GetType() == kParallelComponent ||
+    	GetType() == kParallelComponentMultiTask ||
         GetType() == kSentenceAveragingComponent) {
       BackpropagateFnc(in, out, out_diff, NULL);
     } else {

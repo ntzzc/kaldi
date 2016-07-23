@@ -72,6 +72,19 @@ private:
 
 class LmModelSync{
 public:
+	typedef enum {
+		kDstAddress = 0x0,
+		kSrcAddress = 0x1,
+	} AddressType;
+
+	typedef enum {
+		kCudaMemcpyHostToHost = 0x0,
+		kCudaMemcpyHostToDevice,
+		kCudaMemcpyDeviceToHost,
+		kCudaMemcpyDeviceToDevice,
+	} cudaMemcpyKind;
+
+
 	LmModelSync(Nnet *nnet, const NnetParallelOptions *opts=NULL):
 		initialized_(false),is_lastmerge_(false),data_(NULL),free_data_(NULL),gradient_data_(NULL),
 		dim_(0),num_threads_(opts->num_threads),left_merge_(opts->num_merge),

@@ -71,11 +71,14 @@ Nnet::~Nnet() {
 }
 
 
-void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
+void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
   KALDI_ASSERT(NULL != out);
 
   if (NumComponents() == 0) {
-    (*out) = in; // copy 
+    // (*out) = in; // copy
+	if (out->NumRows() != in.NumRows() || out->NumCols() != in.NumCols())
+		(dynamic_cast<CuMatrix<BaseFloat>*>(out))->Resize(in.NumRows(), in.NumCols(), kUndefined);
+	out->CopyFromMat(in);
     return; 
   }
 
@@ -89,7 +92,11 @@ void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out
     components_[i]->Propagate(propagate_buf_[i], &propagate_buf_[i+1]);
   }
   
-  (*out) = propagate_buf_[components_.size()];
+  // (*out) = propagate_buf_[components_.size()];
+  CuMatrix<BaseFloat> mat = &propagate_buf_[components_.size()];
+  if (out->NumRows() != mat.NumRows() || out->NumCols() != mat.NumCols())
+  		(dynamic_cast<CuMatrix<BaseFloat>*>(out))->Resize(mat.NumRows(), mat.NumCols(), kUndefined);
+  out->CopyFromMat(mat);
 }
 
 /*
@@ -124,14 +131,20 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseF
   //////////////////////////////////////
 }
 */
-void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff, bool update) {
+void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff, bool update) {
 
   //////////////////////////////////////
   // Backpropagation
   //
 
   // 0 layers
-  if (NumComponents() == 0) { (*in_diff) = out_diff; return; }
+  if (NumComponents() == 0) {
+	// (*in_diff) = out_diff;
+	if (in_diff->NumRows() != out_diff.NumRows() || in_diff->NumCols() != out_diff.NumCols())
+			(dynamic_cast<CuMatrix<BaseFloat>*>(in_diff))->Resize(out_diff.NumRows(), out_diff.NumCols(), kUndefined);
+	in_diff->CopyFromMat(out_diff);
+	return;
+  }
 
   KALDI_ASSERT((int32)propagate_buf_.size() == NumComponents()+1);
   KALDI_ASSERT((int32)backpropagate_buf_.size() == NumComponents()+1);
@@ -150,7 +163,14 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseF
     }
   }
   // eventually export the derivative
-  if (NULL != in_diff) (*in_diff) = backpropagate_buf_[0];
+  // if (NULL != in_diff) (*in_diff) = backpropagate_buf_[0];
+
+  if (NULL != in_diff) {
+	  CuMatrix<BaseFloat> mat = &backpropagate_buf_[0];
+	  if (in_diff->NumRows() != mat.NumRows() || in_diff->NumCols() != mat.NumCols())
+	  		(dynamic_cast<CuMatrix<BaseFloat>*>(in_diff))->Resize(mat.NumRows(), mat.NumCols(), kUndefined);
+	  in_diff->CopyFromMat(mat);
+  }
 
   //
   // End of Backpropagation
@@ -319,6 +339,29 @@ void Nnet::GetParams(Vector<BaseFloat>* wei_copy) const {
   KALDI_ASSERT(pos == NumParams());
 }
 
+int Nnet::WeightCopy(void *buffer, int direction, int copykind)
+{
+	int pos = 0;
+	for (int32 n = 0; n < components_.size(); n++) {
+		if (components_[n]->IsUpdatable()) {
+			UpdatableComponent& c = dynamic_cast<UpdatableComponent&>(*components_[n]);
+			pos += c.WeightCopy(buffer+pos, direction, copykind);
+		}
+	}
+	return pos;
+}
+
+int Nnet::GetDim() const
+{
+	int pos = 0;
+	for (int32 n = 0; n < components_.size(); n++) {
+		if (components_[n]->IsUpdatable()) {
+			UpdatableComponent& c = dynamic_cast<UpdatableComponent&>(*components_[n]);
+			pos += c.GetDim();
+		}
+	}
+	return pos;
+}
 
 void Nnet::GetWeights(Vector<BaseFloat>* wei_copy) const {
   wei_copy->Resize(NumParams());
