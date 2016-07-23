@@ -186,16 +186,15 @@ private:
 	    WordVectorTransform *word_transf = NULL;
 	    CBSoftmax *cb_softmax = NULL;
 	    ParallelComponentMultiTask *parallel = NULL;
-	    Component *com = NULL;
 	    for (int32 c = 0; c < nnet.NumComponents(); c++)
 	    {
 	    	if (nnet.GetComponent(c).GetType() == Component::kParallelComponentMultiTask)
 	    	{
 	    		parallel = &(dynamic_cast<ParallelComponentMultiTask&>(nnet.GetComponent(c)));
-	    		com = parallel->GetComponent(Component::kClassAffineTransform);
-	    		if (com != NULL) class_affine = &(dynamic_cast<ClassAffineTransform&>(com));
+	    		Component *com = parallel->GetComponent(Component::kClassAffineTransform);
+	    		if (com != NULL) class_affine = dynamic_cast<ClassAffineTransform*>(com);
 	    		com = parallel->GetComponent(Component::kCBSoftmax);
-	    		if (com != NULL) cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(com)));
+	    		if (com != NULL) cb_softmax = dynamic_cast<CBSoftmax*>(com);
 	    		output_offset = parallel->GetOutputOffset();
 	    	}
 	    	else if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)

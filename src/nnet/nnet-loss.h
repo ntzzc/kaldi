@@ -215,7 +215,7 @@ class Mse : public LossItf {
   void Eval(const VectorBase<BaseFloat> &frame_weights, 
             const CuMatrixBase<BaseFloat>& net_out, 
             const CuMatrixBase<BaseFloat>& target,
-            CuMatrix<BaseFloat>* diff);
+            CuMatrixBase<BaseFloat>* diff);
 
   /// Evaluate mean square error using target-posteior,
   void Eval(const VectorBase<BaseFloat> &frame_weights, 
@@ -270,7 +270,7 @@ class MultiTaskLoss : public LossItf {
   void Eval(const VectorBase<BaseFloat> &frame_weights, 
             const CuMatrixBase<BaseFloat>& net_out, 
             const CuMatrixBase<BaseFloat>& target,
-            CuMatrix<BaseFloat>* diff) {
+            CuMatrixBase<BaseFloat>* diff) {
     KALDI_ERR << "This is not supposed to be called!";
   }
 

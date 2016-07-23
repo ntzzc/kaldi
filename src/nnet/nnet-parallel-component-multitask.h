@@ -56,11 +56,11 @@ class ParallelComponentMultiTask : public UpdatableComponent {
         while(!is.eof()) {
 		  ExpectToken(is, false, "<InputOffset>");
 		  ReadBasicType(is, false, &offset);
-		  input_offset.push_back(std::pair(offset, len));
+		  input_offset.push_back(std::pair<int32, int32>(offset, len));
 
 		  ExpectToken(is, false, "<OutputOffset>");
 		  ReadBasicType(is, false, &offset);
-		  output_offset.push_back(std::pair(offset, len));
+		  output_offset.push_back(std::pair<int32, int32>(offset, len));
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
@@ -71,11 +71,11 @@ class ParallelComponentMultiTask : public UpdatableComponent {
         while(!is.eof()) {
       	  ExpectToken(is, false, "<InputOffset>");
       	  ReadBasicType(is, false, &offset);
-      	  input_offset.push_back(std::pair(offset, len));
+      	  input_offset.push_back(std::pair<int32, int32>(offset, len));
 
       	  ExpectToken(is, false, "<OutputOffset>");
       	  ReadBasicType(is, false, &offset);
-      	  output_offset.push_back(std::pair(offset, len));
+      	  output_offset.push_back(std::pair<int32, int32>(offset, len));
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);

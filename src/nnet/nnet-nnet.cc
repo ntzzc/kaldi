@@ -77,7 +77,7 @@ void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> 
   if (NumComponents() == 0) {
     // (*out) = in; // copy
 	if (out->NumRows() != in.NumRows() || out->NumCols() != in.NumCols())
-		(dynamic_cast<CuMatrix<BaseFloat>*>(out))->Resize(in.NumRows(), in.NumCols(), kUndefined);
+		(static_cast<CuMatrix<BaseFloat>*>(out))->Resize(in.NumRows(), in.NumCols(), kUndefined);
 	out->CopyFromMat(in);
     return; 
   }
@@ -93,9 +93,9 @@ void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> 
   }
   
   // (*out) = propagate_buf_[components_.size()];
-  CuMatrix<BaseFloat> mat = &propagate_buf_[components_.size()];
+  CuMatrix<BaseFloat> &mat = propagate_buf_[components_.size()];
   if (out->NumRows() != mat.NumRows() || out->NumCols() != mat.NumCols())
-  		(dynamic_cast<CuMatrix<BaseFloat>*>(out))->Resize(mat.NumRows(), mat.NumCols(), kUndefined);
+  		(static_cast<CuMatrix<BaseFloat>*>(out))->Resize(mat.NumRows(), mat.NumCols(), kUndefined);
   out->CopyFromMat(mat);
 }
 
@@ -141,7 +141,7 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<B
   if (NumComponents() == 0) {
 	// (*in_diff) = out_diff;
 	if (in_diff->NumRows() != out_diff.NumRows() || in_diff->NumCols() != out_diff.NumCols())
-			(dynamic_cast<CuMatrix<BaseFloat>*>(in_diff))->Resize(out_diff.NumRows(), out_diff.NumCols(), kUndefined);
+			(static_cast<CuMatrix<BaseFloat>*>(in_diff))->Resize(out_diff.NumRows(), out_diff.NumCols(), kUndefined);
 	in_diff->CopyFromMat(out_diff);
 	return;
   }
@@ -166,9 +166,9 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<B
   // if (NULL != in_diff) (*in_diff) = backpropagate_buf_[0];
 
   if (NULL != in_diff) {
-	  CuMatrix<BaseFloat> mat = &backpropagate_buf_[0];
+	  CuMatrix<BaseFloat> &mat = backpropagate_buf_[0];
 	  if (in_diff->NumRows() != mat.NumRows() || in_diff->NumCols() != mat.NumCols())
-	  		(dynamic_cast<CuMatrix<BaseFloat>*>(in_diff))->Resize(mat.NumRows(), mat.NumCols(), kUndefined);
+	  		(static_cast<CuMatrix<BaseFloat>*>(in_diff))->Resize(mat.NumRows(), mat.NumCols(), kUndefined);
 	  in_diff->CopyFromMat(mat);
   }
 
@@ -345,7 +345,7 @@ int Nnet::WeightCopy(void *buffer, int direction, int copykind)
 	for (int32 n = 0; n < components_.size(); n++) {
 		if (components_[n]->IsUpdatable()) {
 			UpdatableComponent& c = dynamic_cast<UpdatableComponent&>(*components_[n]);
-			pos += c.WeightCopy(buffer+pos, direction, copykind);
+			pos += c.WeightCopy((void*)((char *)buffer+pos) , direction, copykind);
 		}
 	}
 	return pos;

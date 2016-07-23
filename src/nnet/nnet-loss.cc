@@ -94,7 +94,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   // compute derivative wrt. activations of last layer of neurons,
   //*diff = net_out;
   if (diff->NumRows() != net_out.NumRows())
-	  (dynamic_cast<CuMatrix<BaseFloat>*>(diff))->Resize(net_out.NumRows(), net_out.NumCols(), kUndefined);
+	  (static_cast<CuMatrix<BaseFloat>*>(diff))->Resize(net_out.NumRows(), net_out.NumCols(), kUndefined);
 
   diff->CopyFromMat(net_out);
   diff->AddMat(-1.0, targets);
@@ -294,7 +294,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  }
 
 	  if (diff->NumRows() != num_frames || diff->NumCols() != num_pdf)
-		  (dynamic_cast<CuMatrix<BaseFloat>*>(diff))->Resize(num_frames, num_pdf, kSetZero);
+		  (static_cast<CuMatrix<BaseFloat>*>(diff))->Resize(num_frames, num_pdf, kSetZero);
 
 	  frame_weights_ = frame_weights;
 
@@ -518,7 +518,7 @@ void CBXent::Merge(int myid, int root)
 void Mse::Eval(const VectorBase<BaseFloat> &frame_weights,
                const CuMatrixBase<BaseFloat>& net_out, 
                const CuMatrixBase<BaseFloat>& target, 
-               CuMatrix<BaseFloat>* diff) {
+               CuMatrixBase<BaseFloat>* diff) {
   // check inputs,
   KALDI_ASSERT(net_out.NumCols() == target.NumCols());
   KALDI_ASSERT(net_out.NumRows() == target.NumRows());
@@ -535,7 +535,11 @@ void Mse::Eval(const VectorBase<BaseFloat> &frame_weights,
   frame_weights_ = frame_weights;
 
   //compute derivative w.r.t. neural nerwork outputs
-  *diff = net_out; // y
+  //*diff = net_out; // y
+  if (diff->NumRows() != net_out.NumRows() || diff->NumCols() != net_out.NumCols())
+	  (static_cast<CuMatrix<BaseFloat>*>(diff))->Resize(net_out.NumRows(), net_out.NumCols(), kUndefined);
+  diff->CopyFromMat(net_out);
+
   diff->AddMat(-1.0,target); // (y - t)
   diff->MulRowsVec(frame_weights_); // weighting,
 

@@ -13,7 +13,8 @@ TESTFILES = arpa-file-parser-test arpa-lm-compiler-test
 OBJFILES = arpa-file-parser.o arpa-lm-compiler.o const-arpa-lm.o \
 			kaldi-rnnlm.o mikolov-rnnlm-lib.o \
 		   	kaldi-lmtable.o kaldi-lm.o \
-			lm-model-sync.o lm-compute-lstm-parallel.o seqlabel-compute-lstm-parallel.o
+			lm-model-sync.o lm-compute-lstm-parallel.o \
+			seqlabel-compute-lstm-parallel.o slu-compute-lstm-parallel.o
 
 LIBNAME = kaldi-lm
 

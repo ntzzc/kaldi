@@ -246,7 +246,7 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       ans = new ParallelComponent(input_dim, output_dim);
       break;
     case Component::kParallelComponentMultiTask :
-      ans = new kParallelComponentMultiTask(input_dim, output_dim);
+      ans = new ParallelComponentMultiTask(input_dim, output_dim);
       break;
     case Component::kUnknown :
     default :
