@@ -93,8 +93,6 @@ bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 	        	sweep_time = skip_frames;
 	        }
 
-	        examples.resize(sweep_time);
-
 	        if (skip_frames <= 1)
 	        {
 	        	examples[0] = this;
@@ -107,6 +105,8 @@ bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 	        	for (int i = 0; i < sweep_time; i++)
 	        		sweep_frames[i] = i;
 	        }
+
+	        examples.resize(sweep_frames.size());
 
 	        DNNNnetExample *example = NULL;
 	        for (int i = 0; i < sweep_frames.size(); i++)
@@ -160,8 +160,6 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     	sweep_time = skip_frames;
     }
 
-    examples.resize(sweep_time);
-
     if (skip_frames <= 1)
     {
     	examples[0] = this;
@@ -174,6 +172,8 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     	for (int i = 0; i < sweep_time; i++)
     		sweep_frames[i] = i;
     }
+
+    examples.resize(sweep_frames.size());
 
     CTCNnetExample *example = NULL;
     for (int i = 0; i < sweep_frames.size(); i++)
