@@ -167,6 +167,12 @@ private:
 	  }
 	}
 
+	  // Note, frames are numbered from zero. Here "tid" means token id, the indexes of the
+	  // CTC label tokens. When we compile the search graph, the tokens are indexed from 1
+	  // because 0 is always occupied by <eps>. However, in the softmax layer of the RNN
+	  // model, CTC tokens are indexed from 0. Thus, we simply shift "tid" by 1, to solve
+	  // the mismatch.
+
 	void LatticeAcousticRescoreCTC(const Matrix<BaseFloat> &log_like,
 	                            const std::vector<int32> &state_times,
 	                            Lattice *lat) {

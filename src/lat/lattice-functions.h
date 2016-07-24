@@ -168,6 +168,12 @@ bool LatticeBoost(const TransitionModel &trans,
                   BaseFloat max_silence_error,
                   Lattice *lat);
 
+bool LatticeBoostCTC(const std::vector<int32> &alignment,
+                  const std::vector<int32> &silence_phones,
+                  BaseFloat b,
+                  BaseFloat max_silence_error,
+                  Lattice *lat);
+
 
 /**
    This function implements either the MPFE (minimum phone frame error) or SMBR

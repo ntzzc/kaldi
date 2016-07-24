@@ -744,7 +744,61 @@ bool LatticeBoost(const TransitionModel &trans,
   return true;
 }
 
+bool LatticeBoostCTC(const std::vector<int32> &alignment,
+                  const std::vector<int32> &silence_phones,
+                  BaseFloat b,
+                  BaseFloat max_silence_error,
+                  Lattice *lat) {
+  TopSortLatticeIfNeeded(lat);
 
+  // get all stored properties (test==false means don't test if not known).
+  uint64 props = lat->Properties(fst::kFstProperties,
+                                 false);
+
+  KALDI_ASSERT(IsSortedAndUniq(silence_phones));
+  KALDI_ASSERT(max_silence_error >= 0.0 && max_silence_error <= 1.0);
+  vector<int32> state_times;
+  int32 num_states = lat->NumStates();
+  int32 num_frames = LatticeStateTimes(*lat, &state_times);
+  KALDI_ASSERT(num_frames == static_cast<int32>(alignment.size()));
+  for (int32 state = 0; state < num_states; state++) {
+    int32 cur_time = state_times[state];
+    for (fst::MutableArcIterator<Lattice> aiter(lat, state); !aiter.Done();
+         aiter.Next()) {
+      LatticeArc arc = aiter.Value();
+      if (arc.ilabel != 0) {  // Non-epsilon arc
+        if (arc.ilabel < 0) {
+          KALDI_WARN << "Lattice has out-of-range pdf-ids: "
+                     << "lattice/model mismatch?";
+          return false;
+        }
+        int32 phone = arc.ilabel, //trans.TransitionIdToPhone(arc.ilabel),
+            ref_phone = alignment[cur_time]; // trans.TransitionIdToPhone(alignment[cur_time]);
+        BaseFloat frame_error;
+        if (phone == ref_phone) {
+          frame_error = 0.0;
+        } else { // an error...
+          if (std::binary_search(silence_phones.begin(), silence_phones.end(), phone))
+            frame_error = max_silence_error;
+          else
+            frame_error = 1.0;
+        }
+        BaseFloat delta_cost = -b * frame_error; // negative cost if
+        // frame is wrong, to boost likelihood of arcs with errors on them.
+        // Add this cost to the graph part.
+        arc.weight.SetValue1(arc.weight.Value1() + delta_cost);
+        aiter.SetValue(arc);
+      }
+    }
+  }
+  // All we changed is the weights, so any properties that were
+  // known before, are still known, except for whether or not the
+  // lattice was weighted.
+  lat->SetProperties(props,
+                     ~(fst::kWeighted|fst::kUnweighted));
+
+  return true;
+}
 
 BaseFloat LatticeForwardBackwardMpeVariants(
     const TransitionModel &trans,
