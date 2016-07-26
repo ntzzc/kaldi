@@ -181,7 +181,7 @@ private:
 	    nnet.SetTrainOptions(*trn_opts);
 
 		TrainlmUtil util;
-		std::vector<std::pair<int32, int32> > output_offset;
+		std::unordered_map<std::string, std::pair<int32, int32> > output_offset;
 	    ClassAffineTransform *class_affine = NULL;
 	    WordVectorTransform *word_transf = NULL;
 	    CBSoftmax *cb_softmax = NULL;
@@ -290,18 +290,25 @@ private:
 	    CuSubMatrix<BaseFloat> *lm_nnet_out = NULL, *slot_nnet_out = NULL, *intent_nnet_out = NULL;
 	    CuSubMatrix<BaseFloat> *lm_nnet_diff = NULL, *slot_nnet_diff = NULL, *intent_nnet_diff = NULL;
 
-	    lm_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(0, nnet.OutputDim()));
-	    lm_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(0, nnet.OutputDim()));
+	    std::pair<int32, int32> offset;
+	    if (output_offset.find("lm") != output_offset.end()) {
+	    	offset = output_offset["lm"];
+	    	lm_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(offset.first, offset.second));
+	    	lm_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(offset.first, offset.second));
+	    }
 
-	    if (output_offset.size() == 2) {
-	    	slot_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(output_offset[1].first, output_offset[1].second));
-	    	slot_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(output_offset[1].first, output_offset[1].second));
+	    if (output_offset.find("slot") != output_offset.end()) {
+	    	offset = output_offset["slot"];
+	    	slot_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(offset.first, offset.second));
+	    	slot_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(offset.first, offset.second));
             if (opts->slot_rspecifier == "")
                 KALDI_ERR << "Unspecified slot label reader.";
 	    }
-	    if (output_offset.size() == 3) {
-			intent_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(output_offset[2].first, output_offset[2].second));
-			intent_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(output_offset[2].first, output_offset[2].second));
+
+	    if (output_offset.find("intent") != output_offset.end()) {
+	    	offset = output_offset["intent"];
+			intent_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(offset.first, offset.second));
+			intent_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(offset.first, offset.second));
             if (opts->intent_rspecifier == "")
                 KALDI_ERR << "Unspecified intent label reader.";
 	    }

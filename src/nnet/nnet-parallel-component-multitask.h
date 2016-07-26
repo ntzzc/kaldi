@@ -45,41 +45,63 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
   void InitData(std::istream &is) {
     // define options
-    std::vector<std::string> nested_nnet_proto;
-    std::vector<std::string> nested_nnet_filename;
+    // std::vector<std::string> nested_nnet_proto;
+    // std::vector<std::string> nested_nnet_filename;
     // parse config
-    std::string token; 
+    std::string token, name;
 	int32 offset, len = 0;
     while (!is.eof()) {
       ReadToken(is, false, &token); 
       if (token == "<NestedNnet>" || token == "<NestedNnetFilename>") {
+    	  ExpectToken(is, false, "<Name>");
+    	  ReadToken(is, false, &name);
+
 		  ExpectToken(is, false, "<InputOffset>");
 		  ReadBasicType(is, false, &offset);
-		  input_offset.push_back(std::pair<int32, int32>(offset, len));
+		  input_offset[name] = std::pair<int32, int32>(offset, len);
 
 		  ExpectToken(is, false, "<OutputOffset>");
 		  ReadBasicType(is, false, &offset);
-		  output_offset.push_back(std::pair<int32, int32>(offset, len));
+		  output_offset[name] = std::pair<int32, int32>(offset, len);
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
           nested_nnet_filename.push_back(file_or_end);
 
+          // read nnets from files
+          Nnet nnet;
+          nnet.Read(file_or_end);
+          nnet_[name] = nnet;
+          input_offset[name].second = nnet.InputDim();
+          output_offset[name].second = nnet.OutputDim();
+          KALDI_LOG << "Loaded nested <Nnet> from file : " << file_or_end;
+
           ReadToken(is, false, &file_or_end);
           KALDI_ASSERT(file_or_end == "</NestedNnet>" || file_or_end == "</NestedNnetFilename>");
 
       } else if (token == "<NestedNnetProto>") {
+    	  ExpectToken(is, false, "<Name>");
+    	  ReadToken(is, false, &name);
+
       	  ExpectToken(is, false, "<InputOffset>");
       	  ReadBasicType(is, false, &offset);
-      	  input_offset.push_back(std::pair<int32, int32>(offset, len));
+      	  input_offset[name] = std::pair<int32, int32>(offset, len);
 
       	  ExpectToken(is, false, "<OutputOffset>");
       	  ReadBasicType(is, false, &offset);
-      	  output_offset.push_back(std::pair<int32, int32>(offset, len));
+      	  output_offset[name] = std::pair<int32, int32>(offset, len);
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
           nested_nnet_proto.push_back(file_or_end);
+
+          // initialize nnets from prototypes
+          Nnet nnet;
+          nnet.Init(file_or_end);
+          nnet_[name] = nnet;
+          input_offset[name].second = nnet.InputDim();
+          output_offset[name].second = nnet.OutputDim();
+          KALDI_LOG << "Initialized nested <Nnet> from prototype : " << file_or_end;
 
           ReadToken(is, false, &file_or_end);
           KALDI_ASSERT(file_or_end == "</NestedNnetProto>");
@@ -89,29 +111,8 @@ class ParallelComponentMultiTask : public UpdatableComponent {
       is >> std::ws; // eat-up whitespace
     }
     // initialize
-    KALDI_ASSERT((nested_nnet_proto.size() > 0) ^ (nested_nnet_filename.size() > 0)); //xor
-    // read nnets from files
-    if (nested_nnet_filename.size() > 0) {
-      for (int32 i=0; i<nested_nnet_filename.size(); i++) {
-        Nnet nnet;
-        nnet.Read(nested_nnet_filename[i]);
-        nnet_.push_back(nnet);
-        input_offset[i].second = nnet.InputDim();
-        output_offset[i].second = nnet.OutputDim();
-        KALDI_LOG << "Loaded nested <Nnet> from file : " << nested_nnet_filename[i];
-      }
-    }
-    // initialize nnets from prototypes
-    if (nested_nnet_proto.size() > 0) {
-      for (int32 i=0; i<nested_nnet_proto.size(); i++) {
-        Nnet nnet;
-        nnet.Init(nested_nnet_proto[i]);
-        nnet_.push_back(nnet);
-        input_offset[i].second = nnet.InputDim();
-        output_offset[i].second = nnet.OutputDim();
-        KALDI_LOG << "Initialized nested <Nnet> from prototype : " << nested_nnet_proto[i];
-      }
-    }
+    // KALDI_ASSERT((nested_nnet_proto.size() > 0) ^ (nested_nnet_filename.size() > 0)); //xor
+    KALDI_ASSERT(nnet_.size() > 0);
 
     // check dim-sum of nested nnets
     check();
@@ -121,6 +122,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
     // read
     ExpectToken(is, binary, "<NestedNnetCount>");
     std::pair<int32, int32> offset;
+    std::string name;
     int32 nnet_count;
     ReadBasicType(is, binary, &nnet_count);
     for (int32 i=0; i<nnet_count; i++) {
@@ -128,19 +130,22 @@ class ParallelComponentMultiTask : public UpdatableComponent {
       int32 dummy;
       ReadBasicType(is, binary, &dummy);
 
+      ExpectToken(is, false, "<Name>");
+      ReadToken(is, false, &name);
+
       ExpectToken(is, binary, "<InputOffset>");
       ReadBasicType(is, binary, &offset.first);
-      input_offset.push_back(offset);
+      input_offset[name] = offset;
 
       ExpectToken(is, binary, "<OutputOffset>");
       ReadBasicType(is, binary, &offset.first);
-      output_offset.push_back(offset);
+      output_offset[name] = offset;
 
       Nnet nnet;
       nnet.Read(is, binary);
-      nnet_.push_back(nnet);
-      input_offset[i].second = nnet.InputDim();
-      output_offset[i].second = nnet.OutputDim();
+      nnet_[name] = nnet;
+      input_offset[name].second = nnet.InputDim();
+      output_offset[name].second = nnet.OutputDim();
     }
     ExpectToken(is, binary, "</ParallelComponentMultiTask>");
 
@@ -151,37 +156,46 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   void WriteData(std::ostream &os, bool binary) const {
     // useful dims
     int32 nnet_count = nnet_.size();
+    std::string name;
+    //unordered_map<std::string, std::pair<int32, int32> >::iterator it;
+    int32 i = 0;
     //
     WriteToken(os, binary, "<NestedNnetCount>");
     WriteBasicType(os, binary, nnet_count);
-    for (int32 i=0; i<nnet_count; i++) {
-      WriteToken(os, binary, "<NestedNnet>");
-      WriteBasicType(os, binary, i+1);
 
-      WriteToken(os, binary, "<InputOffset>");
-      WriteBasicType(os, binary, input_offset[i].first);
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it)
+    {
+    	name = it->first;
+        WriteToken(os, binary, "<NestedNnet>");
+        WriteBasicType(os, binary, i+1);
 
-      WriteToken(os, binary, "<OutputOffset>");
-      WriteBasicType(os, binary, output_offset[i].first);
+        WriteToken(os, binary, "<Name>");
+        WriteBasicType(os, binary, name);
 
-      nnet_[i].Write(os, binary);
+        WriteToken(os, binary, "<InputOffset>");
+        WriteBasicType(os, binary, input_offset[name].first);
+
+        WriteToken(os, binary, "<OutputOffset>");
+        WriteBasicType(os, binary, output_offset[name].first);
+
+        nnet_[name].Write(os, binary);
     }
     WriteToken(os, binary, "</ParallelComponentMultiTask>");
   }
 
   int32 NumParams() const { 
     int32 num_params_sum = 0;
-    for (int32 i=0; i<nnet_.size(); i++) 
-      num_params_sum += nnet_[i].NumParams();
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it)
+      num_params_sum += it->second.NumParams();
     return num_params_sum;
   }
 
   void GetParams(Vector<BaseFloat>* wei_copy) const { 
     wei_copy->Resize(NumParams());
     int32 offset = 0;
-    for (int32 i=0; i<nnet_.size(); i++) {
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
       Vector<BaseFloat> wei_aux;
-      nnet_[i].GetParams(&wei_aux);
+      it->second.GetParams(&wei_aux);
       wei_copy->Range(offset, wei_aux.Dim()).CopyFromVec(wei_aux);
       offset += wei_aux.Dim();
     }
@@ -190,8 +204,8 @@ class ParallelComponentMultiTask : public UpdatableComponent {
     
   std::string Info() const { 
     std::ostringstream os;
-    for (int32 i=0; i<nnet_.size(); i++) {
-      os << "nested_network #" << i+1 << "{\n" << nnet_[i].Info() << "}\n";
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+      os << "nested_network #" << it->first << "{\n" << it->second.Info() << "}\n";
     }
     std::string s(os.str());
     s.erase(s.end() -1); // removing last '\n'
@@ -200,8 +214,8 @@ class ParallelComponentMultiTask : public UpdatableComponent {
                        
   std::string InfoGradient() const {
     std::ostringstream os;
-    for (int32 i=0; i<nnet_.size(); i++) {
-      os << "nested_gradient #" << i+1 << "{\n" << nnet_[i].InfoGradient() << "}\n";
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+      os << "nested_gradient #" << it->first << "{\n" << it->second.InfoGradient() << "}\n";
     }
     std::string s(os.str());
     s.erase(s.end() -1); // removing last '\n'
@@ -210,40 +224,44 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
   std::string InfoPropagate() const {
     std::ostringstream os;
-    for (int32 i=0; i<nnet_.size(); i++) {
-      os << "nested_propagate #" << i+1 << "{\n" << nnet_[i].InfoPropagate() << "}\n";
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+      os << "nested_propagate #" << it->first << "{\n" << it->second.InfoPropagate() << "}\n";
     }
     return os.str();
   }
 
   std::string InfoBackPropagate() const {
     std::ostringstream os;
-    for (int32 i=0; i<nnet_.size(); i++) {
-      os << "nested_backpropagate #" << i+1 << "{\n" << nnet_[i].InfoBackPropagate() << "}\n";
+    for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+      os << "nested_backpropagate #" << it->first << "{\n" <<  it->second.InfoBackPropagate() << "}\n";
     }
     return os.str();
   }
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
 
-    for (int32 i=0; i<nnet_.size(); i++) {
-      CuSubMatrix<BaseFloat> src(in.ColRange(input_offset[i].first, input_offset[i].second));
-      CuSubMatrix<BaseFloat> tgt(out->ColRange(output_offset[i].first, output_offset[i].second));
-      //
-      nnet_[i].Propagate(src, &tgt);
+	  std::string name;
+	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+		  name = it.first;
+		  CuSubMatrix<BaseFloat> src(in.ColRange(input_offset[name].first, input_offset[name].second));
+		  CuSubMatrix<BaseFloat> tgt(out->ColRange(output_offset[name].first, output_offset[name].second));
+		  //
+		  nnet_[name].Propagate(src, &tgt);
     }
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
                         const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
-	in_diff->SetZero();
-    for (int32 i=0; i<nnet_.size(); i++) {
-      CuSubMatrix<BaseFloat> src(out_diff.ColRange(output_offset[i].first, output_offset[i].second));
-      CuSubMatrix<BaseFloat> tgt(in_diff->ColRange(input_offset[i].first, input_offset[i].second));
-      // 
-      CuMatrix<BaseFloat> tgt_aux;
-      nnet_[i].Backpropagate(src, &tgt_aux);
-      tgt.AddMat(1.0, tgt_aux);
+	  std::string name;
+	  in_diff->SetZero();
+	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+		  name = it.first;
+		  CuSubMatrix<BaseFloat> src(out_diff.ColRange(output_offset[name].first, output_offset[name].second));
+		  CuSubMatrix<BaseFloat> tgt(in_diff->ColRange(input_offset[name].first, input_offset[name].second));
+		  //
+		  CuMatrix<BaseFloat> tgt_aux;
+		  nnet_[name].Backpropagate(src, &tgt_aux);
+		  tgt.AddMat(1.0, tgt_aux);
     }
   }
 
@@ -252,43 +270,44 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   }
  
   void SetTrainOptions(const NnetTrainOptions &opts) {
-    for (int32 i=0; i<nnet_.size(); i++) {
-      nnet_[i].SetTrainOptions(opts);
+	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+		  it->second.SetTrainOptions(opts);
     }
   }
 
   int32 GetDim() const
   {
 	  int32 dim = 0;
-	  for (int i = 0; i < nnet_.size(); i++)
-		  dim += nnet_[i].GetDim();
+	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it)
+		  dim += it->second.GetDim();
 	  return dim;
   }
 
   int WeightCopy(void *host, int direction, int copykind)
   {
 	  int pos = 0;
-	  for (int i = 0; i < nnet_.size(); i++)
-		  pos += nnet_[i].WeightCopy((void*)((char *)host+pos), direction, copykind);
+	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it)
+		  pos += it->second.WeightCopy((void*)((char *)host+pos), direction, copykind);
 	  return pos;
   }
 
   Component* GetComponent(Component::ComponentType type)
   {
 	  Component *com = NULL;
-	  for (int i = 0; i < nnet_.size(); i++)
+	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it)
 	  {
-		  for (int32 c = 0; c < nnet_[i].NumComponents(); c++)
+		  Nnet &nnet = it->second;
+		  for (int32 c = 0; c < nnet.NumComponents(); c++)
 		  {
 
-			  if (nnet_[i].GetComponent(c).GetType() == type)
-		          {
-				  com = &nnet_[i].GetComponent(c);
+			  if (nnet.GetComponent(c).GetType() == type)
+			  {
+				  com = &nnet.GetComponent(c);
 				  return com;
 			  }
-			  else if (nnet_[i].GetComponent(c).GetType() == Component::kParallelComponentMultiTask)
+			  else if (nnet.GetComponent(c).GetType() == Component::kParallelComponentMultiTask)
 			  {
-				  com = (dynamic_cast<ParallelComponentMultiTask&>(nnet_[i].GetComponent(c))).GetComponent(type);
+				  com = (dynamic_cast<ParallelComponentMultiTask&>(nnet.GetComponent(c))).GetComponent(type);
 				  if (com != NULL) return com;
 			  }
 		  }
@@ -296,7 +315,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 	  return com;
   }
 
-  std::vector<std::pair<int32, int32> >	GetOutputOffset()
+  std::unordered_map<std::string, std::pair<int32, int32> >	GetOutputOffset()
   {
 	  return output_offset;
   }
@@ -306,11 +325,13 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   {
 	    // check dim-sum of nested nnets
 	    int32 nnet_input_max = 0, nnet_output_max = 0, dim = 0;
-	    for (int32 i=0; i<nnet_.size(); i++) {
-	    	dim = input_offset[i].first + input_offset[i].second;
+	    std::string name;
+	    for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
+	    	name = it->first;
+	    	dim = input_offset[name].first + input_offset[name].second;
 	    	if (nnet_input_max < dim) nnet_input_max = dim;
 
-	    	dim = output_offset[i].first + output_offset[i].second;
+	    	dim = output_offset[name].first + output_offset[name].second;
 	    	if (nnet_output_max < dim) nnet_output_max = dim;
 	    }
 	    KALDI_ASSERT(InputDim() == nnet_input_max);
@@ -318,9 +339,9 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   }
 
  private:
-  std::vector<Nnet> nnet_;
-  std::vector<std::pair<int32, int32> > input_offset;  // <offset, length>
-  std::vector<std::pair<int32, int32> > output_offset;
+  std::unordered_map<std::string, Nnet> nnet_;
+  std::unordered_map<std::string, std::pair<int32, int32> > input_offset;  // pair<offset, length>
+  std::unordered_map<std::string, std::pair<int32, int32> > output_offset;
 };
 
 } // namespace nnet1
