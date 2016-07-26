@@ -291,16 +291,19 @@ private:
 	    CuSubMatrix<BaseFloat> *lm_nnet_diff = NULL, *slot_nnet_diff = NULL, *intent_nnet_diff = NULL;
 
 	    std::pair<int32, int32> offset;
+        std::unordered_map<std::string, BaseFloat> error_scale;
 	    if (output_offset.find("lm") != output_offset.end()) {
 	    	offset = output_offset["lm"];
 	    	lm_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(offset.first, offset.second));
 	    	lm_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(offset.first, offset.second));
+            error_scale["lm"] = opts->lm_escale;
 	    }
 
 	    if (output_offset.find("slot") != output_offset.end()) {
 	    	offset = output_offset["slot"];
 	    	slot_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(offset.first, offset.second));
 	    	slot_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(offset.first, offset.second));
+            error_scale["slot"] = opts->slot_escale;
             if (opts->slot_rspecifier == "")
                 KALDI_ERR << "Unspecified slot label reader.";
 	    }
@@ -309,9 +312,13 @@ private:
 	    	offset = output_offset["intent"];
 			intent_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(offset.first, offset.second));
 			intent_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(offset.first, offset.second));
+            error_scale["intent"] = opts->intent_escale;
             if (opts->intent_rspecifier == "")
                 KALDI_ERR << "Unspecified intent label reader.";
 	    }
+
+        if (parallel != NULL)
+            parallel->SetErrorScale(error_scale);
 
 	    SluNnetExample *example;
 	    Timer time;
@@ -448,6 +455,7 @@ private:
 	        nnet.Propagate(words, &nnet_out);
 
 	        // evaluate objective function we've chosen
+	        if (NULL != class_affine) {
 	        if (objective_function == "xent") {
 	        	xent.Eval(frame_mask, *lm_nnet_out, target, lm_nnet_diff);
 	        } else if (objective_function == "cbxent") {
@@ -455,6 +463,7 @@ private:
 	        } else {
 	            KALDI_ERR << "Unknown objective function code : " << objective_function;
 	        }
+            }
 
 	        if (slot_nnet_out != NULL)
 	        	slot_xent.Eval(slot_mask, *slot_nnet_out, slot_target, slot_nnet_diff);

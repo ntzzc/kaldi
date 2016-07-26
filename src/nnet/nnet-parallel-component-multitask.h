@@ -66,7 +66,6 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
-          nested_nnet_filename.push_back(file_or_end);
 
           // read nnets from files
           Nnet nnet;
@@ -93,7 +92,6 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
-          nested_nnet_proto.push_back(file_or_end);
 
           // initialize nnets from prototypes
           Nnet nnet;
@@ -170,15 +168,15 @@ class ParallelComponentMultiTask : public UpdatableComponent {
         WriteBasicType(os, binary, i+1);
 
         WriteToken(os, binary, "<Name>");
-        WriteBasicType(os, binary, name);
+        WriteToken(os, binary, name);
 
         WriteToken(os, binary, "<InputOffset>");
-        WriteBasicType(os, binary, input_offset[name].first);
+        WriteBasicType(os, binary, input_offset.find(name)->second.first);
 
         WriteToken(os, binary, "<OutputOffset>");
-        WriteBasicType(os, binary, output_offset[name].first);
+        WriteBasicType(os, binary, output_offset.find(name)->second.first);
 
-        nnet_[name].Write(os, binary);
+        nnet_.find(name)->second.Write(os, binary);
     }
     WriteToken(os, binary, "</ParallelComponentMultiTask>");
   }
@@ -242,7 +240,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
 	  std::string name;
 	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
-		  name = it.first;
+		  name = it->first;
 		  CuSubMatrix<BaseFloat> src(in.ColRange(input_offset[name].first, input_offset[name].second));
 		  CuSubMatrix<BaseFloat> tgt(out->ColRange(output_offset[name].first, output_offset[name].second));
 		  //
@@ -255,13 +253,13 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 	  std::string name;
 	  in_diff->SetZero();
 	  for (auto it = nnet_.begin(); it != nnet_.end(); ++it) {
-		  name = it.first;
+		  name = it->first;
 		  CuSubMatrix<BaseFloat> src(out_diff.ColRange(output_offset[name].first, output_offset[name].second));
 		  CuSubMatrix<BaseFloat> tgt(in_diff->ColRange(input_offset[name].first, input_offset[name].second));
 		  //
 		  CuMatrix<BaseFloat> tgt_aux;
 		  nnet_[name].Backpropagate(src, &tgt_aux);
-		  tgt.AddMat(1.0, tgt_aux);
+		  tgt.AddMat(error_scale[name], tgt_aux);
     }
   }
 
@@ -320,6 +318,11 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 	  return output_offset;
   }
 
+  void SetErrorScale(std::unordered_map<std::string, BaseFloat> error_scale)
+  {
+      this->error_scale = error_scale;
+  }
+
  private:
   void check()
   {
@@ -342,6 +345,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   std::unordered_map<std::string, Nnet> nnet_;
   std::unordered_map<std::string, std::pair<int32, int32> > input_offset;  // pair<offset, length>
   std::unordered_map<std::string, std::pair<int32, int32> > output_offset;
+  std::unordered_map<std::string, BaseFloat> error_scale;
 };
 
 } // namespace nnet1
