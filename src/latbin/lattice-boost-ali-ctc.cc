@@ -1,4 +1,4 @@
-// latbin/lattice-boost-ali.cc
+// latbin/lattice-boost-ali-ctc.cc
 
 // Copyright 2009-2011  Microsoft Corporation
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
     kaldi::SequentialLatticeReader lattice_reader(lats_rspecifier);
     kaldi::RandomAccessInt32VectorReader alignment_reader(ali_rspecifier);
     kaldi::CompactLatticeWriter compact_lattice_writer(lats_wspecifier);
-    
+
     int32 n_done = 0, n_err = 0, n_no_ali = 0;
     
     for (; !lattice_reader.Done(); lattice_reader.Next()) {
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
           continue;
         }
         const std::vector<int32> &alignment = alignment_reader.Value(key);
-        if (!LatticeBoostCTC(alignment, silence_phones, b,
+        if (!kaldi::LatticeBoostCTC(alignment, silence_phones, b,
                           max_silence_error, &lat)) {
           n_err++; // will already have printed warning.
           continue;

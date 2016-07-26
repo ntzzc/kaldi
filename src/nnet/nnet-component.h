@@ -212,7 +212,7 @@ class UpdatableComponent : public Component {
   /// transform weights between update component and buffer
   virtual int WeightCopy(void *buffer, int direction, int copykind) {return 0;}
   /// Number of parameter in align memory buffer
-  virtual int GetDim() {return 0;}
+  virtual int32 GetDim() const {return 0;}
 
   /// Compute gradient and update parameters
   virtual void Update(const CuMatrixBase<BaseFloat> &input,

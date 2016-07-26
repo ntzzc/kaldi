@@ -290,17 +290,20 @@ private:
 	    CuSubMatrix<BaseFloat> *lm_nnet_out = NULL, *slot_nnet_out = NULL, *intent_nnet_out = NULL;
 	    CuSubMatrix<BaseFloat> *lm_nnet_diff = NULL, *slot_nnet_diff = NULL, *intent_nnet_diff = NULL;
 
-	    if (output_offset.size() <= 1) {
-	    	lm_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(0, nnet.OutputDim()));
-	    	lm_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(0, nnet.OutputDim()));
-	    }
+	    lm_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(0, nnet.OutputDim()));
+	    lm_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(0, nnet.OutputDim()));
+
 	    if (output_offset.size() == 2) {
 	    	slot_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(output_offset[1].first, output_offset[1].second));
 	    	slot_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(output_offset[1].first, output_offset[1].second));
+            if (opts->slot_rspecifier == "")
+                KALDI_ERR << "Unspecified slot label reader.";
 	    }
 	    if (output_offset.size() == 3) {
 			intent_nnet_out = new CuSubMatrix<BaseFloat>(nnet_out.ColRange(output_offset[2].first, output_offset[2].second));
 			intent_nnet_diff = new CuSubMatrix<BaseFloat>(nnet_diff.ColRange(output_offset[2].first, output_offset[2].second));
+            if (opts->intent_rspecifier == "")
+                KALDI_ERR << "Unspecified intent label reader.";
 	    }
 
 	    SluNnetExample *example;

@@ -81,6 +81,7 @@ bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 	          }
 	        }
 
+	        examples.resize(1);
 
 	        // split feature
 	        int32 skip_frames = opts->skip_frames;
@@ -148,6 +149,8 @@ bool CTCNnetExample::PrepareData(std::vector<NnetExample*> &examples)
     // get feature / target pair
     input_frames = feature_reader->Value();
     targets = targets_reader->Value(utt);
+
+    examples.resize(1);
 
     // split feature
     int32 skip_frames = opts->skip_frames;

@@ -52,8 +52,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 	int32 offset, len = 0;
     while (!is.eof()) {
       ReadToken(is, false, &token); 
-      /**/ if (token == "<NestedNnet>" || token == "<NestedNnetFilename>") {
-        while(!is.eof()) {
+      if (token == "<NestedNnet>" || token == "<NestedNnetFilename>") {
 		  ExpectToken(is, false, "<InputOffset>");
 		  ReadBasicType(is, false, &offset);
 		  input_offset.push_back(std::pair<int32, int32>(offset, len));
@@ -64,11 +63,12 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
-          if (file_or_end == "</NestedNnet>" || file_or_end == "</NestedNnetFilename>") break;
           nested_nnet_filename.push_back(file_or_end);
-        }
+
+          ReadToken(is, false, &file_or_end);
+          KALDI_ASSERT(file_or_end == "</NestedNnet>" || file_or_end == "</NestedNnetFilename>");
+
       } else if (token == "<NestedNnetProto>") {
-        while(!is.eof()) {
       	  ExpectToken(is, false, "<InputOffset>");
       	  ReadBasicType(is, false, &offset);
       	  input_offset.push_back(std::pair<int32, int32>(offset, len));
@@ -79,9 +79,11 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
-          if (file_or_end == "</NestedNnetProto>") break;
           nested_nnet_proto.push_back(file_or_end);
-        }
+
+          ReadToken(is, false, &file_or_end);
+          KALDI_ASSERT(file_or_end == "</NestedNnetProto>");
+
       } else KALDI_ERR << "Unknown token " << token << ", typo in config?"
                        << " (NestedNnet|NestedNnetFilename|NestedNnetProto)";
       is >> std::ws; // eat-up whitespace
@@ -280,14 +282,15 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 		  {
 
 			  if (nnet_[i].GetComponent(c).GetType() == type)
+		          {
+				  com = &nnet_[i].GetComponent(c);
 				  return com;
+			  }
 			  else if (nnet_[i].GetComponent(c).GetType() == Component::kParallelComponentMultiTask)
 			  {
 				  com = (dynamic_cast<ParallelComponentMultiTask&>(nnet_[i].GetComponent(c))).GetComponent(type);
 				  if (com != NULL) return com;
 			  }
-			  else
-				  return com;
 		  }
 	  }
 	  return com;

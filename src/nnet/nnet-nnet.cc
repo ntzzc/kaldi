@@ -230,6 +230,30 @@ void Nnet::Update()
 	  //////////////////////////////////////
 }
 
+int Nnet::WeightCopy(void *buffer, int direction, int copykind)
+{
+	int pos = 0;
+	for (int32 i = 0; i < components_.size(); i++) {
+		if (components_[i]->IsUpdatable()) {
+	        UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+			pos += uc->WeightCopy((void*)((char *)buffer+pos) , direction, copykind);
+		}
+	}
+	return pos;
+}
+
+int Nnet::GetDim() const
+{
+	int pos = 0;
+	for (int32 i = 0; i < components_.size(); i++) {
+		if (components_[i]->IsUpdatable()) {
+	        UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+			pos += uc->GetDim();
+		}
+	}
+	return pos;
+}
+
 void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
   KALDI_ASSERT(NULL != out);
 
@@ -337,30 +361,6 @@ void Nnet::GetParams(Vector<BaseFloat>* wei_copy) const {
     }
   }
   KALDI_ASSERT(pos == NumParams());
-}
-
-int Nnet::WeightCopy(void *buffer, int direction, int copykind)
-{
-	int pos = 0;
-	for (int32 n = 0; n < components_.size(); n++) {
-		if (components_[n]->IsUpdatable()) {
-			UpdatableComponent& c = dynamic_cast<UpdatableComponent&>(*components_[n]);
-			pos += c.WeightCopy((void*)((char *)buffer+pos) , direction, copykind);
-		}
-	}
-	return pos;
-}
-
-int Nnet::GetDim() const
-{
-	int pos = 0;
-	for (int32 n = 0; n < components_.size(); n++) {
-		if (components_[n]->IsUpdatable()) {
-			UpdatableComponent& c = dynamic_cast<UpdatableComponent&>(*components_[n]);
-			pos += c.GetDim();
-		}
-	}
-	return pos;
 }
 
 void Nnet::GetWeights(Vector<BaseFloat>* wei_copy) const {
