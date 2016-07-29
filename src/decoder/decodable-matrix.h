@@ -83,6 +83,50 @@ class DecodableMatrixScaledMapped: public DecodableInterface {
   KALDI_DISALLOW_COPY_AND_ASSIGN(DecodableMatrixScaledMapped);
 };
 
+class DecodableMatrixScaledMappedCtc: public DecodableInterface {
+ public:
+  // This constructor creates an object that will not delete "likes"
+  // when done.
+	DecodableMatrixScaledMappedCtc(const Matrix<BaseFloat> &likes,
+                              BaseFloat scale): likes_(&likes),
+                                                scale_(scale), delete_likes_(false) {
+
+  }
+
+  // This constructor creates an object that will delete "likes"
+  // when done.
+	DecodableMatrixScaledMappedCtc(BaseFloat scale,
+                              const Matrix<BaseFloat> *likes):
+      likes_(likes),
+      scale_(scale), delete_likes_(true) {
+
+  }
+
+  virtual int32 NumFramesReady() const { return likes_->NumRows(); }
+
+  virtual bool IsLastFrame(int32 frame) const {
+    KALDI_ASSERT(frame < NumFramesReady());
+    return (frame == NumFramesReady() - 1);
+  }
+
+  // Note, frames are numbered from zero.
+  virtual BaseFloat LogLikelihood(int32 frame, int32 tid) {
+    return scale_ * (*likes_)(frame, tid-1);
+  }
+
+  // Indices are one-based!  This is for compatibility with OpenFst.
+  virtual int32 NumIndices() const { return likes_->NumCols();; }
+
+  virtual ~DecodableMatrixScaledMappedCtc() {
+    if (delete_likes_) delete likes_;
+  }
+ private:
+  const Matrix<BaseFloat> *likes_;
+  BaseFloat scale_;
+  bool delete_likes_;
+  KALDI_DISALLOW_COPY_AND_ASSIGN(DecodableMatrixScaledMappedCtc);
+};
+
 /**
    This decodable class returns log-likes stored in a matrix; it supports
    repeatedly writing to the matrix and setting a time-offset representing the
