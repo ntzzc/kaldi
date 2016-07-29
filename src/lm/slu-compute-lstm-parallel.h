@@ -145,10 +145,10 @@ struct SluStats: nnet1::NnetStats {
                   << "]";
 
         if (opts->objective_function == "xent") {
-                KALDI_LOG << xent.Report();
+                KALDI_LOG << "(LM task report) " << xent.Report();
         }
         else if (opts->objective_function == "cbxent") {
-                KALDI_LOG << cbxent.Report();
+                KALDI_LOG << "(LM task report) " << cbxent.Report();
         }
         else {
         	KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
@@ -156,9 +156,9 @@ struct SluStats: nnet1::NnetStats {
 
         SluLstmUpdateOptions *slu_opts = static_cast<SluLstmUpdateOptions*>(opts);
         if (slu_opts->slot_rspecifier != "")
-            KALDI_LOG << slot_xent.Report();
+            KALDI_LOG << "(Slot task report) " << slot_xent.Report();
         if (slu_opts->intent_rspecifier != "")
-            KALDI_LOG << intent_xent.Report();
+            KALDI_LOG << "(Intent task report) " << intent_xent.Report();
     }
 };
 
