@@ -1,4 +1,4 @@
-// bin/latgen-faster-ctc-parallel.cc
+// bin/latgen-faster-ctc-mapped-parallel.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
  
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Generate lattices, reading log-likelihoods as matrices, using multiple decoding threads\n"
         " (model is needed only for the integer mappings in its transition-model)\n"
-        "Usage: latgen-faster-ctc-parallel [options] trans-model-in (fst-in|fsts-rspecifier) loglikes-rspecifier"
+        "Usage: latgen-faster-ctc-mapped-parallel [options] (fst-in|fsts-rspecifier) loglikes-rspecifier"
         " lattice-wspecifier [ words-wspecifier [alignments-wspecifier] ]\n";
     ParseOptions po(usage);
     Timer timer;
@@ -107,19 +107,21 @@ int main(int argc, char *argv[]) {
       decode_fst = fst::ReadFstKaldi(fst_in_str);
 
       {
-          LatticeFasterDecoder *decoder = new LatticeFasterDecoder(*decode_fst, config);
-        for (; !loglike_reader.Done(); loglike_reader.Next()) {
-          std::string utt = loglike_reader.Key();
-          Matrix<BaseFloat> loglikes (loglike_reader.Value());
-          loglike_reader.FreeCurrent();
-          if (loglikes.NumRows() == 0) {
-            KALDI_WARN << "Zero-length utterance: " << utt;
-            num_fail++;
-            continue;
-          }
+
+		for (; !loglike_reader.Done(); loglike_reader.Next()) {
+		  std::string utt = loglike_reader.Key();
+		  Matrix<BaseFloat> loglikes (loglike_reader.Value());
+		  loglike_reader.FreeCurrent();
+		  if (loglikes.NumRows() == 0) {
+			KALDI_WARN << "Zero-length utterance: " << utt;
+			num_fail++;
+			continue;
+		  }
       
-          DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
-          //DecodableMatrixScaledMapped *decodable = new DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
+		  LatticeFasterDecoder *decoder = new LatticeFasterDecoder(*decode_fst, config);
+
+          DecodableMatrixScaledMappedCtc *decodable = new DecodableMatrixScaledMappedCtc(loglikes, acoustic_scale);
+          // DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
           
           DecodeUtteranceLatticeFasterCtcClass *task =
               new DecodeUtteranceLatticeFasterCtcClass(
@@ -130,23 +132,10 @@ int main(int argc, char *argv[]) {
 
           sequencer.Run(task); // takes ownership of "task",
           // and will delete it when done.
-
-	  /*
-          double like;
-                    if (DecodeUtteranceLatticeFasterCtc(
-                            *decoder, *decodable, word_syms, utt,
-                            acoustic_scale, determinize, allow_partial, &alignment_writer,
-                            &words_writer, &compact_lattice_writer, &lattice_writer,
-                            &like)) {
-                      tot_like += like;
-                      frame_count += loglikes.NumRows();
-                      num_success++;
-                    } else num_fail++;
-          */
         }
       }
     } else { // We have different FSTs for different utterances.
-/*      SequentialTableReader<fst::VectorFstHolder> fst_reader(fst_in_str);
+      SequentialTableReader<fst::VectorFstHolder> fst_reader(fst_in_str);
       RandomAccessBaseFloatMatrixReader loglike_reader(feature_rspecifier);          
       for (; !fst_reader.Done(); fst_reader.Next()) {
         std::string utt = fst_reader.Key();
@@ -166,18 +155,18 @@ int main(int argc, char *argv[]) {
         }
         LatticeFasterDecoder *decoder = 
           new LatticeFasterDecoder(fst_reader.Value(), config);
-        DecodableMatrixScaledMapped *decodable = new
-            DecodableMatrixScaledMapped(trans_model, acoustic_scale, loglikes);
+        DecodableMatrixScaledMappedCtc *decodable = new
+        		DecodableMatrixScaledMappedCtc(acoustic_scale, loglikes);
         DecodeUtteranceLatticeFasterCtcClass *task =
             new DecodeUtteranceLatticeFasterCtcClass(
-                decoder, decodable, trans_model, word_syms, utt, acoustic_scale,
+                decoder, decodable, word_syms, utt, acoustic_scale,
                 determinize, allow_partial, &alignment_writer, &words_writer,
                 &compact_lattice_writer, &lattice_writer, &tot_like,
                 &frame_count, &num_success, &num_fail, NULL);
         sequencer.Run(task); // takes ownership of "task",
         // and will delete it when done.
       }
-      */
+
     }
     sequencer.Wait();
 
