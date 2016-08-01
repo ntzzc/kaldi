@@ -24,7 +24,8 @@ BINFILES = align-equal align-equal-compiled acc-tree-stats \
         build-pfile-from-ali get-post-on-ali tree-info am-info \
         vector-sum matrix-sum-rows est-pca sum-lda-accs sum-mllt-accs \
         transform-vec align-text matrix-dim copy-align latgen-faster-ctc \
-		compile-train-graphs-ctc align-compiled-mapped-ctc copy-fst arpa2fst 
+		compile-train-graphs-ctc align-compiled-mapped-ctc copy-fst arpa2fst \
+		latgen-faster-ctc-mapped-parallel
 
 
 OBJFILES =

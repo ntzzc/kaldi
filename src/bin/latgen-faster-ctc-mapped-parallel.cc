@@ -107,22 +107,22 @@ int main(int argc, char *argv[]) {
       decode_fst = fst::ReadFstKaldi(fst_in_str);
 
       {
-
 		for (; !loglike_reader.Done(); loglike_reader.Next()) {
 		  std::string utt = loglike_reader.Key();
-		  Matrix<BaseFloat> loglikes (loglike_reader.Value());
+          Matrix<BaseFloat> *loglikes = 
+            new Matrix<BaseFloat>(loglike_reader.Value());
 		  loglike_reader.FreeCurrent();
-		  if (loglikes.NumRows() == 0) {
+		  if (loglikes->NumRows() == 0) {
 			KALDI_WARN << "Zero-length utterance: " << utt;
 			num_fail++;
+            delete loglikes;
 			continue;
 		  }
       
 		  LatticeFasterDecoder *decoder = new LatticeFasterDecoder(*decode_fst, config);
 
-          DecodableMatrixScaledMappedCtc *decodable = new DecodableMatrixScaledMappedCtc(loglikes, acoustic_scale);
-          // DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
-          
+          DecodableMatrixScaledMappedCtc *decodable = new DecodableMatrixScaledMappedCtc(acoustic_scale, loglikes);
+          //DecodableMatrixScaledCtc *decodable = new DecodableMatrixScaledCtc(loglikes, acoustic_scale);
           DecodeUtteranceLatticeFasterCtcClass *task =
               new DecodeUtteranceLatticeFasterCtcClass(
                   decoder, decodable, word_syms, utt,
@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
         LatticeFasterDecoder *decoder = 
           new LatticeFasterDecoder(fst_reader.Value(), config);
         DecodableMatrixScaledMappedCtc *decodable = new
-        		DecodableMatrixScaledMappedCtc(acoustic_scale, loglikes);
+            DecodableMatrixScaledMappedCtc(acoustic_scale, loglikes);
         DecodeUtteranceLatticeFasterCtcClass *task =
             new DecodeUtteranceLatticeFasterCtcClass(
                 decoder, decodable, word_syms, utt, acoustic_scale,
