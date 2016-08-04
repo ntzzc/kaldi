@@ -33,7 +33,7 @@ struct KaldiNNlmWrapperOpts {
   std::string unk_symbol;
   std::string eos_symbol;
 
-  KaldiNNlmWrapperOpts() : unk_symbol("<UNK>"), eos_symbol("</s>") {}
+  KaldiNNlmWrapperOpts() : unk_symbol("<unk>"), eos_symbol("<s>") {}
 
   void Register(OptionsItf *opts) {
     opts->Register("unk-symbol", &unk_symbol, "Symbol for out-of-vocabulary "
@@ -48,19 +48,22 @@ class KaldiNNlmWrapper {
   KaldiNNlmWrapper(const KaldiNNlmWrapperOpts &opts,
                     const std::string &unk_prob_rspecifier,
                     const std::string &word_symbol_table_rxfilename,
+					const std::string &lm_word_symbol_table_rxfilename,
                     const std::string &nnlm_rxfilename);
 
-  int32 GetHiddenLayerSize() const { return nnlm_.getHiddenLayerSize(); }
+  int32 GetLMNumHiddenLayer() const { return nnlm_.GetLMNumHiddenLayer(); }
 
   int32 GetEos() const { return eos_; }
 
   BaseFloat GetLogProb(int32 word, const std::vector<int32> &wseq,
-                       const std::vector<float> &context_in,
-                       std::vector<float> *context_out);
+		  	  	  	  const std::vector<CuMatrixBase<BaseFloat> > &context_in,
+					  std::vector<CuMatrix<BaseFloat> > *context_out);
 
  private:
   kaldi::nnet1::Nnet nnlm_;
   std::vector<std::string> label_to_word_;
+  std::unordered_map<std::string, int32> word_to_lmwordid_;
+  std::unordered_map<int32, int32> label_to_lmwordid_;
   int32 eos_;
 
   KALDI_DISALLOW_COPY_AND_ASSIGN(KaldiNNlmWrapper);
@@ -95,7 +98,7 @@ class NNlmDeterministicFst
 
   KaldiNNlmWrapper *nnlm_;
   int32 max_ngram_order_;
-  std::vector<std::vector<float> > state_to_context_;
+  std::vector<std::vector<CuMatrix<BaseFloat> > > state_to_context_;
 };
 
 }  // namespace kaldi

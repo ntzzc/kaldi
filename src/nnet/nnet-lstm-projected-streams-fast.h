@@ -322,6 +322,19 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       "\n  DR  " + MomentStatistics(DR);
   }
 
+  void SetLstmContext(const CuMatrixBase<BaseFloat> &context)
+  {
+	  KALDI_ASSERT(prev_nnet_state_.NumRows() == context.NumRows());
+	  KALDI_ASSERT(prev_nnet_state_.NumCols() == context.NumCols());
+
+	  prev_nnet_state_.CopyFromMat(context);
+  }
+
+  void GetLstmContext(CuMatrix<BaseFloat> *context)
+  {
+	  *context = prev_nnet_state_;
+  }
+
   void ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size) {
     // allocate prev_nnet_state_ if not done yet,
     if (nstream_ != stream_reset_flag.size()) {

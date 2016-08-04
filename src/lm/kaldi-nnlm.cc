@@ -29,12 +29,16 @@ KaldiNNlmWrapper::KaldiNNlmWrapper(
     const KaldiNNlmWrapperOpts &opts,
     const std::string &unk_prob_rspecifier,
     const std::string &word_symbol_table_rxfilename,
-    const std::string &nnlm_rxfilename) {
-  nnlm_.setNNLMFile(nnlm_rxfilename);
-  nnlm_.setRandSeed(1);
-  nnlm_.setUnkSym(opts.unk_symbol);
-  nnlm_.setUnkPenalty(unk_prob_rspecifier);
-  nnlm_.restoreNet();
+	const std::string &lm_word_symbol_table_rxfilename,
+    const std::string &nnlm_rxfilename,
+	const std::string &classboundary_file) {
+
+  //nnlm_.setRandSeed(1);
+  //nnlm_.setUnkSym(opts.unk_symbol);
+  //nnlm_.setUnkPenalty(unk_prob_rspecifier);
+
+  nnlm_.Read(nnlm_rxfilename);
+  nnlm_.SetClassBoundary(classboundary_file);
 
   // Reads symbol table.
   fst::SymbolTable *word_symbols = NULL;
@@ -54,24 +58,46 @@ KaldiNNlmWrapper::KaldiNNlmWrapper(
   }
   label_to_word_[label_to_word_.size() - 1] = opts.eos_symbol;
   eos_ = label_to_word_.size() - 1;
+
+  fst::SymbolTable *lm_word_symbols = NULL;
+  if (!(lm_word_symbols =
+       fst::SymbolTable::ReadText(lm_word_symbol_table_rxfilename))) {
+	KALDI_ERR << "Could not read symbol table from file "
+          << lm_word_symbol_table_rxfilename;
+  }
+
+  for (int32 i = 0; i < word_symbols->NumSymbols(); ++i)
+	  word_to_lmwordid_[lm_word_symbols->Find(i)] = i;
+
+  //map label id to language model word id
+  int32 eosid = word_to_lmwordid_[opts.eos_symbol];
+  for (int32 i = 0; i < label_to_word_.size(); ++i)
+  {
+	  auto it = word_to_lmwordid_.find(label_to_word_[i]);
+	  if (it != word_to_lmwordid_.end())
+		  label_to_lmwordid_[i] = it->second;
+	  else
+		  label_to_lmwordid_[i] = eosid;
+  }
+
 }
 
 BaseFloat KaldiNNlmWrapper::GetLogProb(
     int32 word, const std::vector<int32> &wseq,
-    const std::vector<float> &context_in,
-    std::vector<float> *context_out) {
+    const std::vector<CuMatrixBase<BaseFloat> > &context_in,
+    std::vector<CuMatrix<BaseFloat> > *context_out) {
 
-  std::vector<std::string> wseq_symbols(wseq.size());
-  for (int32 i = 0; i < wseq_symbols.size(); ++i) {
-    KALDI_ASSERT(wseq[i] < label_to_word_.size());
-    wseq_symbols[i] = label_to_word_[wseq[i]];
+  std::vector<int32> lm_wseq(wseq.size());
+  for (int32 i = 0; i < lm_wseq.size(); ++i) {
+    KALDI_ASSERT(wseq[i] < label_to_lmwordid_.size());
+    lm_wseq[i] = label_to_lmwordid_[wseq[i]];
   }
 
-  return nnlm_.computeConditionalLogprob(label_to_word_[word], wseq_symbols,
-                                          context_in, context_out);
+  return nnlm_.ComputeConditionalLogprob(label_to_lmwordid_[word], lm_wseq,
+                                          context_in, *context_out);
 }
 
-RnnlmDeterministicFst::RnnlmDeterministicFst(int32 max_ngram_order,
+NNlmDeterministicFst::NNlmDeterministicFst(int32 max_ngram_order,
                                              KaldiNNlmWrapper *nnlm) {
   KALDI_ASSERT(nnlm != NULL);
   max_ngram_order_ = max_ngram_order;
@@ -101,7 +127,7 @@ bool RnnlmDeterministicFst::GetArc(StateId s, Label ilabel, fst::StdArc *oarc) {
   KALDI_ASSERT(static_cast<size_t>(s) < state_to_wseq_.size());
 
   std::vector<Label> wseq = state_to_wseq_[s];
-  std::vector<float> new_context(nnlm_->GetHiddenLayerSize());
+  std::vector<CuMatrix<BaseFloat> > new_context(nnlm_->GetLMNumHiddenLayer());
   BaseFloat logprob = nnlm_->GetLogProb(ilabel, wseq,
                                          state_to_context_[s], &new_context);
 

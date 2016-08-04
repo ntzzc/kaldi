@@ -524,6 +524,143 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
   }
 }
 
+BaseFloat Nnet::ComputeConditionalLogprob(int32 current_word,
+		    const std::vector<int32>  &history_words,
+		    const std::vector<CuMatrixBase<BaseFloat> >  &context_in,
+		    std::vector<CuMatrix<BaseFloat> >  &context_out)
+{
+    static ClassAffineTransform *class_affine = NULL;
+    static CBSoftmax *cb_softmax = NULL;
+    static std::vector<int32> word2class;
+    static std::vector<int32> class_boundary;
+    static std::vector<int32> sortedclass_target_index(1,0), sortedclass_target_reindex(1,0);
+    static int32 num_class;
+
+    if (class_affine == NULL)
+    {
+        for (int32 c = 0; c < this->NumComponents(); c++)
+        {
+        	if (this->GetComponent(c).GetType() == Component::kClassAffineTransform)
+        		class_affine = &(dynamic_cast<ClassAffineTransform&>(this->GetComponent(c)));
+        	else if (this->GetComponent(c).GetType() == Component::kCBSoftmax)
+        		cb_softmax = &(dynamic_cast<CBSoftmax&>(this->GetComponent(c)));
+        }
+
+    	int i,j = 0;
+    	class_boundary = class_affine->GetClassBoundary();
+    	num_class = class_boundary.size()-1;
+    	word2class.resize(class_boundary[num_class]);
+    	for (i = 0; i < class_boundary[num_class]; i++)
+    	{
+    		if (i>=class_boundary[j] && i<class_boundary[j+1])
+    			word2class[i] = j;
+    		else
+    			word2class[i] = ++j;
+    	}
+    }
+
+    int32 cid = word2class[current_word];
+    int32 vocab_size = this->OutputDim() - num_class;
+    std::vector<int32> sortedclass_target(1, cid);
+
+    class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
+
+    // forward pass
+    Matrix<BaseFloat> featmat(1, 1, kUndefined);
+    Vector<BaseFloat> feat(1, kUndefined);
+    CuMatrix<BaseFloat> words(1, 1, kUndefined);
+    CuMatrix<BaseFloat> nnet_out(1, this->OutputDim(), kUndefined);
+    Matrix<BaseFloat> host_nnet_out(1, this->OutputDim(), kUndefined);
+    BaseFloat logprob = 0;
+
+    feat(0) = history_words.back();
+    featmat.CopyColFromVec(feat, 0);
+    words.CopyFromMat(featmat);
+
+    this->RestoreContext(context_in);
+    this->Propagate(words, &nnet_out);
+    host_nnet_out.CopyFromMat(nnet_out);
+    logprob = log(host_nnet_out(0, current_word) * host_nnet_out(0, vocab_size+cid));
+    this->DumpContext(context_out);
+
+    return logprob;
+}
+
+void Nnet::RestoreContext(const std::vector<CuMatrixBase<BaseFloat> >  &context)
+{
+	int idx = 0;
+	for (int32 c=0; c < NumComponents(); c++) {
+	    if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
+	      LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
+	      KALDI_ASSERT(idx < context.size());
+	      comp.SetLstmContext(context[idx]);
+	      idx++;
+	    }
+	}
+}
+
+void Nnet::DumpContext(std::vector<CuMatrix<BaseFloat> >  &context)
+{
+	int idx = 0;
+	for (int32 c=0; c < NumComponents(); c++) {
+	    if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
+	      LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
+	      KALDI_ASSERT(idx < context.size());
+	      comp.GetLstmContext(&context[idx]);
+	      idx++;
+	    }
+	}
+}
+
+int32 Nnet::GetLMNumHiddenLayer()
+{
+	int num = 0;
+	for (int32 c=0; c < NumComponents(); c++) {
+	    if (GetComponent(c).GetType() == Component::kLstmProjectedStreamsFast) {
+	      num++;
+	    }
+	}
+	return num;
+}
+
+void Nnet::SetClassBoundary(std::string classboundary_file)
+{
+	if (classboundary_file == "")
+	{
+		KALDI_WARN << "The lm class boundary file '" << classboundary_file << "' is empty.";
+		return;
+	}
+
+    Input in;
+    Vector<BaseFloat> classinfo;
+    in.OpenTextMode(classboundary_file);
+    classinfo.Read(in.Stream(), false);
+    in.Close();
+
+    std::vector<int32> class_boundary;
+	class_boundary.resize(classinfo.Dim());
+	int32 num_class = class_boundary.size()-1;
+    for (int i = 0; i < classinfo.Dim(); i++)
+    	class_boundary[i] = classinfo(i);
+
+    ClassAffineTransform *class_affine = NULL;
+    //WordVectorTransform *word_transf = NULL;
+    CBSoftmax *cb_softmax = NULL;
+    for (int32 c = 0; c < this->NumComponents(); c++)
+    {
+    	if (this->GetComponent(c).GetType() == Component::kClassAffineTransform)
+    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
+    	else if (this->GetComponent(c).GetType() == Component::kCBSoftmax)
+    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
+    }
+
+    if (NULL != class_affine && NULL != cb_softmax)
+    {
+	    class_affine->SetClassBoundary(class_boundary);
+        cb_softmax->SetClassBoundary(class_boundary);
+    }
+}
+
 void Nnet::Init(const std::string &file) {
   Input in(file);
   std::istream &is = in.Stream();

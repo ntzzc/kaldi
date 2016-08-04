@@ -424,6 +424,11 @@ class ClassAffineTransform : public UpdatableComponent {
 #endif
   }
 
+  std::vector<int32> GetClassBoundary()
+  {
+	  return this->class_boundary_;
+  }
+
   void SetUpdateClassId(const std::vector<int32>& sortedclass_id, const std::vector<int32>& sortedclass_id_index, std::vector<int32> &sortedclass_id_reindex)
   {
 	  sortedclass_id_ = sortedclass_id;

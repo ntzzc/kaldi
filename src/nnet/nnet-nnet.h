@@ -100,6 +100,20 @@ class Nnet {
                                      BaseFloat num_samples_history,
                                      BaseFloat alpha);
 
+
+  /// for lstm language model rescore
+  BaseFloat ComputeConditionalLogprob(int32 current_word,
+		    const std::vector<int32>  &history_words,
+		    const std::vector<CuMatrixBase<BaseFloat> >  &context_in,
+		    std::vector<CuMatrix<BaseFloat> >  &context_out);
+
+  void SetClassBoundary(std::string classboundary_file);
+
+  void RestoreContext(const std::vector<CuMatrixBase<BaseFloat> >  &context);
+  void DumpContext(std::vector<CuMatrix<BaseFloat> >  &context);
+
+  int32 GetLMNumHiddenLayer();
+
   /// Access to forward pass buffers
   const std::vector<CuMatrix<BaseFloat> >& PropagateBuffer() const {
     return propagate_buf_;

@@ -115,7 +115,7 @@ class DecodableMatrixScaledMappedCtc: public DecodableInterface {
   }
 
   // Indices are one-based!  This is for compatibility with OpenFst.
-  virtual int32 NumIndices() const { return likes_->NumCols();; }
+  virtual int32 NumIndices() const { return likes_->NumCols(); }
 
   virtual ~DecodableMatrixScaledMappedCtc() {
     if (delete_likes_) delete likes_;
