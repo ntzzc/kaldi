@@ -72,8 +72,8 @@ struct NnetForwardEvaluateOptions {
         po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
         //</jiayu>
 
-        po.Register("num-iteration", &num_iteration, "times of nnet forward");
-        po.Register("frame-dim", &frame_dim, "dim of input frame");
+        po->Register("num-iteration", &num_iteration, "times of nnet forward");
+        po->Register("frame-dim", &frame_dim, "dim of input frame");
 
     }
 
@@ -133,7 +133,7 @@ public:
 		bool apply_log = opts->apply_log;
 		int32 time_shift = opts->time_shift;
 		const PdfPriorOptions *prior_opts = opts->prior_opts;
-		int32 num_stream = opts->num_stream;
+		//int32 num_stream = opts->num_stream;
 		int32 batch_size = opts->batch_size;
 		int32 frame_dim = opts->frame_dim;
 		int32 num_iteration = opts->num_iteration;
@@ -142,6 +142,7 @@ public:
 
 	    if (feature_transform != "") {
 	      nnet_transf.Read(feature_transform);
+          frame_dim = nnet_transf.InputDim();
 	    }
 
 	    Nnet nnet;
@@ -192,6 +193,15 @@ public:
 	          mat.CopyRowFromVec(mat.Row(last_row), r); // copy last row,
 	        }
 	      }
+
+          // push it to gpu,
+          feats = mat;
+
+          // fwd-pass, feature transform,
+          nnet_transf.Feedforward(feats, &feats_transf);
+
+          // fwd-pass, nnet,
+          nnet.Feedforward(feats_transf, &nnet_out);
 
 	      // convert posteriors to log-posteriors,
 	      if (apply_log) {
@@ -250,7 +260,6 @@ void NnetForwardEvaluateParallel(const NnetForwardEvaluateOptions *opts,
 						std::string	model_filename,
 						NnetForwardEvaluateStats *stats)
 {
-    ExamplesRepository repository;
     Mutex examples_mutex;
 
     NnetForwardEvaluateParallelClass c(opts, model_filename, &examples_mutex, stats);
@@ -298,7 +307,7 @@ int main(int argc, char *argv[]) {
 
     //Select the GPU
 #if HAVE_CUDA==1
-    if (opts.use_gpu)
+    if (opts.use_gpu == "yes")
     	CuDevice::Instantiate().Initialize();
     //CuDevice::Instantiate().DisableCaching();
 #endif

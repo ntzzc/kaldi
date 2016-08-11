@@ -422,9 +422,10 @@ private:
 		        total_frames += num_frames;
 
 		        // track training process
-			    if (!crossvalidate && this->thread_id_ == 0 && opts->dump_time > 0)
+			    if (!crossvalidate && this->thread_id_ == 0 && parallel_opts->myid == 0 && opts->dump_time > 0)
 				{
-					if ((total_frames*parallel_opts->num_threads)/(3600*100*opts->dump_time) > num_dump)
+                    int num_procs = parallel_opts->num_procs > 1 ? parallel_opts->num_procs : 1;
+					if ((total_frames*parallel_opts->num_threads*num_procs)/(3600*100*opts->dump_time) > num_dump)
 					{
 						char name[512];
 						num_dump++;

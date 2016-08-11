@@ -32,6 +32,7 @@
 #include "nnet/nnet-lstm-projected-streams-simple.h"
 #include "nnet/nnet-lstm-streams.h"
 #include "nnet/nnet-gru-streams.h"
+#include "nnet/nnet-class-affine-transform.h"
 
 namespace kaldi {
 namespace nnet1 {
@@ -649,9 +650,9 @@ void Nnet::SetClassBoundary(std::string classboundary_file)
     for (int32 c = 0; c < this->NumComponents(); c++)
     {
     	if (this->GetComponent(c).GetType() == Component::kClassAffineTransform)
-    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
+    		class_affine = &(dynamic_cast<ClassAffineTransform&>(this->GetComponent(c)));
     	else if (this->GetComponent(c).GetType() == Component::kCBSoftmax)
-    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
+    		cb_softmax = &(dynamic_cast<CBSoftmax&>(this->GetComponent(c)));
     }
 
     if (NULL != class_affine && NULL != cb_softmax)
