@@ -44,9 +44,10 @@ struct NnetLstmLmUpdateOptions : public NnetLstmUpdateOptions {
 
 	std::string class_boundary;
 	int32 num_class;
+	BaseFloat var_penalty;
 
     NnetLstmLmUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
-    	: NnetLstmUpdateOptions(trn_opts, rnd_opts, parallel_opts), class_boundary(""), num_class(0) { }
+    	: NnetLstmUpdateOptions(trn_opts, rnd_opts, parallel_opts), class_boundary(""), num_class(0), var_penalty(0) { }
 
   	  void Register(OptionsItf *po)
   	  {
@@ -55,6 +56,7 @@ struct NnetLstmLmUpdateOptions : public NnetLstmUpdateOptions {
 	      //lm
   		  po->Register("class-boundary", &class_boundary, "The fist index of each class(and final class class) in class based language model");
   		  po->Register("num-class", &num_class, "The number of class that the language model output");
+  		  po->Register("var-penalty", &var_penalty, "The penalty of the variance regularization approximation item");
   	  }
 };
 

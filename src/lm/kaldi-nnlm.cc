@@ -33,9 +33,9 @@ KaldiNNlmWrapper::KaldiNNlmWrapper(
     const std::string &nnlm_rxfilename,
 	const std::string &classboundary_file) {
 
-  //nnlm_.setRandSeed(1);
-  //nnlm_.setUnkSym(opts.unk_symbol);
-  //nnlm_.setUnkPenalty(unk_prob_rspecifier);
+  this->unk_sym = opts.unk_symbol;
+  if (unk_prob_rspecifier != "")
+	  this->SetUnkPenalty(unk_prob_rspecifier);
 
   nnlm_.Read(nnlm_rxfilename);
   nnlm_.SetClassBoundary(classboundary_file);
@@ -70,14 +70,14 @@ KaldiNNlmWrapper::KaldiNNlmWrapper(
 	  word_to_lmwordid_[lm_word_symbols->Find(i)] = i;
 
   //map label id to language model word id
-  int32 eosid = word_to_lmwordid_[opts.eos_symbol];
+  int32 unkid = word_to_lmwordid_[opts.unk_symbol];
   for (int32 i = 0; i < label_to_word_.size(); ++i)
   {
 	  auto it = word_to_lmwordid_.find(label_to_word_[i]);
 	  if (it != word_to_lmwordid_.end())
 		  label_to_lmwordid_[i] = it->second;
 	  else
-		  label_to_lmwordid_[i] = eosid;
+		  label_to_lmwordid_[i] = unkid;
   }
 
 }
@@ -94,8 +94,23 @@ BaseFloat KaldiNNlmWrapper::GetLogProb(
   }
 
   return nnlm_.ComputeConditionalLogprob(label_to_lmwordid_[word], lm_wseq,
-                                          context_in, *context_out);
+                                          context_in, *context_out,
+										  unk_sym, this->unk_penalty);
 }
+
+void KaldiNNlmWrapper::SetUnkPenalty(const std::string &filename)
+{
+	  SequentialBaseFloatReader unk_reader(filename);
+	  for (; !unk_reader.Done(); unk_reader.Next()) {
+	    std::string key = unk_reader.Key();
+	    float prob = unk_reader.Value();
+	    unk_reader.FreeCurrent();
+	    unk_penalty[key] = log(prob);
+	  }
+}
+
+
+
 
 NNlmDeterministicFst::NNlmDeterministicFst(int32 max_ngram_order,
                                              KaldiNNlmWrapper *nnlm) {

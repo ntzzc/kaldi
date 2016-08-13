@@ -125,9 +125,9 @@ class Xent : public LossItf {
 
 class CBXent {
  public:
-	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), ppl_(0.0),
-           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0),
-		   correct_progress_(0.0), ppl_progress_(0.0) { }
+	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), ppl_(0.0), logzt_(0.0),
+           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0), logzt_progress_(0.0),
+		   correct_progress_(0.0), ppl_progress_(0.0), var_penalty_(0.0) { }
   ~CBXent() { }
 
   void SetClassBoundary(const std::vector<int32>& class_boundary);
@@ -146,7 +146,6 @@ class CBXent {
   /// Generate string with error report,
   std::string Report();
 
-
   /// Get loss value (frame average),
   BaseFloat AvgLoss() {
     return (loss_ - entropy_) / frames_;
@@ -156,12 +155,17 @@ class CBXent {
   void Add(CBXent *xent);
   void Merge(int myid, int root);
 
+  void SetVarPenalty(float var_penalty) {
+	  var_penalty_ = var_penalty;
+  }
+
  private:
   double frames_;
   double correct_;
   double loss_;
   double entropy_;
   double ppl_;
+  double logzt_;
 
   // partial results during training
   double frames_progress_;
@@ -169,6 +173,7 @@ class CBXent {
   double entropy_progress_;
   double correct_progress_;
   double ppl_progress_;
+  double logzt_progress_;
   std::vector<float> loss_vec_;
 
   // weigting buffer,
@@ -185,6 +190,10 @@ class CBXent {
   CuMatrix<BaseFloat> entropy_aux_;
   CuArray<int32> tgt_id_;
 
+  // constant normalizing
+  CuVector<BaseFloat> frame_zt_;
+
+
   std::vector<CuSubVector<BaseFloat>* > class_frame_weights_;
   std::vector<CuSubVector<BaseFloat>* > class_target_sum_;
 
@@ -195,9 +204,15 @@ class CBXent {
   std::vector<CuSubMatrix<BaseFloat>* > class_entropy_aux_;
   std::vector<CuSubMatrix<BaseFloat>* > class_diff_;
 
+  // constant normalizing
+  std::vector<CuSubVector<BaseFloat>* > class_frame_zt_;
+
   // frame classification buffers,
   CuArray<int32> max_id_out_;
   CuArray<int32> max_id_tgt_;
+
+  // beta penalty of the variance regularization approximation item
+  float var_penalty_;
 
 #if HAVE_CUDA == 1
   std::vector<cudaStream_t > streamlist_;

@@ -227,6 +227,7 @@ private:
 	        class_affine->SetClassBoundary(class_boundary_);
 	        cb_softmax->SetClassBoundary(class_boundary_);
 	        cbxent.SetClassBoundary(class_boundary_);
+	        cbxent.SetVarPenalty(opts->var_penalty);
         }
 
 		CuMatrix<BaseFloat> feats_transf, nnet_out, nnet_diff;

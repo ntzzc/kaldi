@@ -59,12 +59,16 @@ class KaldiNNlmWrapper {
 		  	  	  	  const std::vector<CuMatrixBase<BaseFloat> > &context_in,
 					  std::vector<CuMatrix<BaseFloat> > *context_out);
 
+  void SetUnkPenalty(const std::string &filename);
+
  private:
   kaldi::nnet1::Nnet nnlm_;
   std::vector<std::string> label_to_word_;
   std::unordered_map<std::string, int32> word_to_lmwordid_;
   std::unordered_map<int32, int32> label_to_lmwordid_;
+  std::unordered_map<std::string, float> unk_penalty;
   int32 eos_;
+  std::string unk_sym;
 
   KALDI_DISALLOW_COPY_AND_ASSIGN(KaldiNNlmWrapper);
 };
