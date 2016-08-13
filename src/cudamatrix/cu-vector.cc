@@ -123,6 +123,49 @@ template
 void AddVecStreamed(double alpha, std::vector<CuSubVector<double>* > &des,
 		const std::vector<CuSubVector<double>* > &src, double beta = 1.0);
 
+template<typename Real>
+void MulElementsStreamed(std::vector<CuSubVector<Real>* > &des, const std::vector<CuSubVector<Real>* > &src)
+{
+	  KALDI_ASSERT(src.size() == des.size());
+	  int32 size = src.size();
+
+	  if (size == 0) return;
+
+	  for (int32 i = 0; i < size; i++) {
+		  KALDI_ASSERT(src[i]->Dim() == des[i]->Dim());
+	  }
+
+#if HAVE_CUDA == 1
+	  if (CuDevice::Instantiate().Enabled()) {
+	    Timer tim;
+
+	    for (int32 i = 0; i < size; i++) {
+		    int32 dim = des[i]->Dim();
+		    Real *data = des[i]->Data();
+		    const Real *src_data = src[i]->Data();
+
+		    int dimBlock(CU1DBLOCK);
+		    int dimGrid(n_blocks(dim, CU1DBLOCK));
+
+		    cuda_vec_mul_elements(dimGrid, dimBlock, data, src_data, dim, des[i]->GetLocalCudaStream());
+	    }
+	    CU_SAFE_CALL(cudaGetLastError());
+
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	  } else
+#endif
+	  {
+		  for (int32 i = 0; i < size; i++) {
+			  des[i]->Vec().MulElements(src[i]->Vec());
+		  }
+	  }
+}
+
+template
+void MulElementsStreamed(std::vector<CuSubVector<float>* > &des, const std::vector<CuSubVector<float>* > &src);
+
+template
+void MulElementsStreamed(std::vector<CuSubVector<double>* > &des, const std::vector<CuSubVector<double>* > &src);
 
 template<typename Real>
 void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
@@ -212,7 +255,7 @@ void AddColSumMatStreamed(double alpha, std::vector<CuSubVector<double>* > &des_
 		const std::vector<CuSubMatrix<double>* > &src, double beta = 1.0);
 
 template<typename Real>
-Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec) {
+Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec, std::vector<Real> *sum_vec) {
 	  int32 size = vec.size();
 	  Real sum = 0.0;
 
@@ -230,7 +273,13 @@ Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec) {
 			cuda_vec_sum(dimGrid, dimBlock, vec[i]->Data(), value.Data()+i, vec[i]->Dim(), 1);
 		}
 		CU_SAFE_CALL(cudaGetLastError());
+
 		sum = value.Sum();
+
+		if (sum_vec != NULL) {
+			sum_vec->resize(size);
+			CU_SAFE_CALL(cudaMemcpy(&sum_vec.front(), value.Data(), sizeof(Real)*size, cudaMemcpyDeviceToHost));
+		}
 
 		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
 		return sum;
@@ -240,15 +289,21 @@ Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec) {
 		  for (int32 i = 0; i < size; i++) {
 			  value(i) = vec[i]->Vec().Sum();
 		  }
+
+		  if (sum_vec != NULL) {
+			  sum_vec->resize(size);
+			  memcpy(&sum_vec.front(), value.Data(), size*sizeof(Real));
+		  }
+
 		  return value.Sum();
 	  }
 }
 
 template
-float VecSumStreamed(const std::vector<CuSubVector<float>* > &vec);
+float VecSumStreamed(const std::vector<CuSubVector<float>* > &vec, std::vector<float> *sum_vec);
 
 template
-double VecSumStreamed(const std::vector<CuSubVector<double>* > &vec);
+double VecSumStreamed(const std::vector<CuSubVector<double>* > &vec, std::vector<double> *sum_vec);
 
 template<typename Real>
 void CuVectorBase<Real>::CopyColFromMat(const CuMatrixBase<Real> &mat, MatrixIndexT col) {

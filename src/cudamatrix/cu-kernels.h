@@ -121,7 +121,7 @@ inline void cuda_trace_mat_smat_trans(dim3 Gr, dim3 Bl, const double* mat_in, co
   cudaD_trace_mat_smat_trans(Gr, Bl, mat_in, smat_in, mat_d_in, smat_d_in, trace_vec_out);
 }
 
-inline void cuda_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) { cudaF_apply_exp(Gr,Bl,mat,d); }
+inline void cuda_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d, cudaStream_t s=NULL) { cudaF_apply_exp(Gr,Bl,mat,d,s); }
 inline void cuda_apply_pow(dim3 Gr, dim3 Bl, float* mat, float power, MatrixDim dim) { cudaF_apply_pow(Gr,Bl,mat,power,dim); }
 inline void cuda_apply_pow_abs(dim3 Gr, dim3 Bl, float* mat, float power, bool include_sign, MatrixDim dim) { cudaF_apply_pow_abs(Gr,Bl,mat,power,include_sign, dim); }
 inline void cuda_apply_heaviside(dim3 Gr, dim3 Bl, float* mat, MatrixDim dim) { cudaF_apply_heaviside(Gr,Bl,mat,dim); }
@@ -220,7 +220,7 @@ inline void cuda_div_rows_vec(dim3 Gr, dim3 Bl, float *mat, const float *vec_div
 inline void cuda_set_bias_params(int Gr, int Bl, float* v, const float* a, float param_1, float param_2, float param_3, int* flag, int dim) { cudaF_set_bias_params(Gr,Bl,v,a,param_1,param_2,param_3,flag,dim); }
 inline void cuda_copy_from_vec_df(int Gr, int Bl, double* v_out, const float* v_in, int dim) { cudaF_copy_from_vec_df(Gr,Bl,v_out,v_in,dim); }
 inline void cuda_copy_from_vec_fd(int Gr, int Bl, float* v_out, const float* v_in, int dim) { cudaF_copy_from_vec_fd(Gr,Bl,v_out,v_in,dim); }
-inline void cuda_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim) { cudaF_vec_mul_elements(Gr,Bl,v,a,dim); }
+inline void cuda_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim, cudaStream_t s=NULL) { cudaF_vec_mul_elements(Gr,Bl,v,a,dim,s); }
 inline void cuda_vec_soft_max(int Gr, int Bl, float* v, int dim) { cudaF_vec_soft_max(Gr,Bl,v,dim); }
 inline void cuda_vec_min(const float* v, float* value, int dim) { cudaF_vec_min(v,value,dim); }
 inline void cuda_vec_max(const float* v, float* value, int dim) { cudaF_vec_max(v,value,dim); }
@@ -424,7 +424,7 @@ inline void cuda_copy_from_tp_trans(dim3 Gr, dim3 Bl, double* A, const double* B
 inline void cuda_copy_from_tp_trans(dim3 Gr, dim3 Bl, double* A, const float* B, MatrixDim dmat) { cudaDF_copy_from_tp_trans(Gr,Bl,A,B,dmat); }
 inline void cuda_copy_from_tp(dim3 Gr, dim3 Bl, double* A, const double* B, MatrixDim dmat) { cudaD_copy_from_tp(Gr,Bl,A,B,dmat); }
 inline void cuda_copy_from_tp(dim3 Gr, dim3 Bl, double* A, const float* B, MatrixDim dmat) { cudaDF_copy_from_tp(Gr,Bl,A,B,dmat); }
-inline void cuda_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) { cudaD_apply_exp(Gr,Bl,mat,d); }
+inline void cuda_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d, cudaStream_t s=NULL) { cudaD_apply_exp(Gr,Bl,mat,d,s); }
 inline void cuda_apply_pow(dim3 Gr, dim3 Bl, double* mat, double power, MatrixDim dim) { cudaD_apply_pow(Gr,Bl,mat,power,dim); }
 inline void cuda_apply_pow_abs(dim3 Gr, dim3 Bl, double* mat, double power, bool include_sign, MatrixDim dim) { cudaD_apply_pow_abs(Gr,Bl,mat,power,include_sign,dim); }
 inline void cuda_apply_heaviside(dim3 Gr, dim3 Bl, double* mat, MatrixDim dim) { cudaD_apply_heaviside(Gr,Bl,mat,dim); }
@@ -521,7 +521,7 @@ inline void cuda_div_rows_vec(dim3 Gr, dim3 Bl, double *mat, const double *vec_d
 inline void cuda_set_bias_params(int Gr, int Bl, double* v, const double* a, double param_1, double param_2, double param_3, int* flag, int dim) { cudaD_set_bias_params(Gr,Bl,v,a,param_1,param_2,param_3,flag,dim); }
 inline void cuda_copy_from_vec_df(int Gr, int Bl, double* v_out, const double* v_in, int dim) { cudaD_copy_from_vec_df(Gr,Bl,v_out,v_in,dim); }
 inline void cuda_copy_from_vec_fd(int Gr, int Bl, float* v_out, const double* v_in, int dim) { cudaD_copy_from_vec_fd(Gr,Bl,v_out,v_in,dim); }
-inline void cuda_vec_mul_elements(int Gr, int Bl, double* v, const double* a, int dim) { cudaD_vec_mul_elements(Gr,Bl,v,a,dim); }
+inline void cuda_vec_mul_elements(int Gr, int Bl, double* v, const double* a, int dim, cudaStream_t s=NULL) { cudaD_vec_mul_elements(Gr,Bl,v,a,dim,s); }
 inline void cuda_vec_soft_max(int Gr, int Bl, double* v, int dim) { cudaD_vec_soft_max(Gr,Bl,v,dim); }
 inline void cuda_vec_min(const double* v, double* value, int dim) { cudaD_vec_min(v,value,dim); }
 inline void cuda_vec_max(const double* v, double* value, int dim) { cudaD_vec_max(v,value,dim); }

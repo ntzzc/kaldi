@@ -106,6 +106,9 @@ template<typename Real>
 void EntropyStreamed(std::vector<CuSubMatrix<Real>* > &entropy,
 		const std::vector<CuSubMatrix<Real>* > &mat);
 
+template<typename Real>
+void ApplyExpStreamed(std::vector<CuSubMatrix<Real>* > &mat);
+
 /**
  * Matrix for CUDA computing.
  * Does the computation on the CUDA card when CUDA is compiled in and

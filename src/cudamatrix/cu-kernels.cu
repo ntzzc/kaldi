@@ -2540,8 +2540,8 @@ void cudaF_transpose_matrix(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) {
   _transpose_matrix<<<Gr,Bl>>>(mat, d);
 }
 
-void cudaF_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) {
-  _apply_exp<<<Gr,Bl>>>(mat,d);
+void cudaF_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d, cudaStream_t s=NULL) {
+  _apply_exp<<<Gr,Bl,0,s>>>(mat,d);
 }
 
 void cudaF_apply_pow(dim3 Gr, dim3 Bl, float* mat, float power, MatrixDim d) {
@@ -2786,8 +2786,8 @@ void cudaF_copy_from_vec_fd(int Gr, int Bl, float* v_out, const float* v_in, int
   _copy_from_vec_fd<<<Gr,Bl>>>(v_out,v_in,dim);
 }
 
-void cudaF_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim) {
-  _vec_mul_elements<<<Gr,Bl>>>(v, a, dim);
+void cudaF_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim, cudaStream_t s=NULL) {
+  _vec_mul_elements<<<Gr,Bl,0,s>>>(v, a, dim);
 }
 
 void cudaF_vec_min(const float* v, float* value, int dim) {
@@ -3074,8 +3074,8 @@ void cudaD_transpose_matrix(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) {
   _transpose_matrix<<<Gr,Bl>>>(mat, d);
 }
 
-void cudaD_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) {
-  _apply_exp<<<Gr,Bl>>>(mat,d);
+void cudaD_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d, cudaStream_t s=NULL) {
+  _apply_exp<<<Gr,Bl,0,s>>>(mat,d);
 }
 
 void cudaD_apply_pow(dim3 Gr, dim3 Bl, double* mat, double power, MatrixDim d) {
@@ -3320,8 +3320,8 @@ void cudaD_copy_from_vec_fd(int Gr, int Bl, float* v_out, const double* v_in, in
   _copy_from_vec_fd<<<Gr,Bl>>>(v_out,v_in,dim);
 }
 
-void cudaD_vec_mul_elements(int Gr, int Bl, double* v, const double* a, int dim) {
-  _vec_mul_elements<<<Gr,Bl>>>(v, a, dim);
+void cudaD_vec_mul_elements(int Gr, int Bl, double* v, const double* a, int dim, cudaStream_t s=NULL) {
+  _vec_mul_elements<<<Gr,Bl,0,s>>>(v, a, dim);
 }
 
 void cudaD_vec_min(const double* v, double* value, int dim) {

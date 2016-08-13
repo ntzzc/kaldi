@@ -55,7 +55,7 @@ void cudaF_copy_from_tp_trans(dim3 Gr, dim3 Bl, float* A, const float* B, Matrix
 void cudaFD_copy_from_tp_trans(dim3 Gr, dim3 Bl, float* A, const double* B, MatrixDim dmat);
 void cudaF_copy_from_tp(dim3 Gr, dim3 Bl, float* A, const float* B, MatrixDim dmat);
 void cudaFD_copy_from_tp(dim3 Gr, dim3 Bl, float* A, const double* B, MatrixDim dmat);
-void cudaF_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d);
+void cudaF_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d, cudaStream_t s=NULL);
 void cudaF_apply_pow(dim3 Gr, dim3 Bl, float* mat, float power, MatrixDim d);
 void cudaF_apply_pow_abs(dim3 Gr, dim3 Bl, float* mat, float power, bool include_sign,  MatrixDim d);
 void cudaF_apply_heaviside(dim3 Gr, dim3 Bl, float* mat, MatrixDim d);
@@ -119,7 +119,7 @@ void cudaF_replace_value(int Gr, int Bl, float *v, int dim, float orig, float ch
 void cudaF_set_bias_params(int Gr, int Bl, float* v, const float* a, float param_1, float param_2, float param_3, int* flag, int dim);
 void cudaF_copy_from_vec_df(int Gr, int Bl, double* v_out, const float* v_in, int dim);
 void cudaF_copy_from_vec_fd(int Gr, int Bl, float* v_out, const float* v_in, int dim);
-void cudaF_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim);
+void cudaF_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim, cudaStream_t s=NULL);
 void cudaF_vec_soft_max(int Gr, int Bl, float* v, int dim);
 void cudaF_vec_min(const float* v, float* value, int dim);
 void cudaF_vec_max(const float* v, float* value, int dim);
@@ -214,7 +214,7 @@ void cudaD_copy_from_tp_trans(dim3 Gr, dim3 Bl, double* A, const double* B, Matr
 void cudaDF_copy_from_tp_trans(dim3 Gr, dim3 Bl, double* A, const float* B, MatrixDim dmat);
 void cudaD_copy_from_tp(dim3 Gr, dim3 Bl, double* A, const double* B, MatrixDim dmat);
 void cudaDF_copy_from_tp(dim3 Gr, dim3 Bl, double* A, const float* B, MatrixDim dmat);
-void cudaD_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d);
+void cudaD_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d, cudaStream_t s=NULL);
 void cudaD_apply_pow(dim3 Gr, dim3 Bl, double* mat, double power, MatrixDim d);
 void cudaD_apply_pow_abs(dim3 Gr, dim3 Bl, double* mat, double power, bool include_sign, MatrixDim d);
 void cudaD_apply_heaviside(dim3 Gr, dim3 Bl, double* mat, MatrixDim d);
@@ -279,7 +279,7 @@ void cudaD_replace_value(int Gr, int Bl, double *v, int dim, double orig, double
 void cudaD_set_bias_params(int Gr, int Bl, double* v, const double* a, double param_1, double param_2, double param_3, int* flag, int dim);
 void cudaD_copy_from_vec_df(int Gr, int Bl, double* v_out, const double* v_in, int dim);
 void cudaD_copy_from_vec_fd(int Gr, int Bl, float* v_out, const double* v_in, int dim);
-void cudaD_vec_mul_elements(int Gr, int Bl, double* v, const double* a, int dim);
+void cudaD_vec_mul_elements(int Gr, int Bl, double* v, const double* a, int dim, cudaStream_t s=NULL);
 void cudaD_vec_soft_max(int Gr, int Bl, double* v, int dim);
 void cudaD_vec_min(const double* v, double* value, int dim);
 void cudaD_vec_max(const double* v, double* value, int dim);

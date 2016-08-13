@@ -2840,6 +2840,40 @@ template
 void EntropyStreamed(std::vector<CuSubMatrix<double>* > &entropy, const std::vector<CuSubMatrix<double>* > &mat);
 
 template<typename Real>
+void ApplyExpStreamed(std::vector<CuSubMatrix<Real>* > &mat)
+{
+	  int32 size = mat.size();
+
+	  if (size == 0) return;
+
+#if HAVE_CUDA == 1
+	if (CuDevice::Instantiate().Enabled()) {
+		  Timer tim;
+
+		  for (int32 i = 0; i < size; i++) {
+			  dim3 dimGrid, dimBlock;
+			  GetBlockSizesForSimpleMatrixOperation(mat[i]->NumRows(), mat[i]->NumCols(),
+													&dimGrid, &dimBlock);
+
+			  cuda_apply_exp(dimGrid, dimBlock, mat[i]->Data(), mat[i]->Dim(), mat[i]->GetLocalCudaStream());
+		  }
+		  CU_SAFE_CALL(cudaGetLastError());
+
+		  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	} else
+#endif
+	{
+		// not implemented for CPU yet
+	}
+}
+
+template
+void ApplyExpStreamed(std::vector<CuSubMatrix<float>* > &mat);
+
+template
+void ApplyExpStreamed(std::vector<CuSubMatrix<double>* > &mat);
+
+template<typename Real>
 void CuMatrixBase<Real>::CopyRowsFromVec(const CuVectorBase<Real> &v) {
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
