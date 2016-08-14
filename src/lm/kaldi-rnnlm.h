@@ -94,7 +94,7 @@ class RnnlmDeterministicFst
   MapType wseq_to_state_;
   std::vector<std::vector<Label> > state_to_wseq_;
 
-  KaldiNNlmWrapper *nnlm_;
+  KaldiRnnlmWrapper *rnnlm_;
   int32 max_ngram_order_;
   std::vector<std::vector<float> > state_to_context_;
 };

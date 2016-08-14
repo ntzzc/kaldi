@@ -383,7 +383,7 @@ void CBXent::Eval() {
   // This happens in multi-lingual training when the frame
   // has target class in the softmax of another language.
   // We 'switch-off' such frames by masking the 'frame_weights_',
-  int size = class_frame_weights_.size();
+  // int size = class_frame_weights_.size();
   double num_frames = 0, correct = 0, cross_entropy = 0, entropy = 0;
   double logzt = 0, logzt_mean = 0;
 
@@ -462,7 +462,7 @@ void CBXent::Eval() {
                     << static_cast<int>(frames_progress_/100/3600) << "(1h words) of "
                     << static_cast<int>(frames_/100/3600) << "(1h words)]: "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
-					<< logzt_progress_/(2*frames_progress_) << " (logzt)"
+					<< logzt_progress_/(2*frames_progress_) << " (logzt) "
                     << ppl_progress_ << " (PPL) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store

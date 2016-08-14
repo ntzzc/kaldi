@@ -528,7 +528,9 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
 BaseFloat Nnet::ComputeConditionalLogprob(int32 current_word,
 		    const std::vector<int32>  &history_words,
 		    const std::vector<CuMatrixBase<BaseFloat> >  &context_in,
-		    std::vector<CuMatrix<BaseFloat> >  &context_out)
+		    std::vector<CuMatrix<BaseFloat> >  &context_out,
+            int32 unk_sym,
+            std::unordered_map<std::string, float> &unk_penalty)
 {
     static ClassAffineTransform *class_affine = NULL;
     static CBSoftmax *cb_softmax = NULL;

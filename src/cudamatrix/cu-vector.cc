@@ -278,7 +278,7 @@ Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec, std::vector<Rea
 
 		if (sum_vec != NULL) {
 			sum_vec->resize(size);
-			CU_SAFE_CALL(cudaMemcpy(&sum_vec.front(), value.Data(), sizeof(Real)*size, cudaMemcpyDeviceToHost));
+			CU_SAFE_CALL(cudaMemcpy(&sum_vec->front(), value.Data(), sizeof(Real)*size, cudaMemcpyDeviceToHost));
 		}
 
 		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
@@ -292,7 +292,7 @@ Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec, std::vector<Rea
 
 		  if (sum_vec != NULL) {
 			  sum_vec->resize(size);
-			  memcpy(&sum_vec.front(), value.Data(), size*sizeof(Real));
+			  memcpy(&sum_vec->front(), value.Data(), size*sizeof(Real));
 		  }
 
 		  return value.Sum();

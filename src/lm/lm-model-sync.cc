@@ -182,7 +182,7 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 		cblas_Xaxpy(len, 1.0, thread_model, 1, cur_model, 1);
 	}
 
-	KALDI_VLOG(2) << "THREAD_Reduce: " << tm.Elapsed();
+	//KALDI_VLOG(2) << "THREAD_Reduce: " << tm.Elapsed();
 
 	tm.Reset();
 	// cross machine reduce
@@ -196,7 +196,7 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 
 	    this->barrier_.Wait();
 	}
-	KALDI_VLOG(1) << "MPI_Reduce: " << tm.Elapsed();
+	//KALDI_VLOG(1) << "MPI_Reduce: " << tm.Elapsed();
 
 	tm.Reset();
 	// model merge ...
@@ -215,7 +215,7 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 	cblas_Xaxpy(len, 1.0+mmt_, gradient, 1, last_model, 1);
 
 	this->barrier_.Wait();
-	KALDI_VLOG(2) << "THREAD_Merge: " << tm.Elapsed();
+	//KALDI_VLOG(2) << "THREAD_Merge: " << tm.Elapsed();
 
     if (thread_idx == 0) left_merge_--;
 }
