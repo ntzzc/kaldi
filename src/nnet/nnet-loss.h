@@ -139,7 +139,8 @@ class CBXent {
   void Eval(const VectorBase<BaseFloat> &frame_weights,
             const CuMatrixBase<BaseFloat> &net_out,
 			const std::vector<int32> &target,
-			CuMatrixBase<BaseFloat> *diff);
+			CuMatrixBase<BaseFloat> *diff,
+			const CuMatrixBase<BaseFloat> *softmax_in = NULL);
 
   void GetTargetWordPosterior(Vector<BaseFloat> &tgt);
 
@@ -206,6 +207,7 @@ class CBXent {
 
   // constant normalizing
   std::vector<CuSubVector<BaseFloat>* > class_frame_zt_;
+  std::vector<CuSubMatrix<BaseFloat>* > class_softmax_in_;
 
   // frame classification buffers,
   CuArray<int32> max_id_out_;

@@ -265,7 +265,8 @@ inline void CBCountCorrectFramesWeighted(const CuArray<T> &v1,
 void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
           const CuMatrixBase<BaseFloat> &net_out,
 		  const std::vector<int32> &target,
-		  CuMatrixBase<BaseFloat> *diff) {
+		  CuMatrixBase<BaseFloat> *diff,
+		  const CuMatrixBase<BaseFloat> *softmax_in) {
 
 	  int32 num_frames = net_out.NumRows(),
 	  num_pdf = net_out.NumCols();
@@ -284,6 +285,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
             // constant normalizing
             delete class_frame_zt_[p];
+            delete class_softmax_in_[p];
       }
 
 	  if (tgt_mat_.NumRows() != num_frames)
@@ -312,6 +314,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_xentropy_aux_.clear();
 	  class_entropy_aux_.clear();
 	  class_frame_zt_.clear();
+	  class_softmax_in_.clear();
 
       std::vector<int32> tgt_id(2*num_frames);
 
@@ -336,6 +339,8 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 			  // constant normalizing
 			  class_frame_zt_.push_back(new CuSubVector<BaseFloat>(frame_zt_.Range(beg, i-beg)));
+			  if (softmax_in != NULL)
+				  class_softmax_in_.push_back(new CuSubMatrix<BaseFloat>(softmax_in->Range(beg, i-beg, class_boundary_[cid], len)));
 			  beg = i;
 		  }
 	  }
@@ -350,6 +355,8 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_xentropy_aux_.push_back(new CuSubMatrix<BaseFloat>(xentropy_aux_.ColRange(class_boundary_.back(), len)));
 	  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.ColRange(class_boundary_.back(), len)));
 	  class_frame_zt_.push_back(new CuSubVector<BaseFloat>(frame_zt_.Range(num_frames, num_frames)));
+	  if (softmax_in != NULL)
+		  class_softmax_in_.push_back(new CuSubMatrix<BaseFloat>(softmax_in->ColRange(class_boundary_.back(), len)));
 
 
 	  SetStream(class_frame_weights_, streamlist_);
@@ -360,6 +367,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  SetStream(class_xentropy_aux_, streamlist_);
 	  SetStream(class_entropy_aux_, streamlist_);
 	  SetStream(class_frame_zt_, streamlist_);
+	  SetStream(class_softmax_in_, streamlist_);
 
 	  GenTargetStreamed(class_target_, tgt_id_);
 
@@ -374,6 +382,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  ResetStream(class_xentropy_aux_);
 	  ResetStream(class_entropy_aux_);
 	  ResetStream(class_frame_zt_);
+	  ResetStream(class_softmax_in_);
 }
 
 
@@ -401,7 +410,7 @@ void CBXent::Eval() {
   if (var_penalty_ != 0)
   {
 		// constant normalizing (for each class per frame), zt = sum(exp(y)), log(zt)
-		CopyFromMatStreamed(class_netout_, class_diff_);
+		CopyFromMatStreamed(class_softmax_in_, class_diff_);
 		ApplyExpStreamed(class_diff_); // exp(y)
 		AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_frame_zt_, class_diff_, static_cast<BaseFloat>(0.0f)); // sum per frame
 		frame_zt_.ApplyLog();

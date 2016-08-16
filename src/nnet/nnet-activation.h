@@ -60,7 +60,7 @@ class Softmax : public Component {
 class CBSoftmax : public Component {
  public:
 	CBSoftmax(int32 dim_in, int32 dim_out)
-    : Component(dim_in, dim_out)
+    : Component(dim_in, dim_out), in_buff_(NULL)
   { }
 	~CBSoftmax()
   { }
@@ -110,6 +110,7 @@ class CBSoftmax : public Component {
         delete output_patches_[p];  
     }
 
+    in_buff_ = &in;
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
@@ -177,6 +178,11 @@ class CBSoftmax : public Component {
 	  updateclass_id_ = updateclass_id;
   }
 
+  CuMatrixBase<BaseFloat>* GetInputBuffer() const
+  {
+	  return in_buff_;
+  }
+
  private:
   std::vector<int32> class_boundary_;
   std::vector<int32> updateclass_id_;
@@ -184,6 +190,8 @@ class CBSoftmax : public Component {
   std::vector<CuSubMatrix<BaseFloat>* > output_patches_;
   std::vector<CuSubMatrix<BaseFloat>* > indiff_patches_;
   std::vector<CuSubMatrix<BaseFloat>* > outdiff_patches_;
+
+  const CuMatrixBase<BaseFloat> *in_buff_;
 
 #if HAVE_CUDA == 1
   std::vector<cudaStream_t > streamlist_;
