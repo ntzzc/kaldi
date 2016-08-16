@@ -125,9 +125,10 @@ class Xent : public LossItf {
 
 class CBXent {
  public:
-	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), ppl_(0.0), logzt_(0.0),
+	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), ppl_(0.0), logzt_(0.0), logzt_variance_(0.0),
            frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0),
-		   correct_progress_(0.0), ppl_progress_(0.0), logzt_progress_(0.0), var_penalty_(0.0) { }
+		   correct_progress_(0.0), ppl_progress_(0.0),
+		   logzt_progress_(0.0), logzt_variance_progress_(0.0), var_penalty_(0.0) { }
   ~CBXent() { }
 
   void SetClassBoundary(const std::vector<int32>& class_boundary);
@@ -166,7 +167,9 @@ class CBXent {
   double loss_;
   double entropy_;
   double ppl_;
+
   double logzt_;
+  double logzt_variance_;
 
   // partial results during training
   double frames_progress_;
@@ -175,6 +178,7 @@ class CBXent {
   double correct_progress_;
   double ppl_progress_;
   double logzt_progress_;
+  double logzt_variance_progress_;
   std::vector<float> loss_vec_;
 
   // weigting buffer,

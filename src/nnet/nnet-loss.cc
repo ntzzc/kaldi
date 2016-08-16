@@ -395,7 +395,9 @@ void CBXent::Eval() {
   // We 'switch-off' such frames by masking the 'frame_weights_',
   // int size = class_frame_weights_.size();
   double num_frames = 0, correct = 0, cross_entropy = 0, entropy = 0;
-  double logzt = 0, logzt_mean = 0;
+  double logzt = 0, logzt_mean = 0, logzt_variance = 0;
+  CuVector<BaseFloat> frame_zt;
+
 
   AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_target_sum_, class_target_, static_cast<BaseFloat>(0.0f));
   MulElementsStreamed(class_target_sum_, class_frame_weights_);
@@ -420,6 +422,7 @@ void CBXent::Eval() {
 		logzt_mean = logzt/(2*num_frames);
 		// 2beta*(log(zt) - log(zt)/n)
 		frame_zt_.Add(-logzt_mean);
+		frame_zt = frame_zt_; //backup for compute variance
 		frame_zt_.Scale(var_penalty_*2); // *beta*2
 		frame_zt_.Add(static_cast<BaseFloat>(1.0f));
   }
@@ -428,7 +431,13 @@ void CBXent::Eval() {
   // compute derivative wrt. activations of last layer of neurons,
   CopyFromMatStreamed(class_netout_, class_diff_);
   if (var_penalty_ != 0)
+  {
 	  MulRowsVecStreamed(class_diff_, class_frame_zt_); // constant normalizing
+	  // compute logzt variance
+	  frame_zt_.CopyFromVec(frame_zt);
+	  MulElementsStreamed(frame_zt_, frame_zt_);
+	  logzt_variance = VecSumStreamed(class_frame_zt_);
+  }
   AddMatStreamed(static_cast<BaseFloat>(-1.0f), class_diff_, class_target_);
   MulRowsVecStreamed(class_diff_, class_frame_weights_); // weighting,
 
@@ -457,6 +466,7 @@ void CBXent::Eval() {
   frames_ += num_frames;
   ppl_ = exp(loss_/frames_);
   logzt_ += logzt;
+  logzt_variance_ += logzt_variance;
 
   // progressive loss reporting
   {
@@ -467,12 +477,14 @@ void CBXent::Eval() {
     correct_progress_ += correct;
     ppl_progress_ = exp(loss_progress_/frames_progress_);
     logzt_progress_ += logzt;
+    logzt_variance_progress_ += logzt_variance;
     if (frames_progress_ > progress_step) {
       KALDI_VLOG(1) << "ProgressLoss[last "
                     << static_cast<int>(frames_progress_/100/3600) << "(1h words) of "
                     << static_cast<int>(frames_/100/3600) << "(1h words)]: "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
-					<< logzt_progress_/(2*frames_progress_) << " (logzt) "
+					<< "("<<logzt_progress_/(2*frames_progress_)<<", "<<logzt_variance_progress_/(2*frames_progress_)<<")"
+					<< " (logzt_mean, logzt_variance) "
                     << ppl_progress_ << " (PPL) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store
@@ -483,6 +495,7 @@ void CBXent::Eval() {
       entropy_progress_ = 0.0;
       correct_progress_ = 0.0;
       logzt_progress_ = 0.0;
+      logzt_variance_progress_ = 0.0;
     }
   }
 }
@@ -503,7 +516,8 @@ void CBXent::GetTargetWordPosterior(Vector<BaseFloat> &tgt)
 std::string CBXent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
-	  << logzt_/(2*frames_) << " (logzt), "
+	  << "("<< logzt_/(2*frames_)<<", "<<logzt_variance_/(2*frames_)<<")"
+	  << " (logzt_mean, logzt_variance), "
       << "Perplexity: " << ppl_ << " (PPL), "
       << "[AvgXent " << loss_/frames_
       << ", AvgTargetEnt " << entropy_/frames_
@@ -528,6 +542,7 @@ void CBXent::Add(CBXent *xent)
 	  this->entropy_ += xent->entropy_;
 	  this->ppl_ = exp(loss_/frames_);
 	  this->logzt_ += xent->logzt_;
+	  this->logzt_variance_ += xent->logzt_variance_;
 
 	  // partial results during training
 	  frames_progress_ += xent->frames_progress_;
@@ -535,6 +550,7 @@ void CBXent::Add(CBXent *xent)
 	  entropy_progress_+= xent->entropy_progress_;
 	  ppl_progress_ = exp(loss_progress_/frames_progress_);
 	  logzt_progress_ += xent->logzt_progress_;
+	  logzt_variance_progress_ += xent->logzt_variance_progress_;
 
 	  for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
 		  this->loss_vec_[i] += xent->loss_vec_[i];
@@ -562,6 +578,8 @@ void CBXent::Merge(int myid, int root)
 
 	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
 	MPI_Reduce(addr, (void*)(&this->logzt_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
+	MPI_Reduce(addr, (void*)(&this->logzt_variance_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 }
 
 /* Mse */
