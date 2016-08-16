@@ -285,7 +285,8 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
             // constant normalizing
             delete class_frame_zt_[p];
-            delete class_softmax_in_[p];
+            if (softmax_in != NULL)
+                delete class_softmax_in_[p];
       }
 
 	  if (tgt_mat_.NumRows() != num_frames)

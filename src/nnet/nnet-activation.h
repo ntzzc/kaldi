@@ -178,7 +178,7 @@ class CBSoftmax : public Component {
 	  updateclass_id_ = updateclass_id;
   }
 
-  CuMatrixBase<BaseFloat>* GetInputBuffer() const
+  const CuMatrixBase<BaseFloat>* GetInputBuffer()
   {
 	  return in_buff_;
   }

@@ -455,7 +455,7 @@ private:
 	        nnet.Propagate(words, &nnet_out);
 
 	        // evaluate objective function we've chosen
-	        if (NULL != class_affine) {
+	        if (lm_nnet_out != NULL) {
 	        if (objective_function == "xent") {
 	        	xent.Eval(frame_mask, *lm_nnet_out, target, lm_nnet_diff);
 	        } else if (objective_function == "cbxent") {
