@@ -435,7 +435,7 @@ void CBXent::Eval() {
 	  MulRowsVecStreamed(class_diff_, class_frame_zt_); // constant normalizing
 	  // compute logzt variance
 	  frame_zt_.CopyFromVec(frame_zt);
-	  MulElementsStreamed(frame_zt_, frame_zt_);
+	  MulElementsStreamed(class_frame_zt_, class_frame_zt_);
 	  logzt_variance = VecSumStreamed(class_frame_zt_);
   }
   AddMatStreamed(static_cast<BaseFloat>(-1.0f), class_diff_, class_target_);
@@ -484,7 +484,7 @@ void CBXent::Eval() {
                     << static_cast<int>(frames_/100/3600) << "(1h words)]: "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent) "
 					<< "("<<logzt_progress_/(2*frames_progress_)<<", "<<logzt_variance_progress_/(2*frames_progress_)<<")"
-					<< " (logzt_mean, logzt_variance) "
+					<< " (logzt[mean,variance]) "
                     << ppl_progress_ << " (PPL) "
 					<< correct_progress_*100/frames_progress_ << "% (Facc)";
       // store
@@ -517,7 +517,7 @@ std::string CBXent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
 	  << "("<< logzt_/(2*frames_)<<", "<<logzt_variance_/(2*frames_)<<")"
-	  << " (logzt_mean, logzt_variance), "
+	  << " (Logzt[mean,variance]), "
       << "Perplexity: " << ppl_ << " (PPL), "
       << "[AvgXent " << loss_/frames_
       << ", AvgTargetEnt " << entropy_/frames_
