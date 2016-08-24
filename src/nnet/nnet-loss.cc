@@ -231,6 +231,9 @@ void CBXent::SetClassBoundary(const std::vector<int32>& class_boundary)
 			else
 				word2class_[i] = ++j;
 		}
+		class_zt_.resize(num_class+1, 0);
+		class_frames_.resize(num_class+1, 0);
+		class_zt_variance_.resize(num_class+1, 0);
 
 #if HAVE_CUDA == 1
 		streamlist_.resize(num_class+1);
@@ -265,8 +268,7 @@ inline void CBCountCorrectFramesWeighted(const CuArray<T> &v1,
 void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
           const CuMatrixBase<BaseFloat> &net_out,
 		  const std::vector<int32> &target,
-		  CuMatrixBase<BaseFloat> *diff,
-		  const CuMatrixBase<BaseFloat> *softmax_in) {
+		  CuMatrixBase<BaseFloat> *diff) {
 
 	  int32 num_frames = net_out.NumRows(),
 	  num_pdf = net_out.NumCols();
@@ -282,11 +284,6 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
             delete class_diff_[p];
             delete class_xentropy_aux_[p];
             delete class_entropy_aux_[p];
-
-            // constant normalizing
-            delete class_frame_zt_[p];
-            if (softmax_in != NULL)
-                delete class_softmax_in_[p];
       }
 
 	  if (tgt_mat_.NumRows() != num_frames)
@@ -297,8 +294,6 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 		  entropy_aux_.Resize(num_frames, num_pdf, kSetZero);
 		  target_sum_.Resize(2*num_frames);
 		  tgt_id_.Resize(2*num_frames);
-
-		  frame_zt_.Resize(2*num_frames);
 	  }
 
 	  if (diff->NumRows() != num_frames || diff->NumCols() != num_pdf)
@@ -314,17 +309,19 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_diff_.clear();
 	  class_xentropy_aux_.clear();
 	  class_entropy_aux_.clear();
-	  class_frame_zt_.clear();
-	  class_softmax_in_.clear();
+	  class_counts_.clear();
+	  class_id_.clear();
 
       std::vector<int32> tgt_id(2*num_frames);
 
-	  int beg = 0, len, cid;
+	  int beg = 0, len, cid, cnt = 0, total_cnt = 0;
 	  for (int i = 1; i <= num_frames; i++)
 	  {
           cid = word2class_[target[i-1]];
 		  tgt_id[i-1] = target[i-1] - class_boundary_[cid];
 		  tgt_id[i-1+num_frames] = cid;
+
+		  if(frame_weights(i-1) != 0)	cnt++;
 
 		  if (i == num_frames || word2class_[target[i]] != word2class_[target[i-1]])
 		  {
@@ -339,9 +336,10 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 			  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.Range(beg, i-beg, class_boundary_[cid], len)));
 
 			  // constant normalizing
-			  class_frame_zt_.push_back(new CuSubVector<BaseFloat>(frame_zt_.Range(beg, i-beg)));
-			  if (softmax_in != NULL)
-				  class_softmax_in_.push_back(new CuSubMatrix<BaseFloat>(softmax_in->Range(beg, i-beg, class_boundary_[cid], len)));
+			  class_counts_.push_back(cnt);
+			  class_id_.push_back(cid);
+			  total_cnt += cnt; cnt = 0;
+
 			  beg = i;
 		  }
 	  }
@@ -355,9 +353,9 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  class_diff_.push_back(new CuSubMatrix<BaseFloat>(diff->ColRange(class_boundary_.back(), len)));
 	  class_xentropy_aux_.push_back(new CuSubMatrix<BaseFloat>(xentropy_aux_.ColRange(class_boundary_.back(), len)));
 	  class_entropy_aux_.push_back(new CuSubMatrix<BaseFloat>(entropy_aux_.ColRange(class_boundary_.back(), len)));
-	  class_frame_zt_.push_back(new CuSubVector<BaseFloat>(frame_zt_.Range(num_frames, num_frames)));
-	  if (softmax_in != NULL)
-		  class_softmax_in_.push_back(new CuSubMatrix<BaseFloat>(softmax_in->ColRange(class_boundary_.back(), len)));
+
+	  class_counts_.push_back(total_cnt);
+	  class_id_.push_back(class_boundary_.size()-1);
 
 
 	  SetStream(class_frame_weights_, streamlist_);
@@ -367,8 +365,7 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  SetStream(class_diff_, streamlist_);
 	  SetStream(class_xentropy_aux_, streamlist_);
 	  SetStream(class_entropy_aux_, streamlist_);
-	  SetStream(class_frame_zt_, streamlist_);
-	  SetStream(class_softmax_in_, streamlist_);
+	  SetStream(*class_frame_zt_ptr_, streamlist_);
 
 	  GenTargetStreamed(class_target_, tgt_id_);
 
@@ -382,8 +379,8 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  ResetStream(class_diff_);
 	  ResetStream(class_xentropy_aux_);
 	  ResetStream(class_entropy_aux_);
-	  ResetStream(class_frame_zt_);
-	  ResetStream(class_softmax_in_);
+	  ResetStream(*class_frame_zt_ptr_);
+
 }
 
 
@@ -397,13 +394,13 @@ void CBXent::Eval() {
   double num_frames = 0, correct = 0, cross_entropy = 0, entropy = 0;
   double logzt = 0, logzt_mean = 0, logzt_variance = 0;
   CuVector<BaseFloat> frame_zt;
+  std::vector<float> class_zt_sum;
 
 
   AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_target_sum_, class_target_, static_cast<BaseFloat>(0.0f));
   MulElementsStreamed(class_target_sum_, class_frame_weights_);
   //for (int i = 0; i < size; i++)
 	  //class_target_sum_[i]->MulElements(*class_frame_weights_[i]);
-
 
   // get the number of frames after the masking,
   num_frames = VecSumStreamed(class_target_sum_);
@@ -413,18 +410,20 @@ void CBXent::Eval() {
   if (var_penalty_ != 0)
   {
 		// constant normalizing (for each class per frame), zt = sum(exp(y)), log(zt)
-		CopyFromMatStreamed(class_softmax_in_, class_diff_);
-		ApplyExpStreamed(class_diff_); // exp(y)
-		AddColSumMatStreamed(static_cast<BaseFloat>(1.0f), class_frame_zt_, class_diff_, static_cast<BaseFloat>(0.0f)); // sum per frame
-		frame_zt_.ApplyLog();
-		MulElementsStreamed(class_frame_zt_, class_frame_weights_);
-		logzt = VecSumStreamed(class_frame_zt_);
-		logzt_mean = logzt/(2*num_frames);
+		MulElementsStreamed(*class_frame_zt_ptr_, class_frame_weights_);
+		logzt = VecSumStreamed(*class_frame_zt_ptr_, &class_zt_sum);
+		for (int i = 0; i < class_counts_.size(); i++)
+		{
+			class_frames_[class_id_[i]] += class_counts_[i];
+			class_zt_[class_id_[i]] += class_zt_sum[i];
+			class_zt_sum[i] /= (-class_counts_[i]);
+		}
+
 		// 2beta*(log(zt) - log(zt)/n)
-		frame_zt_.Add(-logzt_mean);
-		frame_zt = frame_zt_; //backup for compute variance
-		frame_zt_.Scale(var_penalty_*2); // *beta*2
-		frame_zt_.Add(static_cast<BaseFloat>(1.0f));
+		logzt = AddStreamed(*class_frame_zt_ptr_, class_zt_sum);
+		frame_zt = *frame_zt_ptr_; //backup for compute variance
+		frame_zt_ptr_->Scale(var_penalty_*2); // *beta*2
+		frame_zt_ptr_->Add(static_cast<BaseFloat>(1.0f));
   }
 
 
@@ -432,11 +431,13 @@ void CBXent::Eval() {
   CopyFromMatStreamed(class_netout_, class_diff_);
   if (var_penalty_ != 0)
   {
-	  MulRowsVecStreamed(class_diff_, class_frame_zt_); // constant normalizing
+	  MulRowsVecStreamed(class_diff_, *class_frame_zt_ptr_); // constant normalizing
 	  // compute logzt variance
-	  frame_zt_.CopyFromVec(frame_zt);
-	  MulElementsStreamed(frame_zt_, frame_zt_);
-	  logzt_variance = VecSumStreamed(class_frame_zt_);
+	  frame_zt_ptr_->CopyFromVec(frame_zt);
+	  MulElementsStreamed(*class_frame_zt_ptr_, *class_frame_zt_ptr_);
+	  logzt_variance = VecSumStreamed(*class_frame_zt_ptr_, &class_zt_sum);
+	  for (int i = 0; i < class_counts_.size(); i++)
+		  class_zt_variance_[class_id_[i]] += class_zt_sum[i];
   }
   AddMatStreamed(static_cast<BaseFloat>(-1.0f), class_diff_, class_target_);
   MulRowsVecStreamed(class_diff_, class_frame_weights_); // weighting,
@@ -527,6 +528,13 @@ std::string CBXent::Report() {
      std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
      oss << "]" << std::endl;
   }
+  if (var_penalty_ != 0 && class_zt_variance_.size() > 0) {
+	 for (int i = 0; i < class_zt_variance_.size(); i++)
+	  	class_zt_variance_[i] /= (class_frames_[i] == 0 ? 1:class_frames_[i]);
+	 oss << "progress: [";
+	 std::copy(class_zt_variance_.begin(),class_zt_variance_.end(),std::ostream_iterator<float>(oss," "));
+	 oss << "]" << std::endl;
+  }
   if (correct_ >= 0.0) {
     oss << "PPL >> " << ppl_ << " <<" << std::endl;
   }
@@ -554,6 +562,20 @@ void CBXent::Add(CBXent *xent)
 
 	  for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
 		  this->loss_vec_[i] += xent->loss_vec_[i];
+
+	  // variance per class
+	  if (var_penalty_ != 0 )
+	  {
+		  if (this->class_zt_variance_.size() == 0)
+			  class_zt_variance_.resize(xent->class_zt_variance_.size());
+		  for (int i = 0; i<this->class_zt_variance_.size() && i < xent->class_zt_variance_.size(); i++)
+				  this->class_zt_variance_[i] += xent->class_zt_variance_[i];
+
+		  if (this->class_frames_.size() == 0)
+			  class_zt_variance_.resize(xent->class_frames_.size());
+		  for (int i = 0; i<this->class_frames_.size() && i < xent->class_frames_.size(); i++)
+				  this->class_frames_[i] += xent->class_frames_[i];
+	  }
 }
 
 void CBXent::Merge(int myid, int root)
@@ -576,10 +598,17 @@ void CBXent::Merge(int myid, int root)
 
 	this->ppl_ = exp(loss_/frames_);
 
-	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
-	MPI_Reduce(addr, (void*)(&this->logzt_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
-	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
-	MPI_Reduce(addr, (void*)(&this->logzt_variance_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+	if (var_penalty_ != 0)
+	{
+		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
+		MPI_Reduce(addr, (void*)(&this->logzt_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
+		MPI_Reduce(addr, (void*)(&this->logzt_variance_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->class_zt_variance_.front()));
+		MPI_Reduce(addr, (void*)(&this->class_zt_variance_.front()), this->class_zt_variance_.size(), MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->class_frames_.front()));
+		MPI_Reduce(addr, (void*)(&this->class_frames_.front()), this->class_frames_.size(), MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+	}
 }
 
 /* Mse */

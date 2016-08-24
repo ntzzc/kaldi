@@ -72,7 +72,7 @@ void AddMatStreamed(const Real alpha, std::vector<CuSubMatrix<Real>* > &C,
 /// for each row, the max value is first subtracted for good numerical stability
 template<typename Real>
 void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
-		const std::vector<CuSubMatrix<Real>* > &src);
+		const std::vector<CuSubMatrix<Real>* > &src, std::vector<CuSubVector<Real>* > *logsum = NULL);
 
 template<typename Real>
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,

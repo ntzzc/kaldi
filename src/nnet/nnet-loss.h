@@ -128,7 +128,7 @@ class CBXent {
 	CBXent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), ppl_(0.0), logzt_(0.0), logzt_variance_(0.0),
            frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0),
 		   correct_progress_(0.0), ppl_progress_(0.0),
-		   logzt_progress_(0.0), logzt_variance_progress_(0.0), var_penalty_(0.0) { }
+		   logzt_progress_(0.0), logzt_variance_progress_(0.0), var_penalty_(0.0), frame_zt_ptr_(NULL), class_frame_zt_ptr_(NULL) { }
   ~CBXent() { }
 
   void SetClassBoundary(const std::vector<int32>& class_boundary);
@@ -140,8 +140,7 @@ class CBXent {
   void Eval(const VectorBase<BaseFloat> &frame_weights,
             const CuMatrixBase<BaseFloat> &net_out,
 			const std::vector<int32> &target,
-			CuMatrixBase<BaseFloat> *diff,
-			const CuMatrixBase<BaseFloat> *softmax_in = NULL);
+			CuMatrixBase<BaseFloat> *diff);
 
   void GetTargetWordPosterior(Vector<BaseFloat> &tgt);
 
@@ -159,6 +158,11 @@ class CBXent {
 
   void SetVarPenalty(float var_penalty) {
 	  var_penalty_ = var_penalty;
+  }
+
+  void SetZt(CuVector<BaseFloat> *frame_zt_ptr, std::vector<CuSubVector<BaseFloat>* > *class_frame_zt_ptr) {
+	  frame_zt_ptr_ = frame_zt_ptr;
+	  class_frame_zt_ptr_ = class_frame_zt_ptr;
   }
 
  private:
@@ -195,10 +199,6 @@ class CBXent {
   CuMatrix<BaseFloat> entropy_aux_;
   CuArray<int32> tgt_id_;
 
-  // constant normalizing
-  CuVector<BaseFloat> frame_zt_;
-
-
   std::vector<CuSubVector<BaseFloat>* > class_frame_weights_;
   std::vector<CuSubVector<BaseFloat>* > class_target_sum_;
 
@@ -209,16 +209,23 @@ class CBXent {
   std::vector<CuSubMatrix<BaseFloat>* > class_entropy_aux_;
   std::vector<CuSubMatrix<BaseFloat>* > class_diff_;
 
-  // constant normalizing
-  std::vector<CuSubVector<BaseFloat>* > class_frame_zt_;
-  std::vector<CuSubMatrix<BaseFloat>* > class_softmax_in_;
-
   // frame classification buffers,
   CuArray<int32> max_id_out_;
   CuArray<int32> max_id_tgt_;
 
   // beta penalty of the variance regularization approximation item
   float var_penalty_;
+
+  // constant normalizing
+  CuVector<BaseFloat> *frame_zt_ptr_;
+  std::vector<CuSubVector<BaseFloat>* > *class_frame_zt_ptr_;
+  std::vector<double> class_zt_;
+  std::vector<double> class_zt_variance_;
+  std::vector<double> class_frames_;
+  // minbatch buffer
+  std::vector<int> class_counts_;
+  std::vector<int> class_id_;
+
 
 #if HAVE_CUDA == 1
   std::vector<cudaStream_t > streamlist_;

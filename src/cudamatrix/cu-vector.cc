@@ -168,6 +168,44 @@ template
 void MulElementsStreamed(std::vector<CuSubVector<double>* > &des, const std::vector<CuSubVector<double>* > &src);
 
 template<typename Real>
+void AddStreamed(std::vector<CuSubVector<Real>* > &vec, std::vector<Real> &value)
+{
+	  KALDI_ASSERT(vec.size() == value.size());
+	  int32 size = vec.size();
+
+	  if (size == 0) return;
+
+#if HAVE_CUDA == 1
+	  if (CuDevice::Instantiate().Enabled()) {
+	    Timer tim;
+
+	    for (int32 i = 0; i < size; i++) {
+	    	int32 dim = vec[i]->Dim();
+	        dim3 dimBlock(CU1DBLOCK);
+	        dim3 dimGrid(n_blocks(dim, CU1DBLOCK));
+	        ::MatrixDim d = { 1, dim, dim };
+
+	        cuda_add(dimGrid, dimBlock, vec[i]->Data(), value[i], d, vec[i]->GetLocalCudaStream());
+	    }
+	    CU_SAFE_CALL(cudaGetLastError());
+
+	    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+	  } else
+#endif
+	  {
+		  for (int32 i = 0; i < size; i++) {
+			  vec[i]->Vec().Add(value[i]);
+		  }
+	  }
+}
+
+template<typename Real>
+void AddStreamed(std::vector<CuSubVector<float>* > &vec, std::vector<float> &value);
+
+template
+void AddStreamed(std::vector<CuSubVector<double>* > &vec, std::vector<double> &value);
+
+template<typename Real>
 void AddRowSumMatStreamed(Real alpha, std::vector<CuSubVector<Real>* > &des_vec,
 		const std::vector<CuSubMatrix<Real>* > &src, Real beta = 1.0)
 {

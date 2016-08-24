@@ -61,6 +61,9 @@ Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec, std::vector<Rea
 template<typename Real>
 void MulElementsStreamed(std::vector<CuSubVector<Real>* > &des, const std::vector<CuSubVector<Real>* > &src);
 
+template<typename Real>
+void AddStreamed(std::vector<CuSubVector<Real>* > &vec, std::vector<Real> &value);
+
 /**
  * Vector for CUDA computing
  */
