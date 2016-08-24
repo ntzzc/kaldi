@@ -2391,15 +2391,19 @@ void AddMatStreamed(const double alpha, std::vector<CuSubMatrix<double>* > &C,
 
 template<typename Real>
 void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
-		const std::vector<CuSubMatrix<Real>* > &src)
+		const std::vector<CuSubMatrix<Real>* > &src, std::vector<CuSubVector<Real>* > *logsum)
 {
 	  KALDI_ASSERT(src.size() == des.size());
+	  if ( logsum != NULL) KALDI_ASSERT(src.size() == logsum->size());
 	  int32 size = src.size();
 
 	  if (size == 0) return;
 
 	  for (int32 i = 0; i < size; i++)
+	  {
 		  KALDI_ASSERT(des[i]->NumRows() == src[i]->NumRows() && des[i]->NumCols() == src[i]->NumCols());
+		  if ( logsum != NULL) KALDI_ASSERT(src[i]->NumRows() == logsum[i]->Dim());
+	  }
 
 #if HAVE_CUDA == 1
 	  if (CuDevice::Instantiate().Enabled()) {
@@ -2408,8 +2412,9 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 			size_t dimBlock = src[i]->NumCols() > CU1DBLOCK ? CU1DBLOCK : src[i]->NumCols();
 			size_t dimGrid = src[i]->NumRows();
 
-			//cublasSetStream(des[i]->GetLocalCublasHandle(), des[i]->GetLocalCudaStream());
-			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Stride(), des[i]->GetLocalCudaStream());
+			Real *value = NULL;
+			if (logsum != NULL) value = logsum[i]->Data();
+			cuda_softmax_reduce(dimGrid, dimBlock, des[i]->Data(), src[i]->Data(), des[i]->Dim(), src[i]->Stride(), value, des[i]->GetLocalCudaStream());
 	    }
 	    CU_SAFE_CALL(cudaGetLastError());
 
@@ -2429,10 +2434,10 @@ void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<Real>* > &des,
 
 template
 void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<float>* > &des,
-		const std::vector<CuSubMatrix<float>* > &src);
+		const std::vector<CuSubMatrix<float>* > &src, std::vector<CuSubVector<Real>* > *logsum);
 template
 void ApplySoftMaxPerRowStreamed(std::vector<CuSubMatrix<double>* > &des,
-		const std::vector<CuSubMatrix<double>* > &src);
+		const std::vector<CuSubMatrix<double>* > &src, std::vector<CuSubVector<Real>* > *logsum);
 
 template<typename Real>
 void FindMaxIdPerRowStreamed(const std::vector<CuSubMatrix<Real>* > &src,

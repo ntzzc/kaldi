@@ -221,6 +221,7 @@ private:
 	        cb_softmax->SetClassBoundary(class_boundary_);
 	        cbxent.SetClassBoundary(class_boundary_);
 	        cbxent.SetVarPenalty(opts->var_penalty);
+	        cbxent.SetZt(cb_softmax->GetZt(), cb_softmax->GetZtPatches());
         }
 
 		CuMatrix<BaseFloat> feats_transf, nnet_out, nnet_diff;
@@ -366,7 +367,7 @@ private:
 	        if (objective_function == "xent") {
 	        	xent.Eval(frame_mask, nnet_out, target, &nnet_diff);
 	        } else if (objective_function == "cbxent") {
-	        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff, cb_softmax->GetInputBuffer());
+	        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff);
 	        } else {
 	            KALDI_ERR << "Unknown objective function code : " << objective_function;
 	        }

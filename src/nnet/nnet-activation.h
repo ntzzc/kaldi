@@ -60,7 +60,7 @@ class Softmax : public Component {
 class CBSoftmax : public Component {
  public:
 	CBSoftmax(int32 dim_in, int32 dim_out)
-    : Component(dim_in, dim_out), in_buff_(NULL)
+    : Component(dim_in, dim_out)
   { }
 	~CBSoftmax()
   { }
@@ -73,8 +73,18 @@ class CBSoftmax : public Component {
     int size = updateclass_id_.size();
     int beg, cid, clen;
 
+    for (int p = 0; p < input_patches_.size(); p++)
+    {
+        delete input_patches_[p];
+        delete output_patches_[p];
+        delete frame_zt_patches_[p];
+    }
+
     input_patches_.clear();
     output_patches_.clear();
+    frame_zt_patches_.clear();
+    frame_zt_.Resize(size*2, kUndefined);
+
     beg = 0;
     for (int i = 1; i <= size; i++)
     {
@@ -84,6 +94,7 @@ class CBSoftmax : public Component {
     		clen = class_boundary_[cid+1] - class_boundary_[cid];
     		input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.Range(beg, i-beg, class_boundary_[cid], clen)));
     		output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->Range(beg, i-beg, class_boundary_[cid], clen)));
+    		frame_zt_patches_.push_back(new CuSubVector<BaseFloat>(frame_zt_.Range(beg, i-beg)));
     		beg = i;
     	}
     }
@@ -92,25 +103,17 @@ class CBSoftmax : public Component {
     clen = output_dim_ - class_boundary_.back();
     input_patches_.push_back(new CuSubMatrix<BaseFloat>(in.ColRange(class_boundary_.back(), clen)));
     output_patches_.push_back(new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen)));
+    frame_zt_patches_.push_back(new CuSubVector<BaseFloat>(frame_zt_.Range(size, size)));
 
 
     SetStream(input_patches_, streamlist_);
    	SetStream(output_patches_, streamlist_);
 
-	ApplySoftMaxPerRowStreamed(output_patches_, input_patches_);
-    //for (int p = 0; p < input_patches_.size(); p++)
-        //output_patches_[p]->ApplySoftMaxPerRow(*input_patches_[p]);
+	ApplySoftMaxPerRowStreamed(output_patches_, input_patches_, &frame_zt_patches_);
 
 	ResetStream(input_patches_);
 	ResetStream(output_patches_);
 
-    for (int p = 0; p < input_patches_.size(); p++)
-    {
-        delete input_patches_[p];   
-        delete output_patches_[p];  
-    }
-
-    in_buff_ = &in;
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
@@ -178,9 +181,14 @@ class CBSoftmax : public Component {
 	  updateclass_id_ = updateclass_id;
   }
 
-  const CuMatrixBase<BaseFloat>* GetInputBuffer()
+  CuVector<BaseFloat>* GetZt()
   {
-	  return in_buff_;
+	  return &frame_zt_;
+  }
+
+  std::vector<CuSubVector<BaseFloat>* >* GetZtPatches()
+  {
+	  return &frame_zt_patches_;
   }
 
  private:
@@ -191,7 +199,9 @@ class CBSoftmax : public Component {
   std::vector<CuSubMatrix<BaseFloat>* > indiff_patches_;
   std::vector<CuSubMatrix<BaseFloat>* > outdiff_patches_;
 
-  const CuMatrixBase<BaseFloat> *in_buff_;
+  // constant normalizing
+  CuVector<BaseFloat> frame_zt_;
+  std::vector<CuSubVector<BaseFloat>* > frame_zt_patches_;
 
 #if HAVE_CUDA == 1
   std::vector<cudaStream_t > streamlist_;

@@ -155,7 +155,7 @@ inline void cuda_set_diag_packed(int Gr, int Bl, float* mat, float value, int di
 inline void cuda_add_diag_packed(int Gr, int Bl, float* mat, float value, int dim) { cudaF_add_diag_packed(Gr,Bl,mat,value,dim); }
 inline void cuda_set_const(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d) { cudaF_set_const(Gr,Bl,mat,value,d); }
 inline void cuda_set_zero_above_diag(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) { cudaF_set_zero_above_diag(Gr,Bl,mat,d); }
-inline void cuda_add(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d) { cudaF_add(Gr,Bl,mat,value,d); }
+inline void cuda_add(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d, cudaStream_t s=NULL) { cudaF_add(Gr,Bl,mat,value,d,s); }
 inline void cuda_add_vec2(dim3 Gr, dim3 Bl, float *mat, const float *vec, const float alpha, int dim) { cudaF_add_vec2(Gr,Bl,mat,vec,alpha,dim); }
 inline void cuda_scale_diag_packed(int Gr, int Bl, float* mat, float value, int dim) { cudaF_scale_diag_packed(Gr,Bl,mat,value,dim); }
 inline void cuda_scale(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d) { cudaF_scale(Gr,Bl,mat,value,d); }
@@ -277,7 +277,7 @@ inline void cuda_heaviside(dim3 Gr, dim3 Bl, float *y, const float *x, MatrixDim
 Bl: dimBlock value is fixed min(d.col, CU1DBLOCK), represent CU1DBLOCK threads reduce a row at the same time.
 Gr: the number of rows
 */
-inline void cuda_softmax_reduce(size_t Gr, size_t Bl, float *y, const float *x, MatrixDim d, int src_stride, cudaStream_t s=NULL) { cudaF_softmax_reduce(Gr,Bl,y,x,d,src_stride,s); }
+inline void cuda_softmax_reduce(size_t Gr, size_t Bl, float *y, const float *x, MatrixDim d, int src_stride, Real *logsum=NULL, cudaStream_t s=NULL) { cudaF_softmax_reduce(Gr,Bl,y,x,d,src_stride,logsum,s); }
 inline void cuda_log_softmax_reduce(size_t Gr, size_t Bl, float *y, const float *x, MatrixDim d, int src_stride) { cudaF_log_softmax_reduce(Gr,Bl,y,x,d,src_stride); }
 
 inline void cuda_row_sum_reduce(size_t Gr, size_t Bl, float alpha, float *y, const float *x, MatrixDim d, float beta, cudaStream_t s=NULL) { cudaF_row_sum_reduce(Gr,Bl,alpha, y,x,d,beta,s); }
@@ -458,7 +458,7 @@ inline void cuda_set_diag_packed(int Gr, int Bl, double* mat, double value, int 
 inline void cuda_add_diag_packed(int Gr, int Bl, double* mat, double value, int dim) { cudaD_add_diag_packed(Gr,Bl,mat,value,dim); }
 inline void cuda_set_const(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d) { cudaD_set_const(Gr,Bl,mat,value,d); }
 inline void cuda_set_zero_above_diag(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) { cudaD_set_zero_above_diag(Gr,Bl,mat,d); }
-inline void cuda_add(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d) { cudaD_add(Gr,Bl,mat,value,d); }
+inline void cuda_add(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d, cudaStream_t s=NULL) { cudaD_add(Gr,Bl,mat,value,d,s); }
 inline void cuda_add_vec2(dim3 Gr, dim3 Bl, double *mat, const double *vec, const double alpha, int dim) { cudaD_add_vec2(Gr,Bl,mat,vec,alpha,dim); }
 inline void cuda_scale_diag_packed(int Gr, int Bl, double* mat, double value, int dim) { cudaD_scale_diag_packed(Gr,Bl,mat,value,dim); }
 inline void cuda_scale(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d) { cudaD_scale(Gr,Bl,mat,value,d); }
@@ -572,7 +572,7 @@ inline void cuda_diff_sigmoid(dim3 Gr, dim3 Bl, double *eout, const double *e, c
 inline void cuda_tanh(dim3 Gr, dim3 Bl, double *y, const double *x, MatrixDim d, int src_stride) { cudaD_tanh(Gr,Bl,y,x,d,src_stride); }
 inline void cuda_diff_tanh(dim3 Gr, dim3 Bl, double *eout, const double *e, const double *y, MatrixDim d, int e_stride, int y_stride) { cudaD_diff_tanh(Gr,Bl,eout,e,y,d,e_stride,y_stride); }
 inline void cuda_heaviside(dim3 Gr, dim3 Bl, double *y, const double *x, MatrixDim d, int src_stride) { cudaD_heaviside(Gr,Bl,y,x,d,src_stride); }
-inline void cuda_softmax_reduce(size_t Gr, size_t Bl, double *y, const double *x, MatrixDim d, int src_stride, cudaStream_t s=NULL) { cudaD_softmax_reduce(Gr,Bl,y,x,d,src_stride,s); }
+inline void cuda_softmax_reduce(size_t Gr, size_t Bl, double *y, const double *x, MatrixDim d, int src_stride, Real *logsum=NULL, cudaStream_t s=NULL) { cudaD_softmax_reduce(Gr,Bl,y,x,d,src_stride,logsum,s); }
 inline void cuda_log_softmax_reduce(size_t Gr, size_t Bl, double *y, const double *x, MatrixDim d, int src_stride) { cudaD_log_softmax_reduce(Gr,Bl,y,x,d,src_stride); }
 inline void cuda_row_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s=NULL) { cudaD_row_sum_reduce(Gr,Bl,alpha,y,x,d,beta,s); }
 inline void cuda_col_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s=NULL) { cudaD_col_sum_reduce(Gr,Bl,alpha,y,x,d,beta,s); }

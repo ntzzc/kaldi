@@ -2031,7 +2031,7 @@ static void _heaviside(Real*y, const Real*x, MatrixDim d, int src_stride) {
 
 template<typename Real>
 __global__
-static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride) {
+static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, Real *logsum) {
   int j = blockIdx.x;
   int THREADS = blockDim.x;
   if (j >= d.rows) return;
@@ -2062,6 +2062,8 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride) {
   }
   Real max = aux[0];
   __syncthreads();
+  
+  if (threadIdx.x == 0 && logsum != NULL) logsum[j] = max;	// max per row
 
    // subtract max, apply exp, sum up...
   y[threadIdx.x+j*d.stride] = exp(x[threadIdx.x+j*d.stride] - max);
@@ -2087,6 +2089,8 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride) {
   }
   Real sum = aux[0];
   __syncthreads();
+  
+  if (threadIdx.x == 0 && logsum != NULL) logsum[j] += log(sum); // denominator log sum
 
   //normalize by sum...
   for(int i=0; i<steps; i++) {
@@ -2624,8 +2628,8 @@ void cudaF_set_zero_above_diag(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) {
   _set_zero_above_diag<<<Gr,Bl>>>(mat, d);
 }
 
-void cudaF_add(dim3 Gr, dim3 Bl, float* mat, float value, MatrixDim d) {
-  _add<<<Gr,Bl>>>(mat,value,d);
+void cudaF_add(dim3 Gr, dim3 Bl, float* mat, float value, MatrixDim d, cudaStream_t s) {
+  _add<<<Gr,Bl,0,s>>>(mat,value,d);
 }
 
 void cudaF_scale_diag_packed(int Gr, int Bl, float* mat, float value, int dim) {
@@ -2927,8 +2931,8 @@ void cudaF_heaviside (dim3 Gr, dim3 Bl, float* y, const float* x, MatrixDim d, i
   _heaviside<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
-void cudaF_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride, cudaStream_t s) {
-  _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride);
+void cudaF_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride, Real *logsum, cudaStream_t s) {
+  _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride, logsum);
 }
 
 void cudaF_log_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride) {
@@ -3158,8 +3162,8 @@ void cudaD_set_zero_above_diag(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) {
   _set_zero_above_diag<<<Gr,Bl>>>(mat, d);
 }
 
-void cudaD_add(dim3 Gr, dim3 Bl, double* mat, double value, MatrixDim d) {
-  _add<<<Gr,Bl>>>(mat,value,d);
+void cudaD_add(dim3 Gr, dim3 Bl, double* mat, double value, MatrixDim d, cudaStream_t s) {
+  _add<<<Gr,Bl,0,s>>>(mat,value,d);
 }
 
 void cudaD_scale_diag_packed(int Gr, int Bl, double* mat, double value, int dim) {
@@ -3460,8 +3464,8 @@ void cudaD_heaviside (dim3 Gr, dim3 Bl, double* y, const double* x, MatrixDim d,
   _heaviside<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
-void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride, cudaStream_t s) {
-  _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride);
+void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride, Real *logsum, cudaStream_t s) {
+  _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride, logsum);
 }
 
 void cudaD_log_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride) {
