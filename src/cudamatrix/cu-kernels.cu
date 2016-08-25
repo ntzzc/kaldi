@@ -2063,8 +2063,6 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, R
   Real max = aux[0];
   __syncthreads();
   
-  if (threadIdx.x == 0 && logsum != NULL) logsum[j] = max;	// max per row
-
    // subtract max, apply exp, sum up...
   y[threadIdx.x+j*d.stride] = exp(x[threadIdx.x+j*d.stride] - max);
   aux[threadIdx.x] = y[threadIdx.x+j*d.stride];
@@ -2090,7 +2088,7 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, R
   Real sum = aux[0];
   __syncthreads();
   
-  if (threadIdx.x == 0 && logsum != NULL) logsum[j] += log(sum); // denominator log sum
+  if (threadIdx.x == 0 && logsum != NULL) logsum[j] = log(sum)+max; // denominator log sum
 
   //normalize by sum...
   for(int i=0; i<steps; i++) {
@@ -2931,7 +2929,7 @@ void cudaF_heaviside (dim3 Gr, dim3 Bl, float* y, const float* x, MatrixDim d, i
   _heaviside<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
-void cudaF_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride, Real *logsum, cudaStream_t s) {
+void cudaF_softmax_reduce (size_t Gr, size_t Bl, float* y, const float* x, MatrixDim d, int src_stride, float *logsum, cudaStream_t s) {
   _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride, logsum);
 }
 
@@ -3464,7 +3462,7 @@ void cudaD_heaviside (dim3 Gr, dim3 Bl, double* y, const double* x, MatrixDim d,
   _heaviside<<<Gr,Bl>>>(y, x, d, src_stride);
 }
 
-void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride, Real *logsum, cudaStream_t s) {
+void cudaD_softmax_reduce (size_t Gr, size_t Bl, double* y, const double* x, MatrixDim d, int src_stride, double *logsum, cudaStream_t s) {
   _softmax_reduce<<<Gr,Bl,0,s>>>(y, x, d, src_stride, logsum);
 }
 

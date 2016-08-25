@@ -199,7 +199,7 @@ void AddStreamed(std::vector<CuSubVector<Real>* > &vec, std::vector<Real> &value
 	  }
 }
 
-template<typename Real>
+template
 void AddStreamed(std::vector<CuSubVector<float>* > &vec, std::vector<float> &value);
 
 template

@@ -219,7 +219,7 @@ class CBXent {
   // constant normalizing
   CuVector<BaseFloat> *frame_zt_ptr_;
   std::vector<CuSubVector<BaseFloat>* > *class_frame_zt_ptr_;
-  std::vector<double> class_zt_;
+  std::vector<double> class_zt_mean_;
   std::vector<double> class_zt_variance_;
   std::vector<double> class_frames_;
   // minbatch buffer

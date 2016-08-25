@@ -111,7 +111,7 @@ NnetModelSync::GetDim(Nnet *nnet)
 	Convolutional2DComponentFast *conv_t;
 	LstmProjectedStreamsFast *lstm_t;
 	LstmProjectedStreamsSimple *splstm_t;
-	LstmProjectedStreams *plstm_t;
+	//LstmProjectedStreams *plstm_t;
 	LstmStreams *stlstm_t;
 	BLstmProjectedStreams *blstm_t;
 	BLstmStreams *bstlstm_t;
