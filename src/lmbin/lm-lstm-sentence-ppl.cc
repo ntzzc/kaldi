@@ -1,4 +1,4 @@
-// lmbin/nnet-lstm-sentence-ppl.cc
+// lmbin/lm-lstm-sentence-ppl.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -38,14 +38,17 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Test model perplexity(with constant variance regularization).\n"
         "\n"
-        "Usage:  nnet-lstm-sentence-ppl [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
+        "Usage:  lm-lstm-sentence-ppl [options] <model-in> <feature-rspecifier> [<feature-wspecifier>]. \n"
         "e.g.: \n"
-        " nnet-lstm-sentence-ppl --num-stream=40 --batch-size=15 --class-boundary=data/lang/class_boundary.txt nnet ark:features.ark ark,t:mlpoutput.txt\n";
+        " lm-lstm-test --num-stream=40 --batch-size=15 --class-zt=class_zt.txt --class-boundary=data/lang/class_boundary.txt nnet ark:features.ark (ark,t:mlpoutput.txt)\n";
 
     ParseOptions po(usage);
 
     std::string classboundary_file = "";
     po.Register("class-boundary", &classboundary_file, "The fist index of each class(and final class class) in class based language model");
+
+    std::string classzt_file = "";
+    po.Register("class-zt", &classzt_file, "The constant zt<sum(exp(yi))> of each class(and final class class) in class based language model");
 
     std::string use_gpu="no";
     po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
@@ -63,14 +66,14 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 3) {
+    if (po.NumArgs() < 2 || po.NumArgs() > 3) {
       po.PrintUsage();
       exit(1);
     }
 
     std::string model_filename = po.GetArg(1),
         feature_rspecifier = po.GetArg(2),
-        feature_wspecifier = po.GetArg(3);
+		feature_wspecifier = po.GetArg(3);
         
     //Select the GPU
 #if HAVE_CUDA==1
@@ -82,16 +85,16 @@ int main(int argc, char *argv[]) {
 
     NnetLmUtil util;
     ClassAffineTransform *class_affine = NULL;
-    //WordVectorTransform *word_transf = NULL;
-    CBSoftmax *cb_softmax = NULL;
-    for (int32 c = 0; c < nnet.NumComponents(); c++)
+
+    // using activations directly: remove cbsoftmax, if use constant class zt
+    if (classzt_file != "")
     {
-    	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
-    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
-    	/*else if (nnet.GetComponent(c).GetType() == Component::kWordVectorTransform)
-    		word_transf = &(dynamic_cast<WordVectorTransform&>(nnet.GetComponent(c))); */
-    	else if (nnet.GetComponent(c).GetType() == Component::kCBSoftmax)
-    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
+    	if (nnet.GetComponent(nnet.NumComponents()-1).GetType() == kaldi::nnet1::Component::kCBSoftmax) {
+    		KALDI_LOG << "Removing cbsoftmax from the nnet " << model_filename;
+    		nnet.RemoveComponent(nnet.NumComponents()-1);
+		} else {
+		  KALDI_LOG << "The nnet was without cbsoftmax " << model_filename;
+		}
     }
 
     std::vector<int32> class_boundary, word2class;
@@ -105,18 +108,27 @@ int main(int argc, char *argv[]) {
 	    util.SetClassBoundary(classinfo, class_boundary, word2class);
     }
 
+    Vector<BaseFloat> class_zt;
+    if (classzt_file != "")
+    {
+	    Input in;
+	    in.OpenTextMode(classzt_file);
+	    class_zt.Read(in.Stream(), false);
+	    in.Close();
+    }
+
     CBXent cbxent;
     Xent xent;
 
     if (NULL != class_affine)
     {
 	    class_affine->SetClassBoundary(class_boundary);
-        cb_softmax->SetClassBoundary(class_boundary);
         cbxent.SetClassBoundary(class_boundary);
+        cbxent.SetConstClassZt(class_zt);
     }
 
     // disable dropout,
-    nnet.SetDropoutRetention(1.0);
+    // nnet.SetDropoutRetention(1.0);
 
     SequentialInt32VectorReader feature_reader(feature_rspecifier);
     BaseFloatVectorWriter feature_writer(feature_wspecifier);
@@ -174,7 +186,7 @@ int main(int argc, char *argv[]) {
     	    		    continue;
     	    		}
 
-    	    		if (utt_curt[s] > 0 && !utt_copied[s])
+    	    		if (feature_writer.IsOpen() && utt_curt[s] > 0 && !utt_copied[s])
     	    		{
     	    			feature_writer.Write(keys[s], utt_feats[s]);
     	    			utt_copied[s] = true;
@@ -255,7 +267,6 @@ int main(int argc, char *argv[]) {
     		        	util.SortUpdateClass(target, sorted_target, sortedclass_target,
     			        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask, word2class);
     			        class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
-    			        cb_softmax->SetUpdateClassId(sortedclass_target);
     		        }
 
 
@@ -276,14 +287,17 @@ int main(int argc, char *argv[]) {
     		        	xent.GetTargetWordPosterior(log_post_tgt);
     		        }
 
-    		       for (int t = 0; t < batch_size; t++) {
-    		           for (int s = 0; s < num_stream; s++) {
-						   if (utt_curt[s] < lent[s]) {
-							   utt_feats[s](utt_curt[s]) = log_post_tgt(t * num_stream + s);
-							   utt_curt[s]++;
+    		        if (feature_writer.IsOpen())
+    		        {
+					   for (int t = 0; t < batch_size; t++) {
+						   for (int s = 0; s < num_stream; s++) {
+							   if (utt_curt[s] < lent[s]) {
+								   utt_feats[s](utt_curt[s]) = log_post_tgt(t * num_stream + s);
+								   utt_curt[s]++;
+							   }
 						   }
-    		           }
-    		       }
+					   }
+    		        }
 
     		       total_frames += num_frames;
     	    }
@@ -292,6 +306,11 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "Done " << num_done << " files"
               << " in " << time.Elapsed()/60 << "min,"
               << " (fps " << total_frames/time.Elapsed() << ")";
+
+    if (NULL != class_affine)
+    	cbxent.Report();
+    else
+    	xent.Report();
 
 #if HAVE_CUDA==1
     if (kaldi::g_kaldi_verbose_level >= 1) {

@@ -365,7 +365,8 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  SetStream(class_diff_, streamlist_);
 	  SetStream(class_xentropy_aux_, streamlist_);
 	  SetStream(class_entropy_aux_, streamlist_);
-	  SetStream(*class_frame_zt_ptr_, streamlist_);
+	  if (class_frame_zt_ptr_ != NULL)
+		  SetStream(*class_frame_zt_ptr_, streamlist_);
 
 	  GenTargetStreamed(class_target_, tgt_id_);
 
@@ -379,7 +380,8 @@ void CBXent::Eval(const VectorBase<BaseFloat> &frame_weights,
 	  ResetStream(class_diff_);
 	  ResetStream(class_xentropy_aux_);
 	  ResetStream(class_entropy_aux_);
-	  ResetStream(*class_frame_zt_ptr_);
+	  if (class_frame_zt_ptr_ != NULL)
+		  ResetStream(*class_frame_zt_ptr_);
 
 }
 
@@ -408,6 +410,7 @@ void CBXent::Eval() {
 
   if (var_penalty_ != 0)
   {
+	  	KALDI_ASSERT(class_frame_zt_ptr_ != NULL);
 		// constant normalizing (for each class per frame), zt = sum(exp(y)), log(zt)
 		MulElementsStreamed(*class_frame_zt_ptr_, class_frame_weights_);
         //KALDI_ASSERT(KALDI_ISFINITE(frame_zt_ptr_->Sum()));
@@ -444,6 +447,16 @@ void CBXent::Eval() {
   }
   AddMatStreamed(static_cast<BaseFloat>(-1.0f), class_diff_, class_target_);
   MulRowsVecStreamed(class_diff_, class_frame_weights_); // weighting,
+
+  // for constant class zt
+  if (const_class_zt_.size() == class_boundary_.size())
+  {
+	  std::vector<BaseFloat> class_zt(class_netout_.size());
+	  for (int i = 0; i < class_netout_.size(); i++)
+		  class_zt[i] = -const_class_zt_[class_id_[i]];
+	  AddStreamed(class_netout_, class_zt);
+	  ApplyExpStreamed(class_netout_);
+  }
 
   // evaluate the frame-level classification,
   FindMaxIdPerRowStreamed(class_netout_, max_id_out_);

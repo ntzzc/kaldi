@@ -165,6 +165,13 @@ class CBXent {
 	  class_frame_zt_ptr_ = class_frame_zt_ptr;
   }
 
+  void SetConstClassZt(Vector<BaseFloat> &classzt) {
+	  int size = classzt.Dim();
+	  const_class_zt_.resize(size);
+	  for (int i = 0; i < size; i++)
+		  const_class_zt_[i] = const_class_zt_(i);
+  }
+
  private:
   double frames_;
   double correct_;
@@ -225,6 +232,8 @@ class CBXent {
   // minbatch buffer
   std::vector<int> class_counts_;
   std::vector<int> class_id_;
+  // constant class zt
+  std::vector<float> const_class_zt_;
 
 
 #if HAVE_CUDA == 1

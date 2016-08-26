@@ -126,7 +126,7 @@ inline void cuda_apply_pow(dim3 Gr, dim3 Bl, float* mat, float power, MatrixDim 
 inline void cuda_apply_pow_abs(dim3 Gr, dim3 Bl, float* mat, float power, bool include_sign, MatrixDim dim) { cudaF_apply_pow_abs(Gr,Bl,mat,power,include_sign, dim); }
 inline void cuda_apply_heaviside(dim3 Gr, dim3 Bl, float* mat, MatrixDim dim) { cudaF_apply_heaviside(Gr,Bl,mat,dim); }
 inline void cuda_apply_floor(dim3 Gr, dim3 Bl, float* mat, float floor_val, MatrixDim dim) { cudaF_apply_floor(Gr,Bl,mat,floor_val,dim); }
-inline void cuda_apply_ceiling(dim3 Gr, dim3 Bl, float* mat, float ceiling_val, MatrixDim dim) { cudaF_apply_ceiling(Gr,Bl,mat,ceiling_val,dim); }
+inline void cuda_apply_ceiling(dim3 Gr, dim3 Bl, float* mat, float ceiling_val, MatrixDim dim, cudaStream_t s=NULL) { cudaF_apply_ceiling(Gr,Bl,mat,ceiling_val,dim,s); }
 inline void cuda_copy_cols(dim3 Gr, dim3 Bl, float* dst, const float* src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, int src_stride) {
   cudaF_copy_cols(Gr, Bl, dst, src, reorder, dst_dim, src_stride);
 }
@@ -158,7 +158,7 @@ inline void cuda_set_zero_above_diag(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) 
 inline void cuda_add(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d, cudaStream_t s=NULL) { cudaF_add(Gr,Bl,mat,value,d,s); }
 inline void cuda_add_vec2(dim3 Gr, dim3 Bl, float *mat, const float *vec, const float alpha, int dim) { cudaF_add_vec2(Gr,Bl,mat,vec,alpha,dim); }
 inline void cuda_scale_diag_packed(int Gr, int Bl, float* mat, float value, int dim) { cudaF_scale_diag_packed(Gr,Bl,mat,value,dim); }
-inline void cuda_scale(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d) { cudaF_scale(Gr,Bl,mat,value,d); }
+inline void cuda_scale(dim3 Gr, dim3 Bl, float *mat, float value, MatrixDim d, cudaStream_t s=NULL) { cudaF_scale(Gr,Bl,mat,value,d,s); }
 inline void cuda_apply_log(dim3 Gr, dim3 Bl, float *mat, MatrixDim d) { cudaF_apply_log(Gr,Bl,mat,d); }
 inline void cuda_mul_elements(dim3 Gr, dim3 Bl, float *mat, const float *A, MatrixDim dst_d, int src_stride) {
   cudaF_mul_elements(Gr,Bl,mat,A,dst_d,src_stride);
@@ -429,7 +429,7 @@ inline void cuda_apply_pow(dim3 Gr, dim3 Bl, double* mat, double power, MatrixDi
 inline void cuda_apply_pow_abs(dim3 Gr, dim3 Bl, double* mat, double power, bool include_sign, MatrixDim dim) { cudaD_apply_pow_abs(Gr,Bl,mat,power,include_sign,dim); }
 inline void cuda_apply_heaviside(dim3 Gr, dim3 Bl, double* mat, MatrixDim dim) { cudaD_apply_heaviside(Gr,Bl,mat,dim); }
 inline void cuda_apply_floor(dim3 Gr, dim3 Bl, double* mat, double floor_val, MatrixDim dim) { cudaD_apply_floor(Gr,Bl,mat,floor_val,dim); }
-inline void cuda_apply_ceiling(dim3 Gr, dim3 Bl, double* mat, double ceiling_val, MatrixDim dim) { cudaD_apply_ceiling(Gr,Bl,mat,ceiling_val,dim); }
+inline void cuda_apply_ceiling(dim3 Gr, dim3 Bl, double* mat, double ceiling_val, MatrixDim dim, cudaStream_t s=NULL) { cudaD_apply_ceiling(Gr,Bl,mat,ceiling_val,dim,s); }
 inline void cuda_copy_cols(dim3 Gr, dim3 Bl, double* dst, const double* src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, int src_stride) {
   cudaD_copy_cols(Gr, Bl, dst, src, reorder, dst_dim, src_stride);
 }
@@ -461,7 +461,7 @@ inline void cuda_set_zero_above_diag(dim3 Gr, dim3 Bl, double* mat, MatrixDim d)
 inline void cuda_add(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d, cudaStream_t s=NULL) { cudaD_add(Gr,Bl,mat,value,d,s); }
 inline void cuda_add_vec2(dim3 Gr, dim3 Bl, double *mat, const double *vec, const double alpha, int dim) { cudaD_add_vec2(Gr,Bl,mat,vec,alpha,dim); }
 inline void cuda_scale_diag_packed(int Gr, int Bl, double* mat, double value, int dim) { cudaD_scale_diag_packed(Gr,Bl,mat,value,dim); }
-inline void cuda_scale(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d) { cudaD_scale(Gr,Bl,mat,value,d); }
+inline void cuda_scale(dim3 Gr, dim3 Bl, double *mat, double value, MatrixDim d, cudaStream_t s=NULL) { cudaD_scale(Gr,Bl,mat,value,d,s); }
 inline void cuda_apply_log(dim3 Gr, dim3 Bl, double *mat, MatrixDim d) { cudaD_apply_log(Gr,Bl,mat,d); }
 inline void cuda_mul_elements(dim3 Gr, dim3 Bl, double *mat, const double *A, MatrixDim dst_d, int src_stride) {
   cudaD_mul_elements(Gr,Bl,mat,A,dst_d,src_stride);

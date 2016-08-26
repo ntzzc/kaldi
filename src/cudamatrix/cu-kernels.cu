@@ -2602,8 +2602,8 @@ void cudaF_apply_floor(dim3 Gr, dim3 Bl, float* mat, float floor_val, MatrixDim 
   _apply_floor<<<Gr,Bl>>>(mat, floor_val, d);
 }
 
-void cudaF_apply_ceiling(dim3 Gr, dim3 Bl, float* mat, float ceiling_val, MatrixDim d) {
-  _apply_ceiling<<<Gr,Bl>>>(mat, ceiling_val, d);
+void cudaF_apply_ceiling(dim3 Gr, dim3 Bl, float* mat, float ceiling_val, MatrixDim d, cudaStream_t s) {
+  _apply_ceiling<<<Gr,Bl,0,s>>>(mat, ceiling_val, d);
 }
 
 void cudaF_set_diag(int Gr, int Bl, float* mat, float value, MatrixDim d) {
@@ -2634,8 +2634,8 @@ void cudaF_scale_diag_packed(int Gr, int Bl, float* mat, float value, int dim) {
   _scale_diag_packed<<<Gr,Bl>>>(mat,value,dim);
 }
 
-void cudaF_scale(dim3 Gr, dim3 Bl, float* mat, float value, MatrixDim d) {
-  _scale<<<Gr,Bl>>>(mat,value,d);
+void cudaF_scale(dim3 Gr, dim3 Bl, float* mat, float value, MatrixDim d, cudaStream_t s) {
+  _scale<<<Gr,Bl,0,s>>>(mat,value,d);
 }
 
 void cudaF_apply_log(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) {
@@ -3136,8 +3136,8 @@ void cudaD_apply_floor(dim3 Gr, dim3 Bl, double* mat, double floor_val, MatrixDi
   _apply_floor<<<Gr,Bl>>>(mat, floor_val, d);
 }
 
-void cudaD_apply_ceiling(dim3 Gr, dim3 Bl, double* mat, double ceiling_val, MatrixDim d) {
-  _apply_ceiling<<<Gr,Bl>>>(mat, ceiling_val, d);
+void cudaD_apply_ceiling(dim3 Gr, dim3 Bl, double* mat, double ceiling_val, MatrixDim d, cudaStream_t s) {
+  _apply_ceiling<<<Gr,Bl,0,s>>>(mat, ceiling_val, d);
 }
 
 void cudaD_set_diag(int Gr, int Bl, double* mat, double value, MatrixDim d) {
@@ -3168,8 +3168,8 @@ void cudaD_scale_diag_packed(int Gr, int Bl, double* mat, double value, int dim)
   _scale_diag_packed<<<Gr,Bl>>>(mat,value,dim);
 }
 
-void cudaD_scale(dim3 Gr, dim3 Bl, double* mat, double value, MatrixDim d) {
-  _scale<<<Gr,Bl>>>(mat,value,d);
+void cudaD_scale(dim3 Gr, dim3 Bl, double* mat, double value, MatrixDim d, cudaStream_t s) {
+  _scale<<<Gr,Bl,0,s>>>(mat,value,d);
 }
 
 void cudaD_apply_log(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) {
