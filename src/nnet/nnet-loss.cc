@@ -605,9 +605,6 @@ void CBXent::Merge(int myid, int root)
 	MPI_Reduce(addr, (void*)(&this->correct_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 
 
-	MPI_Reduce(addr, (void*)(&this->correct_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
-
-
 	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->loss_));
 	MPI_Reduce(addr, (void*)(&this->loss_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 
@@ -1138,6 +1135,9 @@ void Ctc::ErrorRateMSeq(const std::vector<int> &frame_num_utt, const CuMatrixBas
     int32 i = 1, j = 1;
     while(j < num_frame) {
       if (raw_hyp_seq[j] != raw_hyp_seq[j-1]) {
+        raw_hyp_seq[i] = raw_hyp_seq[j];
+        i++;
+      }
       j++;
     }
     std::vector<int32> hyp_seq(0);
