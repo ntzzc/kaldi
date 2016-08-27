@@ -115,6 +115,9 @@ void ScaleStreamed(std::vector<CuSubMatrix<Real>* > &mat, std::vector<Real> &val
 template<typename Real>
 void AddStreamed(std::vector<CuSubMatrix<Real>* > &mat, std::vector<Real> &value);
 
+template<typename Real>
+void ApplyCeilingStreamed(std::vector<CuSubMatrix<Real>* > &mat, std::vector<Real> &value);
+
 /**
  * Matrix for CUDA computing.
  * Does the computation on the CUDA card when CUDA is compiled in and

@@ -1,4 +1,4 @@
-// lmbin/nnet-lstm-sentence-ppl.cc
+// nnetbin/nnet-lstm-sentence-ppl.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
   using namespace kaldi::nnet1;
   try {
     const char *usage =
-        "Test model perplexity(with constant variance regularization).\n"
+        "Compute log target posterior pass through Neural Network.\n"
         "\n"
         "Usage:  nnet-lstm-sentence-ppl [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
         "e.g.: \n"
@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
     		        if (NULL != class_affine) {
     		        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff);
     		        	cbxent.GetTargetWordPosterior(log_post_tgt_sorted);
-    	   		    	for (int i = 0; i <= num_frames; i++)
+    	   		    	for (int i = 0; i < num_frames; i++)
     	   		    		log_post_tgt(i) = log_post_tgt_sorted(sortedclass_target_reindex[i]);
     		        } else {
     		        	xent.Eval(frame_mask, nnet_out, target, &nnet_diff);
@@ -292,6 +292,11 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "Done " << num_done << " files"
               << " in " << time.Elapsed()/60 << "min,"
               << " (fps " << total_frames/time.Elapsed() << ")";
+
+    if (NULL != class_affine)
+    	KALDI_LOG << cbxent.Report();
+    else
+    	KALDI_LOG << xent.Report();
 
 #if HAVE_CUDA==1
     if (kaldi::g_kaldi_verbose_level >= 1) {

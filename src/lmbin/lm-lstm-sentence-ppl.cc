@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
         "\n"
         "Usage:  lm-lstm-sentence-ppl [options] <model-in> <feature-rspecifier> [<feature-wspecifier>]. \n"
         "e.g.: \n"
-        " lm-lstm-test --num-stream=40 --batch-size=15 --class-zt=class_zt.txt --class-boundary=data/lang/class_boundary.txt nnet ark:features.ark (ark,t:mlpoutput.txt)\n";
+        " lm-lstm-sentence-ppl --num-stream=40 --batch-size=15 --class-zt=class_zt.txt --class-boundary=data/lang/class_boundary.txt nnet ark:features.ark (ark,t:mlpoutput.txt)\n";
 
     ParseOptions po(usage);
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     std::string model_filename = po.GetArg(1),
         feature_rspecifier = po.GetArg(2),
-		feature_wspecifier = po.GetArg(3);
+		feature_wspecifier = po.GetOptArg(3);
         
     //Select the GPU
 #if HAVE_CUDA==1
@@ -82,9 +82,6 @@ int main(int argc, char *argv[]) {
 
     Nnet nnet;
     nnet.Read(model_filename);
-
-    NnetLmUtil util;
-    ClassAffineTransform *class_affine = NULL;
 
     // using activations directly: remove cbsoftmax, if use constant class zt
     if (classzt_file != "")
@@ -95,6 +92,20 @@ int main(int argc, char *argv[]) {
 		} else {
 		  KALDI_LOG << "The nnet was without cbsoftmax " << model_filename;
 		}
+    }
+
+    NnetLmUtil util;
+    ClassAffineTransform *class_affine = NULL;
+    //WordVectorTransform *word_transf = NULL;
+    CBSoftmax *cb_softmax = NULL;
+    for (int32 c = 0; c < nnet.NumComponents(); c++)
+    {
+    	if (nnet.GetComponent(c).GetType() == Component::kClassAffineTransform)
+    		class_affine = &(dynamic_cast<ClassAffineTransform&>(nnet.GetComponent(c)));
+    	/*else if (nnet.GetComponent(c).GetType() == Component::kWordVectorTransform)
+    		word_transf = &(dynamic_cast<WordVectorTransform&>(nnet.GetComponent(c))); */
+    	else if (nnet.GetComponent(c).GetType() == Component::kCBSoftmax)
+    		cb_softmax = &(dynamic_cast<CBSoftmax&>(nnet.GetComponent(c)));
     }
 
     std::vector<int32> class_boundary, word2class;
@@ -126,6 +137,8 @@ int main(int argc, char *argv[]) {
         cbxent.SetClassBoundary(class_boundary);
         cbxent.SetConstClassZt(class_zt);
     }
+    if (NULL != cb_softmax)
+        cb_softmax->SetClassBoundary(class_boundary);
 
     // disable dropout,
     // nnet.SetDropoutRetention(1.0);
@@ -268,6 +281,8 @@ int main(int argc, char *argv[]) {
     			        		sortedclass_target_index, sortedclass_target_reindex, frame_mask, sorted_frame_mask, word2class);
     			        class_affine->SetUpdateClassId(sortedclass_target, sortedclass_target_index, sortedclass_target_reindex);
     		        }
+                    if (NULL != cb_softmax)
+    			        cb_softmax->SetUpdateClassId(sortedclass_target);
 
 
     		        // forward pass
@@ -280,7 +295,7 @@ int main(int argc, char *argv[]) {
     		        if (NULL != class_affine) {
     		        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff);
     		        	cbxent.GetTargetWordPosterior(log_post_tgt_sorted);
-    	   		    	for (int i = 0; i <= num_frames; i++)
+    	   		    	for (int i = 0; i < num_frames; i++)
     	   		    		log_post_tgt(i) = log_post_tgt_sorted(sortedclass_target_reindex[i]);
     		        } else {
     		        	xent.Eval(frame_mask, nnet_out, target, &nnet_diff);
@@ -308,9 +323,9 @@ int main(int argc, char *argv[]) {
               << " (fps " << total_frames/time.Elapsed() << ")";
 
     if (NULL != class_affine)
-    	cbxent.Report();
+    	KALDI_LOG << cbxent.Report();
     else
-    	xent.Report();
+    	KALDI_LOG << xent.Report();
 
 #if HAVE_CUDA==1
     if (kaldi::g_kaldi_verbose_level >= 1) {

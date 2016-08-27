@@ -169,7 +169,7 @@ class CBXent {
 	  int size = classzt.Dim();
 	  const_class_zt_.resize(size);
 	  for (int i = 0; i < size; i++)
-		  const_class_zt_[i] = const_class_zt_(i);
+		  const_class_zt_[i] = classzt(i);
   }
 
  private:

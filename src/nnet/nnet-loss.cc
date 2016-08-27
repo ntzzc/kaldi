@@ -452,6 +452,11 @@ void CBXent::Eval() {
   if (const_class_zt_.size() == class_boundary_.size())
   {
 	  std::vector<BaseFloat> class_zt(class_netout_.size());
+      /* 
+	  for (int i = 0; i < class_netout_.size(); i++)
+		  class_zt[i] = const_class_zt_[class_id_[i]];
+      ApplyCeilingStreamed(class_netout_, class_zt);
+      */
 	  for (int i = 0; i < class_netout_.size(); i++)
 		  class_zt[i] = -const_class_zt_[class_id_[i]];
 	  AddStreamed(class_netout_, class_zt);
@@ -545,17 +550,28 @@ std::string CBXent::Report() {
      oss << "]" << std::endl;
   }
   if (var_penalty_ != 0 && class_zt_variance_.size() > 0) {
-	 for (int i = 0; i < class_zt_variance_.size(); i++)
-     {
-	  	class_zt_variance_[i] = (class_frames_[i] == 0 ? 0 : class_zt_variance_[i]/class_frames_[i]);
-        class_zt_mean_[i] = (class_frames_[i] == 0 ? 0 : class_zt_mean_[i]/class_frames_[i]);
-     }
-	 oss << "class zt variance: [";
-	 std::copy(class_zt_variance_.begin(),class_zt_variance_.end(),std::ostream_iterator<float>(oss," "));
+     std::vector<double> buffer(class_zt_variance_.size());
+
+     // zt variance
 	 oss << "]" << std::endl;
-	 oss << "class zt mean: [";
-	 std::copy(class_zt_mean_.begin(),class_zt_mean_.end(),std::ostream_iterator<float>(oss," "));
+	 for (int i = 0; i < buffer.size(); i++)
+        buffer[i] = (class_frames_[i] == 0 ? 0 : class_zt_variance_[i]/class_frames_[i]);
+	 oss << "class zt variance: [ ";
+	 std::copy(buffer.begin(),buffer.end(),std::ostream_iterator<float>(oss," "));
 	 oss << "]" << std::endl;
+
+     // zt mean
+	 for (int i = 0; i < buffer.size(); i++)
+        buffer[i] = (class_frames_[i] == 0 ? 0 : class_zt_mean_[i]/class_frames_[i]);
+	 oss << "class zt mean: [ ";
+	 std::copy(buffer.begin(),buffer.end(),std::ostream_iterator<float>(oss," "));
+	 oss << "]" << std::endl;
+
+     /*
+	 oss << "class frame count: [ ";
+	 std::copy(class_frames_.begin(),class_frames_.end(),std::ostream_iterator<float>(oss," "));
+	 oss << "]" << std::endl;
+     */
   }
   if (correct_ >= 0.0) {
     oss << "PPL >> " << ppl_ << " <<" << std::endl;
@@ -617,7 +633,6 @@ void CBXent::Merge(int myid, int root)
 	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->correct_));
 	MPI_Reduce(addr, (void*)(&this->correct_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 
-
 	addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->loss_));
 	MPI_Reduce(addr, (void*)(&this->loss_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 
@@ -630,7 +645,7 @@ void CBXent::Merge(int myid, int root)
 	{
 		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
 		MPI_Reduce(addr, (void*)(&this->logzt_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
-		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_));
+		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_variance_));
 		MPI_Reduce(addr, (void*)(&this->logzt_variance_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->class_zt_variance_.front()));
 		MPI_Reduce(addr, (void*)(&this->class_zt_variance_.front()), this->class_zt_variance_.size(), MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
