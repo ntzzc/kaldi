@@ -1,5 +1,6 @@
 // nnet/nnet-convolutional-component-fast.h
 
+// Copyright 2015-2016  Shanghai Jiao Tong University (author: Wei Deng)
 // Copyright 2014-2015  Johns Hopkins University (author: Sri Harish Mallidi)
 //                      Brno University of Technology (author: Karel Vesely),
 //
