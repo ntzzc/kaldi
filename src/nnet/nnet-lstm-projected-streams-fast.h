@@ -58,7 +58,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     nrecur_(output_dim),
     nstream_(0),
     ntruncated_bptt_size_(0),
-    clip_gradient_(0.0),
+    clip_gradient_(0.0), clip_cell_(50.0),
 	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
     //, dropout_rate_(0.0)
   { }
@@ -95,6 +95,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
         ReadBasicType(is, false, &ncell_);
       else if (token == "<ClipGradient>")
         ReadBasicType(is, false, &clip_gradient_);
+      else if (token == "<ClipCell>")
+        ReadBasicType(is, false, &clip_cell_);
       //else if (token == "<DropoutRate>")
       //  ReadBasicType(is, false, &dropout_rate_);
       else if (token == "<ParamScale>")
@@ -142,6 +144,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     w_r_m_corr_.Resize(nrecur_, ncell_, kSetZero);
 
     KALDI_ASSERT(clip_gradient_ >= 0.0);
+    KALDI_ASSERT(clip_cell_ >= 0.0);
   }
 
   void ReadData(std::istream &is, bool binary) {
@@ -161,6 +164,11 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     ReadBasicType(is, binary, &ncell_);
     ExpectToken(is, binary, "<ClipGradient>");
     ReadBasicType(is, binary, &clip_gradient_);
+    // optional cell activation cliping value
+    if ('<' == Peek(is, binary)) {
+        ExpectToken(is, binary, "<ClipCell>");
+        ReadBasicType(is, binary, &clip_cell_);
+    }
     //ExpectToken(is, binary, "<DropoutRate>");
     //ReadBasicType(is, binary, &dropout_rate_);
 
@@ -198,6 +206,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     WriteBasicType(os, binary, ncell_);
     WriteToken(os, binary, "<ClipGradient>");
     WriteBasicType(os, binary, clip_gradient_);
+    if (clip_cell_ != 50.0) {
+        WriteToken(os, binary, "<ClipCell>");
+        WriteBasicType(os, binary, clip_cell_);
+    }
     //WriteToken(os, binary, "<DropoutRate>");
     //WriteBasicType(os, binary, dropout_rate_);
 
@@ -466,8 +478,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
       // c(t-1) -> c(t) via forget-gate
       y_c[t]->AddMatMatElements(1.0, *y_c[t-1], *y_f[t], 1.0);
 
-      y_c[t]->ApplyFloor(-50);   // optional clipping of cell activation
-      y_c[t]->ApplyCeiling(50);  // google paper Interspeech2014: LSTM for LVCSR
+      y_c[t]->ApplyFloor(-clip_cell_);   // optional clipping of cell activation
+      y_c[t]->ApplyCeiling(clip_cell_);  // google paper Interspeech2014: LSTM for LVCSR
 
       // h tanh squashing
       y_h[t]->Tanh(*y_c[t]);
@@ -1037,6 +1049,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 
   // gradient-clipping value,
   BaseFloat clip_gradient_;
+  // cell activation clipping value,
+  BaseFloat clip_cell_;
 
   // non-recurrent dropout
   //BaseFloat dropout_rate_;

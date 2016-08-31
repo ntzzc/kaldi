@@ -85,13 +85,14 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
   void InitData(std::istream &is) {
     // define options
-    BaseFloat bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1;
+    BaseFloat bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1, param_range = 0.0;
     BaseFloat learn_rate_coef = 1.0, bias_learn_rate_coef = 1.0;
     // parse config
     std::string token;
     while (!is.eof()) {
       ReadToken(is, false, &token);
       /**/ if (token == "<ParamStddev>") ReadBasicType(is, false, &param_stddev);
+      else if (token == "<ParamRange>")   ReadBasicType(is, false, &param_range);
       else if (token == "<BiasMean>")    ReadBasicType(is, false, &bias_mean);
       else if (token == "<BiasRange>")   ReadBasicType(is, false, &bias_range);
       else if (token == "<FmapXLen>")    ReadBasicType(is, false, &fmap_x_len_);
@@ -136,7 +137,10 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     for (int32 r = 0; r < num_filters; r++) {
       for (int32 c = 0; c < num_input_fmaps*filt_x_len_*filt_y_len_; c++) {
         // 0-mean Gauss with given std_dev
-        mat(r, c) = param_stddev * RandGauss();
+        if (param_range == 0.0)
+            mat(r, c) = param_stddev * RandGauss();
+        else
+            mat(r,c) = param_range * (RandUniform() - 0.5) * 2;
       }
     }
     filters_ = mat;
