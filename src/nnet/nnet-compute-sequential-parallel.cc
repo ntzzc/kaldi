@@ -211,16 +211,13 @@ private:
 	void inline MPEObj(Matrix<BaseFloat> &nnet_out_h, MatrixBase<BaseFloat> &nnet_diff_h,
 				TransitionModel *trans_model, SequentialNnetExample *example,
 				std::vector<int32> &silence_phones, double &total_frame_acc, int32 num_done,
-				CuMatrix<BaseFloat> *soft_nnet_out, CuMatrix<BaseFloat> *si_nnet_out=NULL)
+				Matrix<BaseFloat> &soft_nnet_out_h, Matrix<BaseFloat> &si_nnet_out_h)
 	{
 		std::string utt = example->utt;
-		//const Matrix<BaseFloat> &mat = example->input_frames;
 		const std::vector<int32> &num_ali = example->num_ali;
 		Lattice &den_lat = example->den_lat;
 		std::vector<int32> &state_times = example->state_times;
 
-		Matrix<BaseFloat>  si_nnet_out_h, soft_nnet_out_h;
-		//Matrix<BaseFloat>  nnet_out_h, nnet_diff_h;
 		CuMatrix<BaseFloat> nnet_diff;
 		int num_frames, num_pdfs;
 	    double utt_frame_acc;
@@ -229,25 +226,9 @@ private:
 		num_frames = nnet_out_h.NumRows();
 		num_pdfs = nnet_out_h.NumCols();
 
-	    // transfer it back to the host
-		//nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-		//nnet_out.CopyToMat(&nnet_out_h);
-
-
-		if (this->kld_scale > 0 || this->frame_smooth > 0)
-		{
-			soft_nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-			soft_nnet_out->CopyToMat(&soft_nnet_out_h);
-		}
-
 		if (this->kld_scale > 0)
-		{
-			si_nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-			si_nnet_out->CopyToMat(&si_nnet_out_h);
-
-			//soft_nnet_out_h.AddMat(-1.0, si_nnet_out_h);
 			si_nnet_out_h.AddMat(-1.0, soft_nnet_out_h);
-		}
+
 
 		// 4) rescore the latice
 		if (trans_model != NULL)
@@ -333,16 +314,13 @@ private:
 	void inline MMIObj(Matrix<BaseFloat> &nnet_out_h, MatrixBase<BaseFloat> &nnet_diff_h,
 				TransitionModel *trans_model, SequentialNnetExample *example,
 				double &total_mmi_obj, double &total_post_on_ali, int32 &num_frm_drop, int32 num_done,
-				CuMatrix<BaseFloat> *soft_nnet_out, CuMatrix<BaseFloat> *si_nnet_out=NULL)
+				Matrix<BaseFloat> &soft_nnet_out_h, Matrix<BaseFloat> &si_nnet_out_h)
 	{
 		std::string utt = example->utt;
-		//const Matrix<BaseFloat> &mat = example->input_frames;
 		const std::vector<int32> &num_ali = example->num_ali;
 		Lattice &den_lat = example->den_lat;
 		std::vector<int32> &state_times = example->state_times;
 
-		Matrix<BaseFloat>  si_nnet_out_h, soft_nnet_out_h;
-		//Matrix<BaseFloat>  nnet_out_h, nnet_diff_h;
 		int num_frames, num_pdfs;
 	    double lat_like; // total likelihood of the lattice
 	    double lat_ac_like; // acoustic likelihood weighted by posterior.
@@ -352,25 +330,8 @@ private:
 		num_frames = nnet_out_h.NumRows();
 		num_pdfs = nnet_out_h.NumCols();
 
-	    // transfer it back to the host
-		//nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-		//nnet_out.CopyToMat(&nnet_out_h);
-
-
-		if (this->kld_scale > 0 || this->frame_smooth > 0)
-		{
-			soft_nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-			soft_nnet_out->CopyToMat(&soft_nnet_out_h);
-		}
-
 		if (this->kld_scale > 0)
-		{
-			si_nnet_out_h.Resize(num_frames,num_pdfs, kUndefined);
-			si_nnet_out->CopyToMat(&si_nnet_out_h);
-
-			//soft_nnet_out_h.AddMat(-1.0, si_nnet_out_h);
 			si_nnet_out_h.AddMat(-1.0, soft_nnet_out_h);
-		}
 
 
 		// 4) rescore the latice
@@ -616,9 +577,8 @@ private:
 	    Timer time;
 	    double time_now = 0;
 
-		CuMatrix<BaseFloat> cu_feats, feats_transf, nnet_out, nnet_diff,
-							si_nnet_out, soft_nnet_out, *p_si_nnet_out=NULL, *p_soft_nnet_out;
-		Matrix<BaseFloat> nnet_out_h, nnet_diff_h, *p_nnet_diff_h;
+		CuMatrix<BaseFloat> cu_feats, feats_transf, nnet_out, nnet_diff, si_nnet_out, soft_nnet_out;
+		Matrix<BaseFloat> nnet_out_h, nnet_diff_h, si_nnet_out_h, soft_nnet_out_h, *p_nnet_diff_h = NULL;
 
 
 		ModelMergeFunction *p_merge_func = model_sync->GetModelMergeFunction();
@@ -630,7 +590,8 @@ private:
 	    std::vector<int> frame_num_utt(num_stream, 0);
 	    std::vector<int> new_utt_flags;
 
-	    std::vector<Matrix<BaseFloat> > utt_feats(num_stream);
+	    std::vector<Matrix<BaseFloat> > utt_nnet_out_h(num_stream),
+	    		utt_si_nnet_out_h(num_stream), utt_soft_nnet_out_h(num_stream);
 	    std::vector<int> utt_curt(num_stream, 0);
 	    std::vector<SequentialNnetExample *> utt_examples(num_stream);
 	    std::vector<bool> utt_copied(num_stream, 0);
@@ -644,7 +605,7 @@ private:
 
 	    Matrix<BaseFloat> feat;
 	    Matrix<BaseFloat> diff_feat;
-	    Matrix<BaseFloat> nnet_out_host;
+	    Matrix<BaseFloat> nnet_out_host, si_nnet_out_host, soft_nnet_out_host;
 
 
 		//double t1, t2, t3, t4;
@@ -684,7 +645,7 @@ private:
 
 						// skip frames
 						frame_num_utt[s] = example->num_ali.size();
-						utt_feats[s].Resize(frame_num_utt[s], out_dim, kSetZero);
+						utt_nnet_out_h[s].Resize(frame_num_utt[s], out_dim, kSetZero);
 						diff_utt_feats[s].Resize(frame_num_utt[s], out_dim, kSetZero);
 						utt_copied[s] = false;
 						utt_curt[s] = 0;
@@ -732,6 +693,20 @@ private:
 
 					// forward pass
 					nnet.Propagate(feats_transf, &nnet_out);
+
+					if (this->kld_scale > 0)
+					{
+						si_nnet.Propagate(feats_transf, &si_nnet_out);
+						si_nnet_out_host.Resize(max_frame_num * cur_stream_num, out_dim, kUndefined);
+						si_nnet_out.CopyToMat(&si_nnet_out_host);
+					}
+
+					if (this->kld_scale > 0 || frame_smooth > 0)
+					{
+						softmax.Propagate(nnet_out, &soft_nnet_out);
+						soft_nnet_out_host.Resize(max_frame_num * cur_stream_num, out_dim, kUndefined);
+						soft_nnet_out.CopyToMat(&soft_nnet_out_host);
+					}
 					/*
 						      if (!KALDI_ISFINITE(nnet_out.Sum())) { // check there's no nan/inf,
         						KALDI_ERR << "NaN or inf found in final output nnet-output for " << utt_examples[0]->utt ;
@@ -752,7 +727,11 @@ private:
 							   // feat shifting & padding
 							   for (int k = 0; k < skip_frames; k++) {
 								   if (utt_curt[s] < frame_num_utt[s]) {
-									   utt_feats[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * cur_stream_num + s));
+									   utt_nnet_out_h[s].Row(utt_curt[s]).CopyFromVec(nnet_out_host.Row(t * cur_stream_num + s));
+									   if (this->kld_scale > 0)
+										   utt_si_nnet_out_h[s].Row(utt_curt[s]).CopyFromVec(si_nnet_out_host.Row(t * cur_stream_num + s));
+									   if (this->kld_scale > 0 || frame_smooth > 0)
+										   utt_soft_nnet_out_h[s].Row(utt_curt[s]).CopyFromVec(soft_nnet_out_host.Row(t * cur_stream_num + s));
 									   utt_curt[s]++;
 								   }
 								}
@@ -768,15 +747,15 @@ private:
       							}*/   
 
 						if (this->criterion == "mmi")
-							MMIObj(utt_feats[s], diff_utt_feats[s],
+							MMIObj(utt_nnet_out_h[s], diff_utt_feats[s],
 					      				trans_model, utt_examples[s],
 					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
-										p_soft_nnet_out, p_si_nnet_out);
+										utt_soft_nnet_out_h[s], utt_si_nnet_out_h[s]);
 						else
-							MPEObj(utt_feats[s], diff_utt_feats[s],
+							MPEObj(utt_nnet_out_h[s], diff_utt_feats[s],
 				      				trans_model, utt_examples[s],
 									silence_phones, total_frame_acc, num_done,
-									p_soft_nnet_out, p_si_nnet_out);
+									utt_soft_nnet_out_h[s], utt_si_nnet_out_h[s]);
 
 						num_done++;
 
@@ -845,13 +824,15 @@ private:
 								  CuMatrix<BaseFloat> tmp(si_nnet_out);
 								  si_nnet_out = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
 							  }
-							  p_si_nnet_out = &si_nnet_out;
+							  si_nnet_out_h.Resize(si_nnet_out.NumRows(), si_nnet_out.NumCols(), kUndefined);
+							  si_nnet_out.CopyToMat(&si_nnet_out_h);
 						  }
 
 						  if (this->kld_scale > 0 || frame_smooth > 0)
 						  {
 							  softmax.Propagate(nnet_out, &soft_nnet_out);
-							  p_soft_nnet_out = &soft_nnet_out;
+							  soft_nnet_out_h.Resize(soft_nnet_out.NumRows(), soft_nnet_out.NumCols(), kUndefined);
+							  soft_nnet_out.CopyToMat(&soft_nnet_out_h);
 						  }
 
 						  // subtract the log_prior
@@ -869,12 +850,12 @@ private:
 							  MMIObj(nnet_out_h, nnet_diff_h,
 					      				trans_model, example,
 					      				total_mmi_obj, total_post_on_ali, num_frm_drop, num_done,
-										p_soft_nnet_out, p_si_nnet_out);
+										soft_nnet_out_h, si_nnet_out_h);
 						  else
 							  MPEObj(nnet_out_h, nnet_diff_h,
 					      				trans_model, example,
 										silence_phones, total_frame_acc, num_done,
-										p_soft_nnet_out, p_si_nnet_out);
+										soft_nnet_out_h, si_nnet_out_h);
 
 					      num_done++;
 					      p_nnet_diff_h = &nnet_diff_h;
