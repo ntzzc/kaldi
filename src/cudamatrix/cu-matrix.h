@@ -474,6 +474,12 @@ class CuMatrixBase {
   void MaxPoolingBackward(const CuMatrixBase<Real> &in, const CuMatrixBase<Real> &out, const CuMatrixBase<Real> &out_diff,
 		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_);
 
+  void PadFeatureMap(const CuMatrixBase<Real> &src, int num_input_fmaps, int fmap_x_len, int fmap_y_len,
+		  int pad_x_len, int pad_y_len, int connect_fmap = 1);
+
+  void WipeFeatureMap(const CuMatrixBase<Real> &src, int num_input_fmaps, int fmap_x_len, int fmap_y_len,
+		  int pad_x_len, int pad_y_len, int connect_fmap = 1);
+
   /////////////////////////////////////////////////////
   /////  RNN LSTM Training
   /////////////////////////////////////////////////////
