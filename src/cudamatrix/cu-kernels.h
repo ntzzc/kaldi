@@ -198,6 +198,12 @@ inline void cuda_max_pooling_backward(dim3 dimGrid, dim3 dimBlock, float *dst, c
 				int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
 { cudaF_max_pooling_backward(dimGrid, dimBlock, dst, in, out, out_diff, dstdim, indim, outdim, outdiffdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_); }
 
+inline void cuda_pad_feature_map(dim3 dimGrid, dim3 dimBlock, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap);
+
+inline void cuda_wipe_feature_map(dim3 dimGrid, dim3 dimBlock, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap);
+
 inline void cuda_sum_mats(dim3 dimGrid, dim3 dimBlock, float* dst, float **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
 { cudaF_sum_mats(dimGrid, dimBlock, dst, src_array, dstdim, srcdim, batchcount);}
 
@@ -500,6 +506,12 @@ inline void cuda_max_pooling_forward(dim3 dimGrid, dim3 dimBlock, double *dst, c
 inline void cuda_max_pooling_backward(dim3 dimGrid, dim3 dimBlock, double *dst, const double *in, const double *out, const double *out_diff, MatrixDim dstdim, MatrixDim indim, MatrixDim outdim, MatrixDim outdiffdim,
                                 int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
 { cudaD_max_pooling_backward(dimGrid, dimBlock, dst, in, out, out_diff, dstdim, indim, outdim, outdiffdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_); }
+
+inline void cuda_pad_feature_map(dim3 dimGrid, dim3 dimBlock, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap);
+
+inline void cuda_wipe_feature_map(dim3 dimGrid, dim3 dimBlock, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap);
 
 inline void cuda_sum_mats(dim3 dimGrid, dim3 dimBlock, double* dst, double **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
 { cudaD_sum_mats(dimGrid, dimBlock, dst, src_array, dstdim, srcdim, batchcount);}
