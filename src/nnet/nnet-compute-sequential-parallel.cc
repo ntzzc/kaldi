@@ -646,6 +646,8 @@ private:
 						// skip frames
 						frame_num_utt[s] = example->num_ali.size();
 						utt_nnet_out_h[s].Resize(frame_num_utt[s], out_dim, kSetZero);
+					    if (this->kld_scale > 0) utt_si_nnet_out_h[s].Resize(frame_num_utt[s], out_dim, kSetZero);
+					    if (this->kld_scale > 0 || frame_smooth > 0) utt_soft_nnet_out_h[s].Resize(frame_num_utt[s], out_dim, kSetZero);
 						diff_utt_feats[s].Resize(frame_num_utt[s], out_dim, kSetZero);
 						utt_copied[s] = false;
 						utt_curt[s] = 0;

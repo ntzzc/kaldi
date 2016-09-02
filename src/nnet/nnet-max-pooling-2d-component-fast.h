@@ -1,4 +1,4 @@
-// nnet/nnet-average-pooling-component.h
+// nnet/nnet-max-pooling-2d-component-fast.h
 
 // Copyright 2014  Brno University of Technology (author: Karel Vesely),
 //                 Johns Hopkins University (author: Sri Harish Mallidi)
@@ -92,8 +92,8 @@ class MaxPooling2DComponentFast : public Component {
     int32 num_input_fmaps = input_dim_ / (fmap_x_len_ * fmap_y_len_);
     KALDI_LOG << "num_fmaps " << num_input_fmaps;
     // check if step is in sync with fmap_len and filt_len
-    KALDI_ASSERT((fmap_x_len_ - pool_x_len_) % (pool_x_step_) == 0);
-    KALDI_ASSERT((fmap_y_len_ - pool_y_len_) % (pool_y_step_) == 0);
+    // KALDI_ASSERT((fmap_x_len_ - pool_x_len_) % (pool_x_step_) == 0);
+    // KALDI_ASSERT((fmap_y_len_ - pool_y_len_) % (pool_y_step_) == 0);
     int32 out_fmap_x_len = (fmap_x_len_ - pool_x_len_)/pool_x_step_ + 1;
     int32 out_fmap_y_len = (fmap_y_len_ - pool_y_len_)/pool_y_step_ + 1;
     //    int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
@@ -109,9 +109,9 @@ class MaxPooling2DComponentFast : public Component {
         // used in more than one pool.
         //
 
-    int32 inp_fmap_size = fmap_x_len_ * fmap_y_len_;
+    int32 input_fmap_size = fmap_x_len_ * fmap_y_len_;
 
-    Vector<BaseFloat> patch_summands(inp_fmap_size, kSetZero);
+    Vector<BaseFloat> patch_summands(input_fmap_size, kSetZero);
     BaseFloat *data_summands = patch_summands.Data();
     int out_fmap_cnt = 0;
     for (int32 m = 0; m < fmap_x_len_-pool_x_len_+1; m = m+pool_x_step_) {
@@ -132,12 +132,13 @@ class MaxPooling2DComponentFast : public Component {
       }
     }
     patch_summands.InvertElements();
-    Vector<BaseFloat> tmp(num_input_fmaps*inp_fmap_size, kSetZero);
+    patch_summands.ApplyCeiling(1e20); // aviod divide 0 produce inf
+    Vector<BaseFloat> tmp(num_input_fmaps*input_fmap_size, kSetZero);
     BaseFloat *data_tmp = tmp.Data();
-    for (int32 i=0; i < inp_fmap_size; i++)
+    for (int32 i=0; i < input_fmap_size; i++)
     	for (int32 j=0; j < num_input_fmaps; j++)
     		data_tmp[i*num_input_fmaps+j] = data_summands[i];
-    patch_summands_.Resize(num_input_fmaps*inp_fmap_size, kSetZero);
+    patch_summands_.Resize(num_input_fmaps*input_fmap_size, kSetZero);
     patch_summands_.CopyFromVec(tmp);
   }
 
@@ -163,8 +164,8 @@ class MaxPooling2DComponentFast : public Component {
 
     out->Set(-1e20);
     out->MaxPoolingForward(in, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
-    //CuVector<BaseFloat> tmp(out->Row(0));
-//	tmp.Write(std::cout, false);
+    //  CuVector<BaseFloat> tmp(out->Row(0));
+    //	tmp.Write(std::cout, false);
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,

@@ -1004,7 +1004,6 @@ template<typename Real>
 void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const CuMatrixBase<Real> &out, const CuMatrixBase<Real> &out_diff,
 		  int num_input_fmaps, int fmap_x_len_, int fmap_y_len_, int pool_x_len_, int pool_y_len_, int pool_x_step_, int pool_y_step_)
 {
-	int32 num_frames = NumRows();
 	int32 num_output_fmaps = num_input_fmaps;
 	int32 out_fmap_x_len = (fmap_x_len_ - pool_x_len_)/pool_x_step_ + 1;
 	int32 out_fmap_y_len = (fmap_y_len_ - pool_y_len_)/pool_y_step_ + 1;
@@ -1013,7 +1012,6 @@ void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const 
 
 		KALDI_ASSERT(num_input_fmaps*fmap_x_len_*fmap_y_len_ == in.NumCols());
 		KALDI_ASSERT(num_output_fmaps*out_fmap_x_len*out_fmap_y_len == out.NumCols());
-		KALDI_ASSERT(num_frames == NumRows());
 
 		Timer tim;
 		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
@@ -1031,49 +1029,30 @@ void CuMatrixBase<Real>::MaxPoolingBackward(const CuMatrixBase<Real> &in, const 
 	}
 }
 
-void PadFeatureMap(const CuMatrixBase<Real> &src, int num_input_fmaps, int fmap_x_len, int fmap_y_len,
-		  int pad_x_len, int pad_y_len, int connect_fmap)
+template<typename Real>
+void CuMatrixBase<Real>::PadFeatureMap(const CuMatrixBase<Real> &src, int num_input_fmaps, int fmap_x_len, int fmap_y_len,
+		  int pad_x_len, int pad_y_len, int pad_wipe, int connect_fmap)
 {
-	int32 num_frames = NumRows();
 	int32 num_output_fmaps = num_input_fmaps;
+    int32 max_col = std::max(src.NumCols(), NumCols());
+    int32 min_col = std::min(src.NumCols(), NumCols());
+
+    if (pad_wipe == 0)  
+        KALDI_ASSERT(src.NumCols()<=NumCols());
+    else
+        KALDI_ASSERT(src.NumCols()>=NumCols());
+
+	KALDI_ASSERT(num_input_fmaps*fmap_x_len*fmap_y_len == min_col);
+	KALDI_ASSERT(num_output_fmaps*(fmap_x_len+pad_x_len*2)*(fmap_y_len+pad_y_len*2) == max_col);
+
 #if HAVE_CUDA == 1
 	if (CuDevice::Instantiate().Enabled()) {
 
-		KALDI_ASSERT(num_input_fmaps*fmap_x_len*fmap_y_len == src.NumCols());
-		KALDI_ASSERT(num_output_fmaps*(fmap_x_len+pad_x_len*2)*(fmap_y_len+pad_y_len*2) == NumCols());
-
 		Timer tim;
 		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
-		dim3 dimGrid(n_blocks(src.NumRows(), CU2DBLOCK), n_blocks(src.NumCols(), CU2DBLOCK));
+		dim3 dimGrid(n_blocks(src.NumRows(), CU2DBLOCK), n_blocks(min_col, CU2DBLOCK));
 		cuda_pad_feature_map(dimGrid, dimBlock, data_, src.data_, Dim(), src.Dim(),
-				num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, connect_fmap);
-
-		CU_SAFE_CALL(cudaGetLastError());
-
-		CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
-	}else
-#endif
-	{
-	    //Mat().PadFeatureMap();
-	}
-}
-
-void WipeFeatureMap(const CuMatrixBase<Real> &src, int num_input_fmaps, int fmap_x_len, int fmap_y_len,
-		  int pad_x_len, int pad_y_len, int connect_fmap)
-{
-	int32 num_frames = NumRows();
-	int32 num_output_fmaps = num_input_fmaps;
-#if HAVE_CUDA == 1
-	if (CuDevice::Instantiate().Enabled()) {
-
-		KALDI_ASSERT(num_input_fmaps*fmap_x_len*fmap_y_len == src.NumCols());
-		KALDI_ASSERT(num_output_fmaps*(fmap_x_len-pad_x_len*2)*(fmap_y_len-pad_y_len*2) == NumCols());
-
-		Timer tim;
-		dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
-		dim3 dimGrid(n_blocks(NumRows(), CU2DBLOCK), n_blocks(NumCols(), CU2DBLOCK));
-		cuda_wipe_feature_map(dimGrid, dimBlock, data_, src.data_, Dim(), src.Dim(),
-				num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, connect_fmap);
+				num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, pad_wipe, connect_fmap);
 
 		CU_SAFE_CALL(cudaGetLastError());
 

@@ -775,65 +775,50 @@ static void _max_pooling_backward(Real *dst, const Real *in, const Real *out, co
 template<typename Real>
 __global__
 static void _pad_feature_map(Real *dst, const Real *src, MatrixDim dstdim, MatrixDim srcdim,
-				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap)
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int pad_wipe, int connect_fmap)
 {
 	int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
 	int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
 	
 	int32_cuda fmap_index, fmap_offset, out_fmap_offset, src_index, dst_index, 
-				fmap_x, fmap_y, out_fmap_x_len, out_fmap_y_len, fmap_size, out_fmap_size, out_j;
+				fmap_x, fmap_y, out_fmap_y_len, out_j;
 
-	out_fmap_x_len = fmap_x_len+2*pad_x_len;
 	out_fmap_y_len = fmap_y_len+2*pad_y_len;
 	
-	fmap_size = fmap_x_len*fmap_y_len;
-	out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+	//fmap_size = fmap_x_len*fmap_y_len;
+	//out_fmap_size = out_fmap_x_len*out_fmap_y_len;
 	
-	fmap_index = connect_fmap == 1 ? j%num_input_fmaps : j/num_input_fmaps;
-	fmap_offset = connect_fmap == 1 ? j/num_input_fmaps : j%num_input_fmaps;
+	// fmap_index = connect_fmap == 1 ? j%num_input_fmaps : j/fmap_size;
+	// fmap_offset = connect_fmap == 1 ? j/num_input_fmaps : j%fmap_size;
+    if (connect_fmap == 1)
+    {
+        fmap_index = j%num_input_fmaps;
+        fmap_offset = j/num_input_fmaps;
+    
+	    fmap_x = fmap_offset/fmap_y_len;
+	    fmap_y = fmap_offset%fmap_y_len;
+    
+	    out_fmap_offset = (fmap_x+pad_x_len)*out_fmap_y_len + (fmap_y+pad_y_len);	
+	    //out_j = connect_fmap == 1 ? out_fmap_offset*num_input_fmaps+fmap_index : fmap_index*out_fmap_size+out_fmap_offset;
+        out_j = out_fmap_offset*num_input_fmaps+fmap_index;
+    }
+    else
+    {
+        fmap_x = j/(fmap_y_len*num_input_fmaps); 
+        fmap_y = j%(fmap_y_len*num_input_fmaps); 
+        fmap_index = fmap_y/fmap_y_len;
+        fmap_offset = fmap_y%fmap_y_len;
+        out_fmap_offset = fmap_index*out_fmap_y_len + (fmap_offset+pad_y_len);
+        out_j = (fmap_x+pad_x_len)*(out_fmap_y_len*num_input_fmaps) + out_fmap_offset;
+    }
 	
-	fmap_x = fmap_offset/fmap_y_len;
-	fmap_y = fmap_offset%fmap_y_len;
-	
-	out_fmap_offset = (fmap_x+pad_x_len)*out_fmap_y_len + (fmap_y+pad_y_len);	
-	out_j = connect_fmap == 1 ? out_fmap_offset*num_input_fmaps+fmap_index : fmap_index*num_input_fmaps+out_fmap_offset;
-	
-	src_index = i * srcdim.stride + j;
-	dst_index = i * dstdim.stride + out_j;
-	dst[dst_index] = src[src_index];
+	src_index = pad_wipe == 0 ? i*srcdim.stride+j : i*srcdim.stride + out_j;
+	dst_index = pad_wipe == 0 ? i*dstdim.stride+out_j : i*dstdim.stride+j;
+
+    if (i < srcdim.rows && i < dstdim.rows && j < srcdim.cols && j < dstdim.cols)
+	    dst[dst_index] = src[src_index];
 }
 
-template<typename Real>
-__global__
-static void _wipe_feature_map(Real *dst, const Real *src, MatrixDim dstdim, MatrixDim srcdim,
-				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap)
-{
-	int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
-	int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
-	
-	int32_cuda fmap_index, fmap_offset, out_fmap_offset, src_index, dst_index, 
-				fmap_x, fmap_y, out_fmap_x_len, out_fmap_y_len, fmap_size, out_fmap_size, out_j;
-
-	out_fmap_x_len = fmap_x_len-2*pad_x_len;
-	out_fmap_y_len = fmap_y_len-2*pad_y_len;
-	
-	fmap_size = fmap_x_len*fmap_y_len;
-	out_fmap_size = out_fmap_x_len*out_fmap_y_len;
-	
-	fmap_index = connect_fmap == 1 ? j%num_input_fmaps : j/num_input_fmaps;
-	fmap_offset = connect_fmap == 1 ? j/num_input_fmaps : j%num_input_fmaps;
-	
-	fmap_x = fmap_offset/fmap_y_len;
-	fmap_y = fmap_offset%fmap_y_len;
-	
-	out_fmap_offset = (fmap_x-pad_x_len)*out_fmap_y_len + (fmap_y-pad_y_len);	
-	out_j = connect_fmap == 1 ? out_fmap_offset*num_input_fmaps+fmap_index : fmap_index*num_input_fmaps+out_fmap_offset;
-	
-	src_index = i * srcdim.stride + j;
-	dst_index = i * dstdim.stride + out_j;
-	dst[dst_index] = src[src_index];
-}
-				
 template<typename Real>
 __global__
 static void _sum_mats(Real* dst, Real **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
@@ -2784,18 +2769,12 @@ void cudaF_max_pooling_backward(dim3 Gr, dim3 Bl, float *dst, const float *in, c
 	_max_pooling_backward<<<Gr,Bl>>>(dst, in, out, out_diff, dstdim, indim, outdim, outdiffdim, num_input_fmaps, fmap_x_len_, fmap_y_len_, pool_x_len_, pool_y_len_, pool_x_step_, pool_y_step_);
 }
 
-void cudaD_pad_feature_map(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
-				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap)
+void cudaF_pad_feature_map(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int pad_wipe, int connect_fmap)
 {
-	_pad_feature_map<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, connect_fmap);
+	_pad_feature_map<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, pad_wipe, connect_fmap);
 }
 	
-void cudaD_wipe_feature_map(dim3 Gr, dim3 Bl, float *dst, const float *src, MatrixDim dstdim, MatrixDim srcdim,
-				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap)
-{
-	_wipe_feature_map<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, connect_fmap);
-}
-					
 void cudaF_sum_mats(dim3 Gr, dim3 Bl, float* dst, float **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)
 {
 	_sum_mats<<<Gr,Bl>>>(dst, src_array, dstdim, srcdim, batchcount);
@@ -3332,15 +3311,9 @@ void cudaD_max_pooling_backward(dim3 Gr, dim3 Bl, double *dst, const double *in,
 }
 
 void cudaD_pad_feature_map(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
-				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap)
+				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int pad_wipe, int connect_fmap)
 {
-	_pad_feature_map<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, connect_fmap);
-}
-
-void cudaD_wipe_feature_map(dim3 Gr, dim3 Bl, double *dst, const double *src, MatrixDim dstdim, MatrixDim srcdim,
-				int num_input_fmaps, int fmap_x_len, int fmap_y_len, int pad_x_len, int pad_y_len, int connect_fmap)
-{
-	_wipe_feature_map<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, connect_fmap);
+	_pad_feature_map<<<Gr,Bl>>>(dst, src, dstdim, srcdim, num_input_fmaps, fmap_x_len, fmap_y_len, pad_x_len, pad_y_len, pad_wipe, connect_fmap);
 }
 
 void cudaD_sum_mats(dim3 Gr, dim3 Bl, double* dst, double **src_array, MatrixDim dstdim, MatrixDim srcdim, int batchcount)

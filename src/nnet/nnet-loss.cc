@@ -394,7 +394,7 @@ void CBXent::Eval() {
   // We 'switch-off' such frames by masking the 'frame_weights_',
   // int size = class_frame_weights_.size();
   double num_frames = 0, correct = 0, cross_entropy = 0, entropy = 0;
-  double logzt = 0, logzt_mean = 0, logzt_variance = 0;
+  double logzt = 0, logzt_variance = 0;
   CuVector<BaseFloat> frame_zt;
   std::vector<BaseFloat> class_zt_sum;
   //Vector<BaseFloat> tmp(frame_zt_ptr_->Dim());

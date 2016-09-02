@@ -1,4 +1,4 @@
-// nnet/nnet-convolutional-component-fast.h
+// nnet/nnet-convolutional-2d-component-fast.h
 
 // Copyright 2015-2016  Shanghai Jiao Tong University (author: Wei Deng)
 // Copyright 2014-2015  Johns Hopkins University (author: Sri Harish Mallidi)
@@ -122,16 +122,18 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     int32 num_input_fmaps = input_dim_ / (fmap_x_len_ * fmap_y_len_);
     KALDI_LOG << "num_input_fmaps " << num_input_fmaps;
     // check if step is in sync with fmap_len and filt_len
-    KALDI_ASSERT((fmap_x_len_ - filt_x_len_) % (filt_x_step_) == 0);
-    KALDI_ASSERT((fmap_y_len_ - filt_y_len_) % (filt_y_step_) == 0);
-    int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
-    int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
-    // int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+    int32 pad_fmap_x_len = fmap_x_len_ + 2*pad_x_len_;
+	int32 pad_fmap_y_len = fmap_y_len_ + 2*pad_y_len_;
+	int32 out_pad_fmap_x_len = (pad_fmap_x_len - filt_x_len_)/filt_x_step_ + 1;
+	int32 out_pad_fmap_y_len = (pad_fmap_y_len - filt_y_len_)/filt_y_step_ + 1;
+    KALDI_ASSERT((pad_fmap_x_len - filt_x_len_) % (filt_x_step_) == 0);
+    KALDI_ASSERT((pad_fmap_y_len - filt_y_len_) % (filt_y_step_) == 0);
+
     // output sanity checks
-    KALDI_ASSERT(output_dim_ % (out_fmap_x_len * out_fmap_y_len)  == 0);
-    int32 num_output_fmaps = output_dim_ / (out_fmap_x_len * out_fmap_y_len);
+    int32 num_output_fmaps = output_dim_ / (out_pad_fmap_x_len * out_pad_fmap_y_len);
+    KALDI_ASSERT(output_dim_ % (out_pad_fmap_x_len * out_pad_fmap_y_len)  == 0);
     KALDI_LOG << "num_output_fmaps " << num_output_fmaps;
-    int32 num_filters = output_dim_/(out_fmap_x_len*out_fmap_y_len);
+    int32 num_filters = output_dim_/(out_pad_fmap_x_len * out_pad_fmap_y_len);
     KALDI_LOG << "num_filters " << num_filters;
 
     //
@@ -200,27 +202,24 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     // Sanity checks:
     //
     // input sanity checks
-    // input_dim_ should be multiple of (fmap_x_len_ * fmap_y_len_)
-    KALDI_ASSERT(input_dim_ % (fmap_x_len_ * fmap_y_len_) == 0);
-    // int32 num_input_fmaps = input_dim_ / (fmap_x_len_ * fmap_y_len_);
-    // KALDI_LOG << "num_input_fmaps " << num_input_fmaps;
-    // check if step is in sync with fmap_len and filt_len
-    KALDI_ASSERT((fmap_x_len_ - filt_x_len_) % (filt_x_step_) == 0);
-    KALDI_ASSERT((fmap_y_len_ - filt_y_len_) % (filt_y_step_) == 0);
-    int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
-    int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
-
-    // output sanity checks
-    KALDI_ASSERT(output_dim_ % (out_fmap_x_len * out_fmap_y_len)  == 0);
-
-
-    // init grad size
-    int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
     int32 pad_fmap_x_len = fmap_x_len_ + 2*pad_x_len_;
 	int32 pad_fmap_y_len = fmap_y_len_ + 2*pad_y_len_;
 	int32 out_pad_fmap_x_len = (pad_fmap_x_len - filt_x_len_)/filt_x_step_ + 1;
 	int32 out_pad_fmap_y_len = (pad_fmap_y_len - filt_y_len_)/filt_y_step_ + 1;
 	int32 out_pad_fmap_size = out_pad_fmap_x_len*out_pad_fmap_y_len;
+    // input_dim_ should be multiple of (fmap_x_len_ * fmap_y_len_)
+    KALDI_ASSERT(input_dim_ % (fmap_x_len_ * fmap_y_len_) == 0);
+
+    //int32 num_input_fmaps = input_dim_ / (fmap_x_len_ * fmap_y_len_);
+    //KALDI_LOG << "num_input_fmaps " << num_input_fmaps;
+    // check if step is in sync with fmap_len and filt_len
+    KALDI_ASSERT((pad_fmap_x_len - filt_x_len_) % (filt_x_step_) == 0);
+    KALDI_ASSERT((pad_fmap_y_len - filt_y_len_) % (filt_y_step_) == 0);
+
+    // output sanity checks
+    KALDI_ASSERT(output_dim_ % (out_pad_fmap_x_len * out_pad_fmap_y_len)  == 0);
+
+    // init grad size
     filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero);
     bias_grad_.Resize(filters_.NumRows(), kSetZero);
     filters_grad_patches_.Resize(out_pad_fmap_size*filters_.NumRows(), filters_.NumCols(), kSetZero);
@@ -236,13 +235,13 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     WriteBasicType(os, binary, fmap_x_len_);
     WriteToken(os, binary, "<FmapYLen>");
     WriteBasicType(os, binary, fmap_y_len_);
-    WriteToken(os, binary, "<FiltXLen>");
     if (pad_x_len_ > 0 || pad_y_len_ > 0) {
-    	WriteToken(os, binary, "<FiltXLen>");
+    	WriteToken(os, binary, "<PadXLen>");
     	WriteBasicType(os, binary, pad_x_len_);
     	WriteToken(os, binary, "<PadYLen>");
     	WriteBasicType(os, binary, pad_y_len_);
     }
+    WriteToken(os, binary, "<FiltXLen>");
     WriteBasicType(os, binary, filt_x_len_);
     WriteToken(os, binary, "<FiltYLen>");
     WriteBasicType(os, binary, filt_y_len_);
@@ -286,9 +285,9 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     // useful dims
     int32 num_input_fmaps = input_dim_ / (fmap_x_len_ * fmap_y_len_);
     // int32 inp_fmap_size = fmap_x_len_ * fmap_y_len_;
-    int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
-    int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
-    int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+    // int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
+    // int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
+    // int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
     // int32 num_output_fmaps = output_dim_ / (out_fmap_x_len * out_fmap_y_len);
 
     // for padding
@@ -310,9 +309,11 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     // padding the feature map
     if (input_pad_.NumRows() != in.NumRows() && (pad_x_len_>0 || pad_y_len_>0)) {
     	input_pad_.Resize(in.NumRows(), pad_input_dim, kSetZero);
-    	input_pad_.PadFeatureMap(in, num_input_fmaps, fmap_x_len_, fmap_y_len_, pad_x_len_, pad_y_len_, connect_fmap_);
     }
     const CuMatrixBase<BaseFloat> &input = (pad_x_len_>0 || pad_y_len_>0) ? input_pad_ : in;
+
+    if (pad_x_len_>0 || pad_y_len_>0)
+        input_pad_.PadFeatureMap(in, num_input_fmaps, fmap_x_len_, fmap_y_len_, pad_x_len_, pad_y_len_, 0, connect_fmap_);
 
     // we will need the buffers
     input_patches_.Resize(out_pad_fmap_size*num_frames, filters_.NumCols(), kUndefined);
@@ -346,9 +347,9 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     // useful dims
     int32 num_input_fmaps = input_dim_ / (fmap_x_len_ * fmap_y_len_);
 
-    int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
-    int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
-    int32 out_fmap_size = out_fmap_x_len * out_fmap_y_len;
+    // int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
+    // int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
+    // int32 out_fmap_size = out_fmap_x_len * out_fmap_y_len;
     // int32 num_output_fmaps = output_dim_ / (out_fmap_x_len * out_fmap_y_len);
 
     // for padding
@@ -459,7 +460,7 @@ class Convolutional2DComponentFast : public UpdatableComponent {
        indiff->MulColsVec(in_diff_summands_);
 
        if (pad_x_len_>0 || pad_y_len_>0)
-    	   in_diff->WipeFeatureMap(indiff_pad_, num_input_fmaps, pad_fmap_x_len, pad_fmap_y_len, pad_x_len_, pad_y_len_, connect_fmap_);
+    	   in_diff->PadFeatureMap(indiff_pad_, num_input_fmaps, fmap_x_len_, fmap_y_len_, pad_x_len_, pad_y_len_, 1, connect_fmap_);
   }
 
   void ResetGradient()
@@ -470,9 +471,9 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
   void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
     // useful dims
-    int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
-    int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
-    int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+    // int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
+    // int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
+    // int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
     // int32 num_output_fmaps = output_dim_ / (out_fmap_x_len * out_fmap_y_len);
 
     // for padding
@@ -563,9 +564,9 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 
   void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
     // useful dims
-    int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
-    int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
-    int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
+    // int32 out_fmap_x_len = (fmap_x_len_ - filt_x_len_)/filt_x_step_ + 1;
+    // int32 out_fmap_y_len = (fmap_y_len_ - filt_y_len_)/filt_y_step_ + 1;
+    // int32 out_fmap_size = out_fmap_x_len*out_fmap_y_len;
     // int32 num_output_fmaps = output_dim_ / (out_fmap_x_len * out_fmap_y_len);
 
     // for padding

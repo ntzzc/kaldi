@@ -251,7 +251,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 
 	int32 pos = 0;
 	void *host_data_ = (void*)this->data_;
-	int32 dst_pitch, src_pitch, width, row, size;
+	int32 dst_pitch, src_pitch, width, size;
 	MatrixDim dim;
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
