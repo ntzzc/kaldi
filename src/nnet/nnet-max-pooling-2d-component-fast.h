@@ -131,13 +131,17 @@ class MaxPooling2DComponentFast : public Component {
         out_fmap_cnt++;
       }
     }
+
+    // patch at least in one pool
+    // aviod divide 0 produce inf
+    patch_summands.ApplyFloor(1.0);
     patch_summands.InvertElements();
-    patch_summands.ApplyCeiling(1e20); // aviod divide 0 produce inf
     Vector<BaseFloat> tmp(num_input_fmaps*input_fmap_size, kSetZero);
     BaseFloat *data_tmp = tmp.Data();
     for (int32 i=0; i < input_fmap_size; i++)
     	for (int32 j=0; j < num_input_fmaps; j++)
     		data_tmp[i*num_input_fmaps+j] = data_summands[i];
+    		//data_tmp[i*num_input_fmaps+j] = data_summands[i] > 1.0 ? 0 : data_summands[i]; // aviod divide 0 produce inf
     patch_summands_.Resize(num_input_fmaps*input_fmap_size, kSetZero);
     patch_summands_.CopyFromVec(tmp);
   }

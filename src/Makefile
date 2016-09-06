@@ -163,13 +163,13 @@ sgmm: base util matrix gmm tree transform thread hmm
 sgmm2: base util matrix gmm tree transform thread hmm
 fstext: base util matrix tree
 hmm: base tree matrix util
-lm: base util fstext
 decoder: base util matrix gmm sgmm hmm tree transform lat
 lat: base util hmm tree matrix
 cudamatrix: base util matrix	
-nnet: base nnet2 util matrix cudamatrix
 nnet2: base util matrix thread lat gmm hmm tree transform cudamatrix
 nnet3: base util matrix thread lat gmm hmm tree transform cudamatrix chain
+nnet: base nnet2 util matrix cudamatrix
+lm: base util fstext nnet
 chain: lat hmm tree fstext matrix cudamatrix util base
 ivector: base util matrix thread transform tree gmm
 #3)Dependencies for optional parts of Kaldi

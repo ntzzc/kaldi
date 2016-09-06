@@ -698,6 +698,8 @@ private:
 
 					if (this->kld_scale > 0)
 					{
+                        // for streams with new utterance, history states need to be reset
+                        si_nnet.ResetLstmStreams(new_utt_flags, batch_size);
 						si_nnet.Propagate(feats_transf, &si_nnet_out);
 						si_nnet_out_host.Resize(max_frame_num * cur_stream_num, out_dim, kUndefined);
 						si_nnet_out.CopyToMat(&si_nnet_out_host);
