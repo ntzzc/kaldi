@@ -32,7 +32,7 @@
 #include <algorithm>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
   /*
    * Helper functions
@@ -340,12 +340,12 @@ namespace nnet1 {
     delete c;
   }
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 int main() {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
 
   for (kaldi::int32 loop = 0; loop < 2; loop++) {
 #if HAVE_CUDA == 1

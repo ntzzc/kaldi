@@ -30,7 +30,7 @@
 #include "matrix/kaldi-matrix.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class KlHmm : public Component {
  public:
@@ -145,7 +145,7 @@ class KlHmm : public Component {
 
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

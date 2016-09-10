@@ -28,7 +28,7 @@
 #include <mpi.h>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 struct NnetParallelOptions{
 	int32 num_threads;

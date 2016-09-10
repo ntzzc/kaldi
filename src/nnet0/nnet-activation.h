@@ -28,7 +28,7 @@
 #include "util/text-utils.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class Softmax : public Component {
  public:
@@ -450,7 +450,7 @@ class Dropout : public Component {
 
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

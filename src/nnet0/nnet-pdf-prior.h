@@ -30,7 +30,7 @@
 #include "cudamatrix/cu-vector.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 struct PdfPriorOptions {
   std::string class_frame_counts;
@@ -68,7 +68,7 @@ class PdfPrior {
   KALDI_DISALLOW_COPY_AND_ASSIGN(PdfPrior);
 };
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif  // KALDI_NNET_NNET_PDF_PRIOR_H_

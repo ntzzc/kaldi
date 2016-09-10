@@ -46,7 +46,7 @@ namespace lm {
 class LmModelSync;
 }
 
-namespace nnet1 {
+namespace nnet0 {
 
 class LstmProjectedStreamsFast : public UpdatableComponent {
 	friend class NnetModelSync;
@@ -1104,7 +1104,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   BaseFloat max_norm_;
 
 };
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

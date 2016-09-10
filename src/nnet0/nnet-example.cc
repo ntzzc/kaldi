@@ -21,7 +21,7 @@
 #include "nnet/nnet-example.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 bool DNNNnetExample::PrepareData(std::vector<NnetExample*> &examples)
 {

@@ -21,7 +21,7 @@
 #include "nnet/nnet-pdf-prior.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 PdfPrior::PdfPrior(const PdfPriorOptions &opts)
     : prior_scale_(opts.prior_scale) {
@@ -85,5 +85,5 @@ void PdfPrior::SubtractOnLogpost(CuMatrixBase<BaseFloat> *llk) {
   llk->AddVecToRows(-prior_scale_, log_priors_);
 }
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi

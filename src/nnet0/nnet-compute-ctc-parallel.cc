@@ -39,7 +39,7 @@
 #include "nnet/nnet-compute-ctc-parallel.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class TrainCtcParallelClass: public MultiThreadable {
 

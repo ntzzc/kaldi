@@ -28,7 +28,7 @@
 #include "nnet/nnet-model-sync.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class ModelMergeFunction
 {

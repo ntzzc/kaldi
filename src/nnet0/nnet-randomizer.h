@@ -27,7 +27,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /// Configuration variables that affect how frame-level shuffling is done.
 struct NnetDataRandomizerOptions {
@@ -178,7 +178,7 @@ typedef StdVectorRandomizer<int32> Int32VectorRandomizer;
 typedef StdVectorRandomizer<std::vector<std::pair<int32, BaseFloat> > > PosteriorRandomizer;
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

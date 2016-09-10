@@ -24,7 +24,7 @@
 int main(int argc, char *argv[]) {
   try {
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
     const char *usage =

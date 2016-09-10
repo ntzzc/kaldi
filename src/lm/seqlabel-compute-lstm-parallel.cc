@@ -47,14 +47,14 @@ namespace lm {
 
 class SeqLabelLstmParallelClass: public MultiThreadable {
 
-	typedef nnet1::NnetTrainOptions NnetTrainOptions;
-	typedef nnet1::NnetDataRandomizerOptions NnetDataRandomizerOptions;
-	typedef nnet1::NnetParallelOptions NnetParallelOptions;
-	typedef nnet1::ExamplesRepository  ExamplesRepository;
-	typedef nnet1::WordVectorTransform WordVectorTransform;
-	typedef nnet1::Nnet nnet;
-	typedef nnet1::Component Component;
-	typedef nnet1::SeqLabelNnetExample SeqLabelNnetExample;
+	typedef nnet0::NnetTrainOptions NnetTrainOptions;
+	typedef nnet0::NnetDataRandomizerOptions NnetDataRandomizerOptions;
+	typedef nnet0::NnetParallelOptions NnetParallelOptions;
+	typedef nnet0::ExamplesRepository  ExamplesRepository;
+	typedef nnet0::WordVectorTransform WordVectorTransform;
+	typedef nnet0::Nnet nnet;
+	typedef nnet0::Component Component;
+	typedef nnet0::SeqLabelNnetExample SeqLabelNnetExample;
 
 
 private:
@@ -199,7 +199,7 @@ private:
 
 	    model_sync->Initialize(&nnet, this->thread_id_);
 
-        nnet1::Xent xent;
+        nnet0::Xent xent;
 
 		CuMatrix<BaseFloat> feats_transf, nnet_out, nnet_diff;
 		Matrix<BaseFloat> nnet_out_h, nnet_diff_h;
@@ -416,7 +416,7 @@ void SeqLabelLstmParallel(const SeqLabelLstmUpdateOptions *opts,
 		Nnet *nnet,
 		SeqLabelStats *stats)
 {
-		nnet1::ExamplesRepository repository(128*30);
+		nnet0::ExamplesRepository repository(128*30);
 		LmModelSync model_sync(nnet, opts->parallel_opts);
 
 		SeqLabelLstmParallelClass c(opts, &model_sync,
@@ -432,10 +432,10 @@ void SeqLabelLstmParallel(const SeqLabelLstmUpdateOptions *opts,
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<SeqLabelLstmParallelClass> mc(opts->parallel_opts->num_threads, c);
-	    nnet1::NnetExample *example;
-	    std::vector<nnet1::NnetExample*> examples;
+	    nnet0::NnetExample *example;
+	    std::vector<nnet0::NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new nnet1::SeqLabelNnetExample(opts, &feature_reader, &label_reader);
+	    	example = new nnet0::SeqLabelNnetExample(opts, &feature_reader, &label_reader);
 	    	if (example->PrepareData(examples))
 	    	{
 	    		for (int i = 0; i < examples.size(); i++)

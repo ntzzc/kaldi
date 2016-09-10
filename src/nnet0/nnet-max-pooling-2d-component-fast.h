@@ -28,7 +28,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * MaxPoolingComponent :
@@ -195,7 +195,7 @@ class MaxPooling2DComponentFast : public Component {
   CuVector<BaseFloat> patch_summands_;
 };
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif

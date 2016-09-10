@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     typedef kaldi::int32 int32;
 
     const char *usage =
-        "Train the transition probabilities in transition-model (used in nnet1 recipe)\n"
+        "Train the transition probabilities in transition-model (used in nnet0 recipe)\n"
         "\n"
         "Usage:  train-transitions [options] <trans-model-in> <alignments-rspecifier> <trans-model-out>\n"
         "e.g.:\n"

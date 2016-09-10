@@ -28,7 +28,7 @@
 #include "hmm/posterior.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 
 class LossItf {
@@ -392,7 +392,7 @@ class Ctc {
 };
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

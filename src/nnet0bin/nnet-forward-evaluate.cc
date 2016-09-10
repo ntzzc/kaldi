@@ -29,7 +29,7 @@
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
   try {
     const char *usage =
         "Perform forward pass through Neural Network.\n"
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     po.Register("frame-dim", &frame_dim, "dim of input frame");
 
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
     int32 time_shift = 0;

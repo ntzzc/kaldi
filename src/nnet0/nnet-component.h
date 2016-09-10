@@ -32,7 +32,7 @@
 #include <iostream>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * Abstract class, building block of the network.
@@ -293,7 +293,7 @@ inline void Component::Backpropagate(const CuMatrixBase<BaseFloat> &in,
 }
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 

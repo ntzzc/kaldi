@@ -41,7 +41,7 @@
  *************************************/
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class LstmProjectedStreamsSimple : public UpdatableComponent {
 	friend class NnetModelSync;
@@ -973,7 +973,7 @@ class LstmProjectedStreamsSimple : public UpdatableComponent {
   BaseFloat max_norm_;
 
 };
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

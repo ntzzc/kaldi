@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
   try {
     const char *usage =
         "Convert features into posterior format, which is used for NN training targets\n"
-        "in Karel's nnet1 tools.\n"
+        "in Karel's nnet0 tools.\n"
         "(speed is not an issue for reasonably low NN-output dimensions)\n"
         "Usage:  feat-to-post [options] feat-rspecifier posteriors-wspecifier\n"
         "e.g.:\n"

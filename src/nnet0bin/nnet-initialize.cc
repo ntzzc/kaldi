@@ -24,11 +24,11 @@
 int main(int argc, char *argv[]) {
   try {
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
     const char *usage =
-        "Initialize Neural Network parameters according to a prototype (nnet1).\n"
+        "Initialize Neural Network parameters according to a prototype (nnet0).\n"
         "Usage:  nnet-initialize [options] <nnet-prototype-in> <nnet-out>\n"
         "e.g.:\n"
         " nnet-initialize --binary=false nnet.proto nnet.init\n";

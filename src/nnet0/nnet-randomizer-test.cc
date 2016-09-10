@@ -24,7 +24,7 @@
 #include <algorithm>
 
 using namespace kaldi;
-using namespace kaldi::nnet1;
+using namespace kaldi::nnet0;
 
 //////////////////////////////////////////////////
 

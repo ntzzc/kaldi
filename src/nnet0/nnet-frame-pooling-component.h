@@ -29,7 +29,7 @@
 #include <sstream>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * FramePoolingComponent :
@@ -261,7 +261,7 @@ class FramePoolingComponent : public UpdatableComponent {
   bool normalize_; // apply normalization after each update
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

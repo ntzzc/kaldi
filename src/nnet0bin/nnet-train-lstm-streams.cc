@@ -31,7 +31,7 @@
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
   typedef kaldi::int32 int32;  
   
   try {
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     }
 
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
     //Select the GPU

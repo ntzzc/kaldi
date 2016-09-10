@@ -39,7 +39,7 @@
 #include "nnet/nnet-compute-lstm-asgd.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class TrainLstmAsgdClass: public MultiThreadable {
 

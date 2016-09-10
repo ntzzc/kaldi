@@ -38,7 +38,7 @@
 #include "nnet/nnet-compute-lstm-asgd.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 struct NnetLstmLmUpdateOptions : public NnetLstmUpdateOptions {
 
@@ -159,7 +159,7 @@ void NnetLstmLmUpdateParallel(const NnetLstmLmUpdateOptions *opts,
 		NnetLmStats *stats);
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif // KALDI_NNET_NNET_COMPUTE_LSTM_H_

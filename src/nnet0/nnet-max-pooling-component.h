@@ -27,7 +27,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * MaxPoolingComponent :
@@ -162,7 +162,7 @@ class MaxPoolingComponent : public Component {
         pool_stride_; // stride used to cut input matrix to a vector of matrices
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

@@ -57,7 +57,7 @@
 #include <sstream>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kAffineTransform,"<AffineTransform>" },
@@ -312,5 +312,5 @@ void Component::Write(std::ostream &os, bool binary) const {
 }
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi

@@ -39,11 +39,11 @@
 
 namespace kaldi {
 namespace lm {
-typedef nnet1::NnetTrainOptions NnetTrainOptions;
-typedef nnet1::NnetDataRandomizerOptions NnetDataRandomizerOptions;
-typedef nnet1::NnetParallelOptions NnetParallelOptions;
+typedef nnet0::NnetTrainOptions NnetTrainOptions;
+typedef nnet0::NnetDataRandomizerOptions NnetDataRandomizerOptions;
+typedef nnet0::NnetParallelOptions NnetParallelOptions;
 
-struct SeqLabelLstmUpdateOptions : public nnet1::NnetLstmUpdateOptions {
+struct SeqLabelLstmUpdateOptions : public nnet0::NnetLstmUpdateOptions {
 
 
 	SeqLabelLstmUpdateOptions(const NnetTrainOptions *trn_opts, const NnetDataRandomizerOptions *rnd_opts, const NnetParallelOptions *parallel_opts)
@@ -58,13 +58,13 @@ struct SeqLabelLstmUpdateOptions : public nnet1::NnetLstmUpdateOptions {
 };
 
 
-struct SeqLabelStats: nnet1::NnetStats {
+struct SeqLabelStats: nnet0::NnetStats {
 
-	nnet1::Xent xent;
+	nnet0::Xent xent;
 
 	SeqLabelStats() { }
 
-    void MergeStats(nnet1::NnetUpdateOptions *opts, int root)
+    void MergeStats(nnet0::NnetUpdateOptions *opts, int root)
     {
         int myid = opts->parallel_opts->myid;
         MPI_Barrier(MPI_COMM_WORLD);
@@ -90,7 +90,7 @@ struct SeqLabelStats: nnet1::NnetStats {
 
     }
 
-    void Print(nnet1::NnetUpdateOptions *opts, double time_now)
+    void Print(nnet0::NnetUpdateOptions *opts, double time_now)
     {
         KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
                   << " with no tgt_mats, " << num_other_error
@@ -118,7 +118,7 @@ void SeqLabelLstmParallel(const SeqLabelLstmUpdateOptions *opts,
 		SeqLabelStats *stats);
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif // KALDI_LM_SEQLABEL_COMPUTE_LSTM_LM_PARALLEL_H_

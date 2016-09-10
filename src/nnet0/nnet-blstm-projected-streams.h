@@ -42,7 +42,7 @@
  *************************************/
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class BLstmProjectedStreams : public UpdatableComponent {
 	friend class NnetModelSync;
@@ -1243,7 +1243,7 @@ class BLstmProjectedStreams : public UpdatableComponent {
   BaseFloat bias_learn_rate_coef_;
   BaseFloat max_norm_;
 };
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif

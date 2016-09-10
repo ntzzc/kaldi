@@ -32,8 +32,8 @@
 
 namespace kaldi {
 namespace lm {
-typedef nnet1::Nnet Nnet;
-typedef nnet1::NnetParallelOptions NnetParallelOptions;
+typedef nnet0::Nnet Nnet;
+typedef nnet0::NnetParallelOptions NnetParallelOptions;
 
 #if HAVE_CUDA == 1
 class StreamCache {

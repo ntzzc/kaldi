@@ -30,7 +30,7 @@
 #include <sstream>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class ParallelComponentMultiTask : public UpdatableComponent {
  public:
@@ -348,7 +348,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   std::unordered_map<std::string, BaseFloat> error_scale;
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

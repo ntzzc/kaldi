@@ -35,7 +35,7 @@
 #include "cudamatrix/cu-device.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 class SequentialTrainingSync;
 class ModelMergeFunction;
 
@@ -227,7 +227,7 @@ void NnetSequentialUpdateParallel(const NnetSequentialUpdateOptions *opts,
 		Nnet *nnet,
 		NnetSequentialStats *stats);
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif // KALDI_NNET_NNET_COMPUTE_SEQUENTIAL_H_

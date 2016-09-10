@@ -27,7 +27,7 @@
 
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 struct NnetForwardOptions {
     std::string feature_transform;
@@ -105,6 +105,6 @@ void NnetForwardParallel(const NnetForwardOptions *opts,
 						NnetForwardStats *stats);
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 #endif /* NNET_NNET_COMPUTE_FORWARD_H_ */

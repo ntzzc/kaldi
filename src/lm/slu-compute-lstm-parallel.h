@@ -39,11 +39,11 @@
 
 namespace kaldi {
 namespace lm {
-typedef nnet1::NnetTrainOptions NnetTrainOptions;
-typedef nnet1::NnetDataRandomizerOptions NnetDataRandomizerOptions;
-typedef nnet1::NnetParallelOptions NnetParallelOptions;
+typedef nnet0::NnetTrainOptions NnetTrainOptions;
+typedef nnet0::NnetDataRandomizerOptions NnetDataRandomizerOptions;
+typedef nnet0::NnetParallelOptions NnetParallelOptions;
 
-struct SluLstmUpdateOptions : public nnet1::NnetLstmUpdateOptions {
+struct SluLstmUpdateOptions : public nnet0::NnetLstmUpdateOptions {
 
 	// language model
 	std::string class_boundary;
@@ -91,14 +91,14 @@ struct SluLstmUpdateOptions : public nnet1::NnetLstmUpdateOptions {
 };
 
 
-struct SluStats: nnet1::NnetStats {
+struct SluStats: nnet0::NnetStats {
 
-	nnet1::CBXent cbxent;
-	nnet1::Xent xent, slot_xent, intent_xent;
+	nnet0::CBXent cbxent;
+	nnet0::Xent xent, slot_xent, intent_xent;
 
 	SluStats() { }
 
-    void MergeStats(nnet1::NnetUpdateOptions *opts, int root)
+    void MergeStats(nnet0::NnetUpdateOptions *opts, int root)
     {
         SluLstmUpdateOptions *slu_opts = static_cast<SluLstmUpdateOptions*>(opts);
 
@@ -134,7 +134,7 @@ struct SluStats: nnet1::NnetStats {
 
     }
 
-    void Print(nnet1::NnetUpdateOptions *opts, double time_now)
+    void Print(nnet0::NnetUpdateOptions *opts, double time_now)
     {
         KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
                   << " with no tgt_mats, " << num_other_error
@@ -170,7 +170,7 @@ void SluLstmUpdateParallel(const SluLstmUpdateOptions *opts,
 		SluStats *stats);
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif // KALDI_LM_LM_COMPUTE_LSTM_SLU_PARALLEL_H_

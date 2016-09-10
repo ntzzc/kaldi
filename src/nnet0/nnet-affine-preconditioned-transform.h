@@ -12,7 +12,7 @@
 #include "nnet/nnet-affine-transform.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class AffinePreconditionedOnlineTransform : public AffineTransform{
 
@@ -100,7 +100,7 @@ private:
 };
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 

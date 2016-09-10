@@ -30,7 +30,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * Convolutional2DComponent implements convolution over 2-axis (frequency and temporal)
@@ -701,7 +701,7 @@ class Convolutional2DComponentFast : public UpdatableComponent {
   CuArray<int32>	in_diff_mapsize_;
 };
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif

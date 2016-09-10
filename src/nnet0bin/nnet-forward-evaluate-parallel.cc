@@ -31,7 +31,7 @@
 #include "thread/kaldi-thread.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 struct NnetForwardEvaluateOptions {
     std::string feature_transform;
     bool no_softmax;
@@ -270,14 +270,14 @@ void NnetForwardEvaluateParallel(const NnetForwardEvaluateOptions *opts,
 
 }
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
   typedef kaldi::int32 int32;
   try {
     const char *usage =

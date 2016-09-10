@@ -33,7 +33,7 @@ namespace lm {
 class LmModelSync;
 }
 
-namespace nnet1 {
+namespace nnet0 {
 
 class AffineTransform : public UpdatableComponent {
 
@@ -430,7 +430,7 @@ protected:
 
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

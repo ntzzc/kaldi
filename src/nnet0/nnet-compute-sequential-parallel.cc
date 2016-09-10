@@ -41,7 +41,7 @@
 #include "nnet/nnet-compute-sequential-parallel.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class SeqTrainParallelClass: public MultiThreadable {
 
@@ -538,7 +538,7 @@ private:
 	    nnet.Read(model_filename);
 	    // using activations directly: remove softmax, if present
 	    if (nnet.GetComponent(nnet.NumComponents()-1).GetType() ==
-	        kaldi::nnet1::Component::kSoftmax) {
+	        kaldi::nnet0::Component::kSoftmax) {
 	      KALDI_LOG << "Removing softmax from the nnet " << model_filename;
 	      nnet.RemoveComponent(nnet.NumComponents()-1);
 	    } else {

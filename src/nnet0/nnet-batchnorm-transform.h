@@ -26,7 +26,7 @@
 
 namespace kaldi {
 
-namespace nnet1 {
+namespace nnet0 {
 
 class BatchNormTransform: public UpdatableComponent{
 public:
@@ -331,7 +331,7 @@ private:
 };
 
 
-} // namespace nnet1
+} // namespace nnet0
 
 } // namespace kaldi
 

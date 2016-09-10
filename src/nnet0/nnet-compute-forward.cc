@@ -26,7 +26,7 @@
 #include "nnet/nnet-compute-forward.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class NnetForwardParallelClass: public MultiThreadable {
 private:

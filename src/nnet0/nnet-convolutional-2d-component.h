@@ -29,7 +29,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * Convolutional2DComponent implements convolution over 2-axis (frequency and temporal)
@@ -473,7 +473,7 @@ class Convolutional2DComponent : public UpdatableComponent {
   CuVector<BaseFloat> in_diff_summands_;
 };
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif

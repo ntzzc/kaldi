@@ -43,7 +43,7 @@
 #include "nnet/nnet-compute-lstm-lm-parallel.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class TrainLstmLmParallelClass: public MultiThreadable {
 

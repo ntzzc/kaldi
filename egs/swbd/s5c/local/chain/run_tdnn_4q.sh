@@ -10,7 +10,7 @@ set -e
 #%WER 16.6 | 4459 42989 | 85.2 9.5 5.3 1.8 16.6 53.4 | exp/chain/tdnn_v1_trial6_sp/decode_eval2000_sw1_fsh_fg/score_11_0.0/eval2000_hires.ctm.filt.sys
 #%WER 15.59 [ 7671 / 49204, 883 ins, 2234 del, 4554 sub ] exp/chain/tdnn_v1_trial6_sp/decode_train_dev_sw1_fsh_fg/wer_12_0.0
 
-
+echo "This script is not longer supported as we removed TDNN + pooling config generator" && exit 1;
 # configs for 'chain'
 affix=
 stage=10
@@ -23,7 +23,7 @@ decode_iter=
 # TDNN options
 splice_indexes="-2,-1,0,1,2 -1,0,2 -3,0,3 -6,-3,0,3 -6,-3,0,3"
 # smoothing options
-pool_window=7 
+pool_window=7
 pool_type='per-dim-weighted-average'
 pool_lpfilter_width=
 
@@ -129,7 +129,6 @@ if [ $stage -le 12 ]; then
     --frames-per-eg $frames_per_eg \
     --num-epochs $num_epochs --num-jobs-initial $num_jobs_initial --num-jobs-final $num_jobs_final \
     --splice-indexes "$splice_indexes" \
-    --pool-type "$pool_type" \
     --pool-window "$pool_window" \
     --pool-lpfilter-width "$pool_lpfilter_width" \
     --feat-type raw \

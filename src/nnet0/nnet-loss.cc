@@ -30,7 +30,7 @@
 #include <mpi.h>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 
 /* Xent */
@@ -1218,5 +1218,5 @@ std::string Ctc::Report() {
   return oss.str();
 }
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi

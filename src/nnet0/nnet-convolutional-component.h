@@ -27,7 +27,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * ConvolutionalComponent implements convolution over single axis 
@@ -453,7 +453,7 @@ class ConvolutionalComponent : public UpdatableComponent {
   CuMatrix<BaseFloat> feature_patch_diffs_;
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

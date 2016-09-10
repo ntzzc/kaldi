@@ -36,7 +36,7 @@ namespace lm {
 class LmModelSync;
 }
 
-namespace nnet1 {
+namespace nnet0 {
 
 class Nnet {
 
@@ -191,7 +191,7 @@ class Nnet {
   NnetTrainOptions opts_;
 };
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif  // KALDI_NNET_NNET_NNET_H_

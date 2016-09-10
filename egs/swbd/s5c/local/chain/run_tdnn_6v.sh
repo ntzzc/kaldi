@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# This script contains online decoding using chain + nnet3 setup.
 # _6v is as _6h, but moving to a TDNN+ReLU recipe instead of using jesus-layer.
 # Otherwise we make everything as similar as possible to 6h.
 # The ReLU dimension, at 576, is chosen to make the number of parameters about
@@ -36,9 +36,6 @@ decode_iter=
 # TDNN options
 # this script uses the new tdnn config generator so it needs a final 0 to reflect that the final layer input has no splicing
 # smoothing options
-pool_window=
-pool_type='none'
-pool_lpfilter_width=
 self_repair_scale=0.00001
 # training options
 num_epochs=4
@@ -134,14 +131,9 @@ if [ $stage -le 12 ]; then
     dim_opts="--pnorm-input-dim $pnorm_input_dim --pnorm-output-dim  $pnorm_output_dim"
   fi
 
-  # create the config files for nnet initialization
-  pool_opts=
-  pool_opts=$pool_opts${pool_type:+" --pool-type $pool_type "}
-  pool_opts=$pool_opts${pool_window:+" --pool-window $pool_window "}
-  pool_opts=$pool_opts${pool_lpfilter_width:+" --pool-lpfilter-width $pool_lpfilter_width "}
-  repair_opts=${self_repair_scale:+" --self-repair-scale $self_repair_scale "}
+  repair_opts=${self_repair_scale:+" --self-repair-scale-nonlinearity $self_repair_scale "}
 
-  steps/nnet3/tdnn/make_configs.py $pool_opts \
+  steps/nnet3/tdnn/make_configs.py \
     $repair_opts \
     --feat-dir data/${train_set}_hires \
     --ivector-dir exp/nnet3/ivectors_${train_set} \
@@ -223,5 +215,61 @@ if [ $stage -le 14 ]; then
       ) &
   done
 fi
+
+# Results using offline and online decoding
+# System                    6v_sp 6v_sp_online 6v_sp_online{per_utt}
+# WER on train_dev(tg)      14.68  14.72  15.43
+# WER on train_dev(fg)      13.49  13.58  14.18
+# WER on eval2000(tg)        17.2  17.3   18.2
+# WER on eval2000(fg)        15.7  15.9   16.7
+
+#if [ $stage -le 15 ]; then
+#  # If this setup used PLP features, we'd have to give the option --feature-type plp
+#  # to the script below.
+#  steps/online/nnet3/prepare_online_decoding.sh --mfcc-config conf/mfcc_hires.conf \
+#      data/lang exp/nnet3/extractor "$dir" ${dir}_online || exit 1;
+#fi
+
+
+
+#if [ $stage -le 16 ]; then
+#  iter_opts=
+#  if [ ! -z $decode_iter ]; then
+#    iter_opts=" --iter $decode_iter "
+#  fi
+#  for decode_set in train_dev eval2000; do
+#      (
+#      steps/online/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
+#          --nj 50 --cmd "$decode_cmd" $iter_opts --config conf/decode_online.config \
+#          $graph_dir data/${decode_set}_hires ${dir}_online/decode_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff} || exit 1;
+#      if $has_fisher; then
+#          steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
+#            data/lang_sw1_{tg,fsh_fg} data/${decode_set}_hires \
+#            ${dir}_online/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_{tg,fsh_fg} || exit 1;
+#      fi
+#      ) &
+#  done
+#fi
+#
+#if [ $stage -le 17 ]; then
+#  iter_opts=
+#  if [ ! -z $decode_iter ]; then
+#    iter_opts=" --iter $decode_iter "
+#  fi
+#  for decode_set in train_dev eval2000; do
+#      (
+#      steps/online/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 --config conf/decode_online.config \
+#          --nj 50 --cmd "$decode_cmd" $iter_opts --per-utt true \
+#          $graph_dir data/${decode_set}_hires ${dir}_online/decode_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff}_per_utt || exit 1;
+#      if $has_fisher; then
+#          steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
+#            data/lang_sw1_{tg,fsh_fg} data/${decode_set}_hires \
+#            ${dir}_online/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_{tg,fsh_fg}_per_utt || exit 1;
+#      fi
+#      ) &
+#  done
+#fi
+#
 wait;
+
 exit 0;

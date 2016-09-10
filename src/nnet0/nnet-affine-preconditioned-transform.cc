@@ -9,7 +9,7 @@
 
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 AffinePreconditionedOnlineTransform::
 AffinePreconditionedOnlineTransform(const AffineTransform &orig, int32 rank_in, int32 rank_out,
@@ -284,5 +284,5 @@ void AffinePreconditionedOnlineTransform::SetPreconditionerConfigs() {
 }
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi

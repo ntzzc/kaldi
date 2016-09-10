@@ -35,7 +35,7 @@
 #include "nnet-model-merge-function.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 void
 NnetModelSync::Init(Nnet *nnet)

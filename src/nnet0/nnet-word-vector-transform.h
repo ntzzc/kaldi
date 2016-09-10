@@ -33,7 +33,7 @@ namespace lm {
 class LmModelSync;
 }
 
-namespace nnet1 {
+namespace nnet0 {
 
 class WordVectorTransform : public UpdatableComponent {
 
@@ -328,7 +328,7 @@ protected:
 #endif
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

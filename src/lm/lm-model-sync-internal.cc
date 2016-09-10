@@ -100,19 +100,19 @@ void LmModelSync::Destory()
 int LmModelSync::GetDim(Nnet *nnet)
 {
 	int dim = 0;
-	nnet1::AffineTransform* aff_t;
-	nnet1::LstmProjectedStreamsFast *lstm_t;
-	//nnet1::LstmProjectedStreams *plstm_t;
-	nnet1::LstmStreams *stlstm_t;
-	nnet1::ClassAffineTransform *class_affine;
-	nnet1::WordVectorTransform *word_transf;
+	nnet0::AffineTransform* aff_t;
+	nnet0::LstmProjectedStreamsFast *lstm_t;
+	//nnet0::LstmProjectedStreams *plstm_t;
+	nnet0::LstmStreams *stlstm_t;
+	nnet0::ClassAffineTransform *class_affine;
+	nnet0::WordVectorTransform *word_transf;
 
 	for (int32 n = 0; n < nnet->components_.size(); n++)
 	{
 			if (nnet->components_[n]->IsUpdatable()) {
 				switch (nnet->components_[n]->GetType()) {
-				case nnet1::Component::kLstmProjectedStreamsFast:
-					lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
+				case nnet0::Component::kLstmProjectedStreamsFast:
+					lstm_t = (nnet0::LstmProjectedStreamsFast*)(nnet->components_[n]);
 					dim += lstm_t->w_gifo_x_.SizeInBytes()/sizeof(BaseFloat);
 					dim += lstm_t->w_gifo_r_.SizeInBytes()/sizeof(BaseFloat);
 					dim += lstm_t->bias_.Dim();
@@ -121,8 +121,8 @@ int LmModelSync::GetDim(Nnet *nnet)
 					dim += lstm_t->peephole_o_c_.Dim();
 					dim += lstm_t->w_r_m_.SizeInBytes()/sizeof(BaseFloat);
 					break;
-				case nnet1::Component::kLstmStreams:
-					stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
+				case nnet0::Component::kLstmStreams:
+					stlstm_t = (nnet0::LstmStreams*)(nnet->components_[n]);
 					dim += stlstm_t->w_gifo_x_.SizeInBytes()/sizeof(BaseFloat);
 					dim += stlstm_t->w_gifo_m_.SizeInBytes()/sizeof(BaseFloat);
 					dim += stlstm_t->bias_.Dim();
@@ -130,24 +130,24 @@ int LmModelSync::GetDim(Nnet *nnet)
 					dim += stlstm_t->peephole_f_c_.Dim();
 					dim += stlstm_t->peephole_o_c_.Dim();
 					break;
-				case nnet1::Component::kAffineTransform:
-					aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
+				case nnet0::Component::kAffineTransform:
+					aff_t = (nnet0::AffineTransform*)(nnet->components_[n]);
 					dim += aff_t->linearity_.SizeInBytes()/sizeof(BaseFloat);
 					dim += aff_t->bias_.Dim();
 					break;
-				case nnet1::Component::kClassAffineTransform:
-					class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
+				case nnet0::Component::kClassAffineTransform:
+					class_affine = (nnet0::ClassAffineTransform*)(nnet->components_[n]);
 					dim += class_affine->linearity_.SizeInBytes()/sizeof(BaseFloat);
 					dim += class_affine->bias_.Dim();
 					break;
-				case nnet1::Component::kWordVectorTransform:
-					word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
+				case nnet0::Component::kWordVectorTransform:
+					word_transf = (nnet0::WordVectorTransform*)(nnet->components_[n]);
 					dim += word_transf->wordvector_.SizeInBytes()/sizeof(BaseFloat);
 					break;
 				default:
 						KALDI_ERR<< "Unimplemented access to parameters "
 						<< "of updatable component "
-						<< nnet1::Component::TypeToMarker(nnet->components_[n]->GetType());
+						<< nnet0::Component::TypeToMarker(nnet->components_[n]->GetType());
 				}
 			}
 	}
@@ -167,12 +167,12 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
 	int32 dst_pitch, src_pitch, width, size;
 	MatrixDim dim;
-	nnet1::AffineTransform* aff_t;
-	nnet1::LstmProjectedStreamsFast *lstm_t;
-	//nnet1::LstmProjectedStreams *plstm_t;
-	nnet1::LstmStreams *stlstm_t;
-	nnet1::ClassAffineTransform *class_affine;
-	nnet1::WordVectorTransform *word_transf;
+	nnet0::AffineTransform* aff_t;
+	nnet0::LstmProjectedStreamsFast *lstm_t;
+	//nnet0::LstmProjectedStreams *plstm_t;
+	nnet0::LstmStreams *stlstm_t;
+	nnet0::ClassAffineTransform *class_affine;
+	nnet0::WordVectorTransform *word_transf;
 
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
@@ -181,8 +181,8 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
       for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
-			case nnet1::Component::kLstmProjectedStreamsFast:
-				lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
+			case nnet0::Component::kLstmProjectedStreamsFast:
+				lstm_t = (nnet0::LstmProjectedStreamsFast*)(nnet->components_[n]);
 
 				dim = lstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
@@ -230,8 +230,8 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 				break;
 
-			case nnet1::Component::kLstmStreams:
-				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
+			case nnet0::Component::kLstmStreams:
+				stlstm_t = (nnet0::LstmStreams*)(nnet->components_[n]);
 
 				dim = stlstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
@@ -271,8 +271,8 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 				break;
 
-			case nnet1::Component::kAffineTransform:
-                aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
+			case nnet0::Component::kAffineTransform:
+                aff_t = (nnet0::AffineTransform*)(nnet->components_[n]);
 				dim = aff_t->linearity_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
@@ -290,8 +290,8 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 				pos += size;
 				break;
 
-			case nnet1::Component::kClassAffineTransform:
-				class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
+			case nnet0::Component::kClassAffineTransform:
+				class_affine = (nnet0::ClassAffineTransform*)(nnet->components_[n]);
 				dim = class_affine->linearity_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
@@ -309,8 +309,8 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 				pos += size;
 				break;
 
-			case nnet1::Component::kWordVectorTransform:
-				word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
+			case nnet0::Component::kWordVectorTransform:
+				word_transf = (nnet0::WordVectorTransform*)(nnet->components_[n]);
 				dim = word_transf->wordvector_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
@@ -325,7 +325,7 @@ void LmModelSync::GetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "
 				<< "of updatable component "
-				<< nnet1::Component::TypeToMarker(nnet->components_[n]->GetType());
+				<< nnet0::Component::TypeToMarker(nnet->components_[n]->GetType());
 			}
 		}
       }
@@ -350,12 +350,12 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 	void *host_data_ = buffer_idx < 0 ? (void*)this->data_ : this->thread_data_[thread_idx];
 	int32 dst_pitch, src_pitch, width,  size;
 	MatrixDim dim;
-	nnet1::AffineTransform* aff_t;
-	nnet1::LstmProjectedStreamsFast *lstm_t;
-	//nnet1::LstmProjectedStreams *plstm_t;
-	nnet1::LstmStreams *stlstm_t;
-	nnet1::ClassAffineTransform *class_affine;
-	nnet1::WordVectorTransform *word_transf;
+	nnet0::AffineTransform* aff_t;
+	nnet0::LstmProjectedStreamsFast *lstm_t;
+	//nnet0::LstmProjectedStreams *plstm_t;
+	nnet0::LstmStreams *stlstm_t;
+	nnet0::ClassAffineTransform *class_affine;
+	nnet0::WordVectorTransform *word_transf;
 
 #if HAVE_CUDA == 1
   if (CuDevice::Instantiate().Enabled()) {
@@ -364,8 +364,8 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 	for (int32 n = 0; n < nnet->components_.size(); n++) {
 		if (nnet->components_[n]->IsUpdatable()) {
 			switch (nnet->components_[n]->GetType()) {
-			case nnet1::Component::kLstmProjectedStreamsFast:
-				lstm_t = (nnet1::LstmProjectedStreamsFast*)(nnet->components_[n]);
+			case nnet0::Component::kLstmProjectedStreamsFast:
+				lstm_t = (nnet0::LstmProjectedStreamsFast*)(nnet->components_[n]);
 
 				dim = lstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
@@ -412,8 +412,8 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 				pos += lstm_t->w_r_m_.SizeInBytes();
 				break;
 
-			case nnet1::Component::kLstmStreams:
-				stlstm_t = (nnet1::LstmStreams*)(nnet->components_[n]);
+			case nnet0::Component::kLstmStreams:
+				stlstm_t = (nnet0::LstmStreams*)(nnet->components_[n]);
 
 				dim = stlstm_t->w_gifo_x_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
@@ -452,9 +452,9 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 				pos += size;
 
 				break;
-			case nnet1::Component::kAffineTransform:
+			case nnet0::Component::kAffineTransform:
 				// get the component
-				aff_t = (nnet1::AffineTransform*)(nnet->components_[n]);
+				aff_t = (nnet0::AffineTransform*)(nnet->components_[n]);
 				dim = aff_t->linearity_.Dim();
 				dst_pitch = dim.stride*sizeof(BaseFloat);
 				src_pitch = dst_pitch;
@@ -474,8 +474,8 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 				pos += size;
 
 				break;
-			case nnet1::Component::kClassAffineTransform:
-				class_affine = (nnet1::ClassAffineTransform*)(nnet->components_[n]);
+			case nnet0::Component::kClassAffineTransform:
+				class_affine = (nnet0::ClassAffineTransform*)(nnet->components_[n]);
 				dim = class_affine->linearity_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
@@ -492,8 +492,8 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 
 				pos += size;
 				break;
-			case nnet1::Component::kWordVectorTransform:
-				word_transf = (nnet1::WordVectorTransform*)(nnet->components_[n]);
+			case nnet0::Component::kWordVectorTransform:
+				word_transf = (nnet0::WordVectorTransform*)(nnet->components_[n]);
 				dim = word_transf->wordvector_.Dim();
 				src_pitch = dim.stride*sizeof(BaseFloat);
 				dst_pitch = src_pitch;
@@ -507,7 +507,7 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "
 				<< "of updatable component "
-				<< nnet1::Component::TypeToMarker(nnet->components_[n]->GetType());
+				<< nnet0::Component::TypeToMarker(nnet->components_[n]->GetType());
 			}
 		}
 	}

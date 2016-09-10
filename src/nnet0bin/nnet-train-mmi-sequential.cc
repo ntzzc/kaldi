@@ -41,7 +41,7 @@
 
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 void LatticeAcousticRescore(const Matrix<BaseFloat> &log_like,
                             const TransitionModel &trans_model,
@@ -79,13 +79,13 @@ void LatticeAcousticRescore(const Matrix<BaseFloat> &log_like,
   }
 }
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
   typedef kaldi::int32 int32;
   try {
     const char *usage =
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
 
      
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
     // Select the GPU
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
     nnet.Read(model_filename);
     // using activations directly: remove softmax, if present
     if (nnet.GetComponent(nnet.NumComponents()-1).GetType() ==
-        kaldi::nnet1::Component::kSoftmax) {
+        kaldi::nnet0::Component::kSoftmax) {
       KALDI_LOG << "Removing softmax from the nnet " << model_filename;
       nnet.RemoveComponent(nnet.NumComponents()-1);
     } else {

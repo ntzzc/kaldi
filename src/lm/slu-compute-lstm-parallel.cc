@@ -49,17 +49,17 @@ namespace lm {
 
 class TrainLstmSluParallelClass: public MultiThreadable {
 
-	typedef nnet1::NnetTrainOptions NnetTrainOptions;
-	typedef nnet1::NnetDataRandomizerOptions NnetDataRandomizerOptions;
-	typedef nnet1::NnetParallelOptions NnetParallelOptions;
-	typedef nnet1::ExamplesRepository  ExamplesRepository;
-	typedef nnet1::ClassAffineTransform ClassAffineTransform;
-	typedef nnet1::WordVectorTransform WordVectorTransform;
-	typedef nnet1::ParallelComponentMultiTask ParallelComponentMultiTask;
-	typedef nnet1::CBSoftmax CBSoftmax;
-	typedef nnet1::Nnet nnet;
-	typedef nnet1::Component Component;
-	typedef nnet1::SluNnetExample SluNnetExample;
+	typedef nnet0::NnetTrainOptions NnetTrainOptions;
+	typedef nnet0::NnetDataRandomizerOptions NnetDataRandomizerOptions;
+	typedef nnet0::NnetParallelOptions NnetParallelOptions;
+	typedef nnet0::ExamplesRepository  ExamplesRepository;
+	typedef nnet0::ClassAffineTransform ClassAffineTransform;
+	typedef nnet0::WordVectorTransform WordVectorTransform;
+	typedef nnet0::ParallelComponentMultiTask ParallelComponentMultiTask;
+	typedef nnet0::CBSoftmax CBSoftmax;
+	typedef nnet0::Nnet nnet;
+	typedef nnet0::Component Component;
+	typedef nnet0::SluNnetExample SluNnetExample;
 
 
 private:
@@ -230,9 +230,9 @@ private:
 
 	    model_sync->Initialize(&nnet, this->thread_id_);
 
-	    nnet1::CBXent cbxent;
-        nnet1::Xent xent, slot_xent, intent_xent;
-	    nnet1::Mse mse;
+	    nnet0::CBXent cbxent;
+        nnet0::Xent xent, slot_xent, intent_xent;
+	    nnet0::Mse mse;
 
         if (NULL != class_affine)
         {
@@ -565,7 +565,7 @@ void SluLstmUpdateParallel(const SluLstmUpdateOptions *opts,
 		Nnet *nnet,
 		SluStats *stats)
 {
-		nnet1::ExamplesRepository repository(128*30);
+		nnet0::ExamplesRepository repository(128*30);
 		LmModelSync model_sync(nnet, opts->parallel_opts);
 
 		TrainLstmSluParallelClass c(opts, &model_sync,
@@ -586,10 +586,10 @@ void SluLstmUpdateParallel(const SluLstmUpdateOptions *opts,
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<TrainLstmSluParallelClass> mc(opts->parallel_opts->num_threads, c);
-	    nnet1::NnetExample *example;
-	    std::vector<nnet1::NnetExample*> examples;
+	    nnet0::NnetExample *example;
+	    std::vector<nnet0::NnetExample*> examples;
 	    for (; !feature_reader.Done(); feature_reader.Next()) {
-	    	example = new nnet1::SluNnetExample(opts, &feature_reader, slot_reader, intent_reader);
+	    	example = new nnet0::SluNnetExample(opts, &feature_reader, slot_reader, intent_reader);
 	    	if (example->PrepareData(examples))
 	    	{
 	    		for (int i = 0; i < examples.size(); i++)

@@ -35,7 +35,7 @@
 #include "nnet/nnet-class-affine-transform.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 
 Nnet::Nnet(const Nnet& other) {
@@ -873,5 +873,5 @@ void Nnet::SwitchToOnlinePreconditioning(int32 rank_in, int32 rank_out,
 }
 
  
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi

@@ -31,7 +31,7 @@
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
   typedef kaldi::int32 int32;
   try {
     const char *usage =
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
 
      
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
 #if HAVE_CUDA==1
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
     Nnet nnet;
     nnet.Read(model_filename);
     KALDI_ASSERT(nnet.NumComponents()==1);
-    KALDI_ASSERT(nnet.GetComponent(0).GetType() == kaldi::nnet1::Component::kRbm);
+    KALDI_ASSERT(nnet.GetComponent(0).GetType() == kaldi::nnet0::Component::kRbm);
     RbmBase &rbm = dynamic_cast<RbmBase&>(nnet.GetComponent(0));
 
     // Configure the RBM,

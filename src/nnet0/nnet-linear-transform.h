@@ -27,7 +27,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class LinearTransform : public UpdatableComponent {
  public:
@@ -174,7 +174,7 @@ class LinearTransform : public UpdatableComponent {
   BaseFloat learn_rate_coef_;
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

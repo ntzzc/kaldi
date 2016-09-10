@@ -36,7 +36,7 @@
  *************************************/
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class GruStreams : public UpdatableComponent {
 	friend class NnetModelSync;
@@ -556,7 +556,7 @@ class GruStreams : public UpdatableComponent {
   BaseFloat bias_learn_rate_coef_;
   BaseFloat max_norm_;
 };
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

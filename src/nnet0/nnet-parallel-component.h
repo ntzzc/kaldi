@@ -29,7 +29,7 @@
 #include <sstream>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 class ParallelComponent : public UpdatableComponent {
  public:
@@ -237,7 +237,7 @@ class ParallelComponent : public UpdatableComponent {
   std::vector<Nnet> nnet_;
 };
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif

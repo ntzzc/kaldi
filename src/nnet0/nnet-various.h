@@ -30,7 +30,7 @@
 #include <sstream>
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 
 /**
@@ -550,7 +550,7 @@ class Rescale : public UpdatableComponent {
 
 
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 #endif // KALDI_NNET_NNET_VARIOUS_H_

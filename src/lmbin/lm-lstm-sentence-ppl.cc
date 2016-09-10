@@ -33,7 +33,7 @@
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
-  using namespace kaldi::nnet1;
+  using namespace kaldi::nnet0;
   try {
     const char *usage =
         "Test model perplexity(with constant variance regularization).\n"
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
 
     using namespace kaldi;
-    using namespace kaldi::nnet1;
+    using namespace kaldi::nnet0;
     typedef kaldi::int32 int32;
 
     int32 time_shift = 0;
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     // using activations directly: remove cbsoftmax, if use constant class zt
     if (classzt_file != "")
     {
-    	if (nnet.GetComponent(nnet.NumComponents()-1).GetType() == kaldi::nnet1::Component::kCBSoftmax) {
+    	if (nnet.GetComponent(nnet.NumComponents()-1).GetType() == kaldi::nnet0::Component::kCBSoftmax) {
     		KALDI_LOG << "Removing cbsoftmax from the nnet " << model_filename;
     		nnet.RemoveComponent(nnet.NumComponents()-1);
 		} else {

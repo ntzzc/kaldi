@@ -28,7 +28,7 @@
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 /**
  * AveragePoolingComponent :
@@ -196,7 +196,7 @@ class AveragePooling2DComponent : public Component {
     pool_x_step_, pool_y_step_;
 };
 
-}  // namespace nnet1
+}  // namespace nnet0
 }  // namespace kaldi
 
 #endif

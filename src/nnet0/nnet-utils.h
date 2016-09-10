@@ -32,7 +32,7 @@
 #include "hmm/transition-model.h"
 
 namespace kaldi {
-namespace nnet1 {
+namespace nnet0 {
 
 
 /**
@@ -281,7 +281,7 @@ inline void ResetStream(std::vector<CuSubVector<Real>* > &veclist)
 }
 #endif
 
-} // namespace nnet1
+} // namespace nnet0
 } // namespace kaldi
 
 
