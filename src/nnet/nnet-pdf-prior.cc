@@ -68,6 +68,7 @@ PdfPrior::PdfPrior(const PdfPriorOptions &opts)
 
   // push to GPU,
   log_priors_ = Vector<BaseFloat>(log_priors);
+  // log_priors.Write(std::cout, false);
 }
 
 
