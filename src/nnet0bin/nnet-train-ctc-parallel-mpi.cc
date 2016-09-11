@@ -1,4 +1,4 @@
-// nnet/nnet-train-ctc-parallel-mpi.cc
+// nnet0/nnet-train-ctc-parallel-mpi.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -17,16 +17,16 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nnet/nnet-trnopts.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-loss.h"
-#include "nnet/nnet-randomizer.h"
+#include "nnet0/nnet-trnopts.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-loss.h"
+#include "nnet0/nnet-randomizer.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "cudamatrix/cu-device.h"
-#include "nnet/nnet-compute-parallel.h"
-#include "nnet/nnet-compute-ctc-parallel.h"
+#include "nnet0/nnet-compute-parallel.h"
+#include "nnet0/nnet-compute-ctc-parallel.h"
 
 #include <iomanip>
 #include <unistd.h>

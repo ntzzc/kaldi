@@ -1,4 +1,4 @@
-// nnet/nnet-nnet.cc
+// nnet0/nnet-nnet.cc
 
 // Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
 
@@ -17,22 +17,22 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-parallel-component.h"
-#include "nnet/nnet-activation.h"
-#include "nnet/nnet-affine-transform.h"
-#include "nnet/nnet-various.h"
-#include "nnet/nnet-lstm-projected-streams.h"
-#include "nnet/nnet-blstm-projected-streams.h"
-#include "nnet/nnet-blstm-streams.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-parallel-component.h"
+#include "nnet0/nnet-activation.h"
+#include "nnet0/nnet-affine-transform.h"
+#include "nnet0/nnet-various.h"
+#include "nnet0/nnet-lstm-projected-streams.h"
+#include "nnet0/nnet-blstm-projected-streams.h"
+#include "nnet0/nnet-blstm-streams.h"
 
-#include "nnet/nnet-affine-preconditioned-transform.h"
-#include "nnet/nnet-lstm-projected-streams-fast.h"
-#include "nnet/nnet-lstm-projected-streams-simple.h"
-#include "nnet/nnet-lstm-streams.h"
-#include "nnet/nnet-gru-streams.h"
-#include "nnet/nnet-class-affine-transform.h"
+#include "nnet0/nnet-affine-preconditioned-transform.h"
+#include "nnet0/nnet-lstm-projected-streams-fast.h"
+#include "nnet0/nnet-lstm-projected-streams-simple.h"
+#include "nnet0/nnet-lstm-streams.h"
+#include "nnet0/nnet-gru-streams.h"
+#include "nnet0/nnet-class-affine-transform.h"
 
 namespace kaldi {
 namespace nnet0 {

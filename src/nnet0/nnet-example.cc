@@ -1,4 +1,4 @@
-// nnet/nnet-example.cc
+// nnet0/nnet-example.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -18,7 +18,7 @@
 // limitations under the License.
 #include "hmm/posterior.h"
 #include "lat/lattice-functions.h"
-#include "nnet/nnet-example.h"
+#include "nnet0/nnet-example.h"
 
 namespace kaldi {
 namespace nnet0 {
@@ -539,6 +539,6 @@ ExamplesRepository::ProvideExample() {
 }
 
 
-} // namespace nnet
+} // namespace nnet0
 } // namespace kaldi
 

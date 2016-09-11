@@ -1,4 +1,4 @@
-// nnet/nnet-utils.h
+// nnet0/nnet-utils.h
 
 // Copyright 2015  Brno University of Technology (author: Karel Vesely)
 

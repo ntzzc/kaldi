@@ -19,14 +19,14 @@
 
 #include <limits>
 
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-loss.h"
-#include "nnet/nnet-pdf-prior.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-loss.h"
+#include "nnet0/nnet-pdf-prior.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
 
-#include "nnet/nnet-compute-forward.h"
+#include "nnet0/nnet-compute-forward.h"
 
 int main(int argc, char *argv[]) {
 	  using namespace kaldi;

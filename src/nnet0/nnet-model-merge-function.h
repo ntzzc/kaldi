@@ -1,4 +1,4 @@
-// nnet/nnet-model-merge-function.h
+// nnet0/nnet-model-merge-function.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -25,7 +25,7 @@
 #include <cmath>
 #include <sstream>
 
-#include "nnet/nnet-model-sync.h"
+#include "nnet0/nnet-model-sync.h"
 
 namespace kaldi {
 namespace nnet0 {

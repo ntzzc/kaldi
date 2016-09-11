@@ -28,19 +28,19 @@
 #include "lat/kaldi-lattice.h"
 #include "lat/lattice-functions.h"
 
-#include "nnet/nnet-trnopts.h"
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-activation.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-pdf-prior.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-trnopts.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-activation.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-pdf-prior.h"
+#include "nnet0/nnet-utils.h"
 #include "base/timer.h"
 #include "cudamatrix/cu-device.h"
 
 #include <iomanip>
 #include <unistd.h>
 
-#include "nnet/nnet-compute-sequential-parallel.h"
+#include "nnet0/nnet-compute-sequential-parallel.h"
 
 #include <mpi.h>
 

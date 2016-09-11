@@ -1,4 +1,4 @@
-// nnet/nnet-component.cc
+// nnet0/nnet-component.cc
 
 // Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
 
@@ -17,42 +17,42 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nnet/nnet-component.h"
+#include "nnet0/nnet-component.h"
 
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-activation.h"
-#include "nnet/nnet-kl-hmm.h"
-#include "nnet/nnet-affine-transform.h"
-#include "nnet/nnet-batchnorm-transform.h"
-#include "nnet/nnet-linear-transform.h"
-#include "nnet/nnet-rbm.h"
-#include "nnet/nnet-various.h"
-#include "nnet/nnet-kl-hmm.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-activation.h"
+#include "nnet0/nnet-kl-hmm.h"
+#include "nnet0/nnet-affine-transform.h"
+#include "nnet0/nnet-batchnorm-transform.h"
+#include "nnet0/nnet-linear-transform.h"
+#include "nnet0/nnet-rbm.h"
+#include "nnet0/nnet-various.h"
+#include "nnet0/nnet-kl-hmm.h"
 
-#include "nnet/nnet-convolutional-component.h"
-#include "nnet/nnet-average-pooling-component.h"
-#include "nnet/nnet-max-pooling-component.h"
+#include "nnet0/nnet-convolutional-component.h"
+#include "nnet0/nnet-average-pooling-component.h"
+#include "nnet0/nnet-max-pooling-component.h"
 
-#include "nnet/nnet-convolutional-2d-component.h"
-#include "nnet/nnet-convolutional-2d-component-fast.h"
-#include "nnet/nnet-average-pooling-2d-component.h"
-#include "nnet/nnet-max-pooling-2d-component.h"
-#include "nnet/nnet-max-pooling-2d-component-fast.h"
+#include "nnet0/nnet-convolutional-2d-component.h"
+#include "nnet0/nnet-convolutional-2d-component-fast.h"
+#include "nnet0/nnet-average-pooling-2d-component.h"
+#include "nnet0/nnet-max-pooling-2d-component.h"
+#include "nnet0/nnet-max-pooling-2d-component-fast.h"
 
-#include "nnet/nnet-lstm-projected-streams.h"
-#include "nnet/nnet-lstm-streams.h"
-#include "nnet/nnet-gru-streams.h"
-#include "nnet/nnet-lstm-projected-streams-fast.h"
-#include "nnet/nnet-lstm-projected-streams-simple.h"
-#include "nnet/nnet-blstm-projected-streams.h"
-#include "nnet/nnet-blstm-streams.h"
+#include "nnet0/nnet-lstm-projected-streams.h"
+#include "nnet0/nnet-lstm-streams.h"
+#include "nnet0/nnet-gru-streams.h"
+#include "nnet0/nnet-lstm-projected-streams-fast.h"
+#include "nnet0/nnet-lstm-projected-streams-simple.h"
+#include "nnet0/nnet-blstm-projected-streams.h"
+#include "nnet0/nnet-blstm-streams.h"
 
-#include "nnet/nnet-sentence-averaging-component.h"
-#include "nnet/nnet-frame-pooling-component.h"
-#include "nnet/nnet-parallel-component.h"
-#include "nnet/nnet-word-vector-transform.h"
-#include "nnet/nnet-class-affine-transform.h"
-#include "nnet/nnet-parallel-component-multitask.h"
+#include "nnet0/nnet-sentence-averaging-component.h"
+#include "nnet0/nnet-frame-pooling-component.h"
+#include "nnet0/nnet-parallel-component.h"
+#include "nnet0/nnet-word-vector-transform.h"
+#include "nnet0/nnet-class-affine-transform.h"
+#include "nnet0/nnet-parallel-component-multitask.h"
 
 #include <sstream>
 

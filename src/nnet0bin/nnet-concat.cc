@@ -19,7 +19,7 @@
 
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
-#include "nnet/nnet-nnet.h"
+#include "nnet0/nnet-nnet.h"
 
 int main(int argc, char *argv[]) {
   try {

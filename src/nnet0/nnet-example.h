@@ -1,4 +1,4 @@
-// nnet/nnet-example.h
+// nnet0/nnet-example.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -20,10 +20,10 @@
 #ifndef NNET_NNET_EXAMPLE_H_
 #define NNET_NNET_EXAMPLE_H_
 
-#include "nnet/nnet-compute-parallel.h"
-#include "nnet/nnet-compute-sequential-parallel.h"
-#include "nnet/nnet-compute-ctc-parallel.h"
-#include "nnet/nnet-compute-lstm-lm-parallel.h"
+#include "nnet0/nnet-compute-parallel.h"
+#include "nnet0/nnet-compute-sequential-parallel.h"
+#include "nnet0/nnet-compute-ctc-parallel.h"
+#include "nnet0/nnet-compute-lstm-lm-parallel.h"
 
 namespace kaldi {
 namespace nnet0 {

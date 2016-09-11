@@ -1,4 +1,4 @@
-// nnet/nnet-compute-parallel.h
+// nnet0/nnet-compute-parallel.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -28,14 +28,14 @@
 #include <mpi.h>
 
 #include "nnet-trnopts.h"
-#include "nnet/nnet-randomizer.h"
-#include "nnet/nnet-loss.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-model-sync.h"
+#include "nnet0/nnet-randomizer.h"
+#include "nnet0/nnet-loss.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-model-sync.h"
 
 #include "cudamatrix/cu-device.h"
 
-#include "nnet/nnet-compute-parallel.h"
+#include "nnet0/nnet-compute-parallel.h"
 
 namespace kaldi {
 namespace nnet0 {

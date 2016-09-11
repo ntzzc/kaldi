@@ -1,4 +1,4 @@
-// nnet/nnet-compute-forward.cc
+// nnet0/nnet-compute-forward.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -22,8 +22,8 @@
 #include "thread/kaldi-mutex.h"
 #include "thread/kaldi-thread.h"
 
-#include "nnet/nnet-example.h"
-#include "nnet/nnet-compute-forward.h"
+#include "nnet0/nnet-example.h"
+#include "nnet0/nnet-compute-forward.h"
 
 namespace kaldi {
 namespace nnet0 {

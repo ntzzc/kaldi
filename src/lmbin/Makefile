@@ -18,6 +18,6 @@ OBJFILES =
 TESTFILES =
 
 ADDLIBS = ../lm/kaldi-lm.a ../util/kaldi-util.a ../thread/kaldi-thread.a \
-          ../base/kaldi-base.a ../nnet/kaldi-nnet.a ../cudamatrix/kaldi-cudamatrix.a ../matrix/kaldi-matrix.a
+          ../base/kaldi-base.a ../nnet0/kaldi-nnet0.a ../cudamatrix/kaldi-cudamatrix.a ../matrix/kaldi-matrix.a
 
 include ../makefiles/default_rules.mk

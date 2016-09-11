@@ -1,4 +1,4 @@
-// nnet/nnet-model-sync.h
+// nnet0/nnet-model-sync.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -22,7 +22,7 @@
 
 #include "thread/kaldi-semaphore.h"
 #include "thread/kaldi-mutex.h"
-#include "nnet/nnet-nnet.h"
+#include "nnet0/nnet-nnet.h"
 
 #include "cudamatrix/cu-device.h"
 #include <mpi.h>

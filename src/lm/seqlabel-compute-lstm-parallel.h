@@ -27,14 +27,14 @@
 #include <iomanip>
 #include <mpi.h>
 
-#include "nnet/nnet-trnopts.h"
-#include "nnet/nnet-randomizer.h"
-#include "nnet/nnet-loss.h"
-#include "nnet/nnet-nnet.h"
+#include "nnet0/nnet-trnopts.h"
+#include "nnet0/nnet-randomizer.h"
+#include "nnet0/nnet-loss.h"
+#include "nnet0/nnet-nnet.h"
 
 #include "cudamatrix/cu-device.h"
 
-#include "nnet/nnet-compute-lstm-asgd.h"
+#include "nnet0/nnet-compute-lstm-asgd.h"
 #include "lm/lm-model-sync.h"
 
 namespace kaldi {

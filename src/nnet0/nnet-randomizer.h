@@ -1,4 +1,4 @@
-// nnet/nnet-randomizer.h
+// nnet0/nnet-randomizer.h
 
 // Copyright 2013  Brno University of Technology (author: Karel Vesely)
 

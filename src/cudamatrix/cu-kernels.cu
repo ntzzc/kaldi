@@ -2927,8 +2927,9 @@ void cublas_copy_kaldi_df(int Gr, int Bl, int n, const double* x, int incx,
   _cublas_copy_kaldi<<<Gr,Bl>>>(n, x, incx, y, incy);
 }
 
-void cudaF_vec_mul_elements(int Gr, int Bl, float* v, const float* a, int dim) {
-  _vec_mul_elements<<<Gr,Bl>>>(v, a, dim);
+void cudaF_vec_mul_elements(int Gr, int Bl, float* v, const float* a,
+			  int dim, cudaStream_t s) {
+  _vec_mul_elements<<<Gr,Bl,0,s>>>(v, a, dim);
 }
 
 void cudaF_vec_min(int Gr, int Bl, const float* v, float* value, int dim,
@@ -3561,8 +3562,8 @@ void cudaD_set_bias_params(int Gr, int Bl, double* v, const double* a,
 }
 
 void cudaD_vec_mul_elements(int Gr, int Bl, double* v, const double* a,
-                            int dim) {
-  _vec_mul_elements<<<Gr,Bl>>>(v, a, dim);
+                            int dim, cudaStream_t s) {
+  _vec_mul_elements<<<Gr,Bl,0,s>>>(v, a, dim);
 }
 
 void cudaD_vec_min(int Gr, int Bl, const double* v, double* value, int dim,
@@ -4273,28 +4274,6 @@ static void _copy_row_mats(Real* dst, Real **src_array, MatrixDim dst_dim, Matri
 
 template<typename Real>
 __global__
-static void _copy_row_to_vecid(const Real *mat, MatrixIndexT_cuda *vec_id, MatrixDim dim) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;  // col index
-	if (i < dim.cols)
-		vec_id[i] = (MatrixIndexT_cuda)mat[i];
-}
-
-template<typename Real>
-__global__
-static void _add_mat_to_rows(Real alpha, Real *dst, const Real *src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, MatrixDim src_dim) {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;  // col index
-  int j = blockIdx.y * blockDim.y + threadIdx.y;  // row index
-  if (i < dst_dim.cols && j < dst_dim.rows) {
-    int index = reorder[j];
-    int dst_index = index * dst_dim.stride + i;
-    int src_index = j * src_dim.stride + i;
-    dst[dst_index] += index >= 0 ? alpha*src[src_index] : 0;
-  }	
-}
-
-
-template<typename Real>
-__global__
 static void _row_sum_reduce(Real alpha, Real *y, const Real *x, Real beta, MatrixDim d)
 {
   int j = blockIdx.x;
@@ -4523,10 +4502,6 @@ void cudaF_copy_row_mats(dim3 Gr, dim3 Bl, float* dst, float **src_array, Matrix
     _copy_row_mats<<<Gr,Bl>>>(dst, src_array, dst_dim, src_dim);
 }
 
-void cudaF_add_cols(dim3 Gr, dim3 Bl, float* dst, const float* src, const MatrixIndexT_cuda* reorder, MatrixDim dst_dim, int src_stride) {
-  _add_cols<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
-}
-
 void cudaF_cross_entropy(dim3 Gr, dim3 Bl, float *xentropy, const float *nnetout, const float *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s) {
   _cross_entropy<<<Gr,Bl,0,s>>>(xentropy,nnetout,target,d,out_stride,tgt_stride);
 }
@@ -4559,13 +4534,6 @@ void cudaF_add_mat_to_rows(dim3 Gr, dim3 Bl, float alpha, float *dst, const floa
     _add_mat_to_rows<<<Gr, Bl>>>(alpha, dst, src, vec_id, dst_dim, src_dim);
 }
 
-void cudaF_cross_entropy(dim3 Gr, dim3 Bl, float *xentropy, const float *nnetout, const float *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s) {
-  _cross_entropy<<<Gr,Bl,0,s>>>(xentropy,nnetout,target,d,out_stride,tgt_stride);
-}
-
-void cudaF_entropy(dim3 Gr, dim3 Bl, float *entropy, const float *mat, MatrixDim d, int mat_stride, cudaStream_t s) {
-  _entropy<<<Gr,Bl,0,s>>>(entropy,mat,d,mat_stride);
-}
 
 /*
  * double
@@ -4612,14 +4580,6 @@ void cudaD_copy_col_mats(dim3 Gr, dim3 Bl, double* dst, double **src_array, Matr
 
 void cudaD_copy_row_mats(dim3 Gr, dim3 Bl, double* dst, double **src_array, MatrixDim dst_dim, MatrixDim src_dim) {
         _copy_row_mats<<<Gr,Bl>>>(dst, src_array, dst_dim, src_dim);
-}
-
-void cudaD_cross_entropy(dim3 Gr, dim3 Bl, double *xentropy, const double *nnetout, const double *target, MatrixDim d, int out_stride, int tgt_stride, cudaStream_t s) {
-  _cross_entropy<<<Gr,Bl,0,s>>>(xentropy,nnetout,target,d,out_stride,tgt_stride);
-}
-
-void cudaD_entropy(dim3 Gr, dim3 Bl, double *entropy, const double *mat, MatrixDim d, int mat_stride, cudaStream_t s) {
-  _entropy<<<Gr,Bl,0,s>>>(entropy,mat,d,mat_stride);
 }
 
 void cudaD_row_sum_reduce(size_t Gr, size_t Bl, double alpha, double *y, const double *x, MatrixDim d, double beta, cudaStream_t s) {

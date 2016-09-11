@@ -1,4 +1,4 @@
-// nnet/nnet-compute-sequential-parallel.cc
+// nnet0/nnet-compute-sequential-parallel.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -26,19 +26,19 @@
 
 #include "lat/kaldi-lattice.h"
 #include "lat/lattice-functions.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-utils.h"
 
 #include "cudamatrix/cu-device.h"
 #include "base/kaldi-types.h"
 
 
-#include "nnet/nnet-affine-transform.h"
-#include "nnet/nnet-affine-preconditioned-transform.h"
-#include "nnet/nnet-model-merge-function.h"
-#include "nnet/nnet-activation.h"
-#include "nnet/nnet-example.h"
+#include "nnet0/nnet-affine-transform.h"
+#include "nnet0/nnet-affine-preconditioned-transform.h"
+#include "nnet0/nnet-model-merge-function.h"
+#include "nnet0/nnet-activation.h"
+#include "nnet0/nnet-example.h"
 
-#include "nnet/nnet-compute-sequential-parallel.h"
+#include "nnet0/nnet-compute-sequential-parallel.h"
 
 namespace kaldi {
 namespace nnet0 {

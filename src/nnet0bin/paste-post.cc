@@ -22,7 +22,7 @@
 #include "base/io-funcs.h"
 #include "util/common-utils.h"
 #include "hmm/posterior.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-utils.h"
 
 /** @brief Combines 2 or more streams with NN-training targets into single one.
  *  This is handy when training NN with more than one output layer (softmax).

@@ -1,4 +1,4 @@
-// nnet/nnet-component-test.cc
+// nnet0/nnet-component-test.cc
 // Copyright 2014-2015  Brno University of Technology (author: Karel Vesely),
 //                      The Johns Hopkins University (author: Sri Harish Mallidi)
 
@@ -18,13 +18,13 @@
 // limitations under the License.
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-convolutional-component.h"
-#include "nnet/nnet-convolutional-2d-component.h"
-#include "nnet/nnet-max-pooling-component.h"
-#include "nnet/nnet-max-pooling-2d-component.h"
-#include "nnet/nnet-average-pooling-2d-component.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-convolutional-component.h"
+#include "nnet0/nnet-convolutional-2d-component.h"
+#include "nnet0/nnet-max-pooling-component.h"
+#include "nnet0/nnet-max-pooling-2d-component.h"
+#include "nnet0/nnet-average-pooling-2d-component.h"
 #include "util/common-utils.h"
 
 #include <sstream>

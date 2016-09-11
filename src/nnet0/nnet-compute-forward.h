@@ -1,4 +1,4 @@
-// nnet/nnet-compute-forward.h
+// nnet0/nnet-compute-forward.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -21,8 +21,8 @@
 #define NNET_NNET_COMPUTE_FORWARD_H_
 
 #include "nnet-trnopts.h"
-#include "nnet/nnet-pdf-prior.h"
-#include "nnet/nnet-nnet.h"
+#include "nnet0/nnet-pdf-prior.h"
+#include "nnet0/nnet-nnet.h"
 #include "base/timer.h"
 
 

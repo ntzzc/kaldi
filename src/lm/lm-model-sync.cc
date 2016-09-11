@@ -17,12 +17,12 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nnet/nnet-affine-transform.h"
-#include "nnet/nnet-lstm-projected-streams-fast.h"
-#include "nnet/nnet-lstm-projected-streams.h"
-#include "nnet/nnet-lstm-streams.h"
-#include "nnet/nnet-class-affine-transform.h"
-#include "nnet/nnet-word-vector-transform.h"
+#include "nnet0/nnet-affine-transform.h"
+#include "nnet0/nnet-lstm-projected-streams-fast.h"
+#include "nnet0/nnet-lstm-projected-streams.h"
+#include "nnet0/nnet-lstm-streams.h"
+#include "nnet0/nnet-class-affine-transform.h"
+#include "nnet0/nnet-word-vector-transform.h"
 
 #include "lm/lm-model-sync.h"
 

@@ -18,7 +18,7 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
 	   nnet-compute-lstm-parallel.o nnet-compute-lstm-asgd.o \
 	   nnet-compute-forward.o nnet-compute-ctc-parallel.o  nnet-compute-lstm-lm-parallel.o
 
-LIBNAME = kaldi-nnet
+LIBNAME = kaldi-nnet0
 
 ADDLIBS = ../hmm/kaldi-hmm.a ../nnet2/kaldi-nnet2.a ../thread/kaldi-thread.a ../lat/kaldi-lat.a ../cudamatrix/kaldi-cudamatrix.a ../matrix/kaldi-matrix.a ../base/kaldi-base.a ../util/kaldi-util.a
 

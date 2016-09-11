@@ -1,4 +1,4 @@
-// nnet/nnet-various.h
+// nnet0/nnet-various.h
 
 // Copyright 2012-2015  Brno University of Technology (author: Karel Vesely)
 
@@ -21,8 +21,8 @@
 #ifndef KALDI_NNET_NNET_VARIOUS_H_
 #define KALDI_NNET_NNET_VARIOUS_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 #include "util/text-utils.h"
 

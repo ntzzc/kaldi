@@ -23,12 +23,12 @@
 #include "thread/kaldi-semaphore.h"
 #include "thread/kaldi-mutex.h"
 #include "thread/kaldi-barrier.h"
-#include "nnet/nnet-nnet.h"
+#include "nnet0/nnet-nnet.h"
 
 #include "cudamatrix/cu-device.h"
 #include <mpi.h>
 
-#include "nnet/nnet-model-sync.h"
+#include "nnet0/nnet-model-sync.h"
 
 namespace kaldi {
 namespace lm {

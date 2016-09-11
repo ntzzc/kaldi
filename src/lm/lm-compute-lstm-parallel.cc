@@ -31,14 +31,14 @@
 #include "base/kaldi-types.h"
 
 
-#include "nnet/nnet-affine-transform.h"
-#include "nnet/nnet-affine-preconditioned-transform.h"
-#include "nnet/nnet-model-merge-function.h"
-#include "nnet/nnet-activation.h"
-#include "nnet/nnet-example.h"
-#include "nnet/nnet-affine-transform.h"
-#include "nnet/nnet-class-affine-transform.h"
-#include "nnet/nnet-word-vector-transform.h"
+#include "nnet0/nnet-affine-transform.h"
+#include "nnet0/nnet-affine-preconditioned-transform.h"
+#include "nnet0/nnet-model-merge-function.h"
+#include "nnet0/nnet-activation.h"
+#include "nnet0/nnet-example.h"
+#include "nnet0/nnet-affine-transform.h"
+#include "nnet0/nnet-class-affine-transform.h"
+#include "nnet0/nnet-word-vector-transform.h"
 
 #include "lm/lm-compute-lstm-parallel.h"
 

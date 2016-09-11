@@ -1,4 +1,4 @@
-// nnet/nnet-linear-transform.h
+// nnet0/nnet-linear-transform.h
 
 // Copyright 2011-2014  Brno University of Technology (author: Karel Vesely)
 
@@ -22,8 +22,8 @@
 #define KALDI_NNET_NNET_LINEAR_TRANSFORM_H_
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {

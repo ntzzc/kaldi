@@ -1,4 +1,4 @@
-// nnet/nnet-nnet.h
+// nnet0/nnet-nnet.h
 
 // Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
 
@@ -27,8 +27,8 @@
 #include "base/kaldi-common.h"
 #include "util/kaldi-io.h"
 #include "matrix/matrix-lib.h"
-#include "nnet/nnet-trnopts.h"
-#include "nnet/nnet-component.h"
+#include "nnet0/nnet-trnopts.h"
+#include "nnet0/nnet-component.h"
 
 namespace kaldi {
 

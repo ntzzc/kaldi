@@ -1,4 +1,4 @@
-// nnet/nnet-pdf-prior.cc
+// nnet0/nnet-pdf-prior.cc
 
 // Copyright 2013  Brno University of Technology (Author: Karel Vesely);
 //                 Arnab Ghoshal
@@ -18,7 +18,7 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nnet/nnet-pdf-prior.h"
+#include "nnet0/nnet-pdf-prior.h"
 
 namespace kaldi {
 namespace nnet0 {

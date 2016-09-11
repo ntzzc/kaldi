@@ -1,4 +1,4 @@
-// nnet/nnet-model-merge-function.cc
+// nnet0/nnet-model-merge-function.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -20,7 +20,7 @@
 
 #include "matrix/cblas-wrappers.h"
 
-#include "nnet/nnet-model-merge-function.h"
+#include "nnet0/nnet-model-merge-function.h"
 
 
 namespace kaldi {

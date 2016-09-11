@@ -1,4 +1,4 @@
-// nnet/nnet-pdf-prior.h
+// nnet0/nnet-pdf-prior.h
 
 // Copyright 2013  Brno University of Technology (Author: Karel Vesely)
 

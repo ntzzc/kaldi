@@ -298,12 +298,12 @@ inline void cuda_max(dim3 Gr, dim3 Bl, float *mat, const float *A,
   cudaF_max(Gr, Bl, mat, A, dst_d, src_stride);
 }
 inline void cuda_mul_cols_vec(dim3 Gr, dim3 Bl, float *mat, const float *scale,
-                              MatrixDim d, cudaStream_t s=NULL) {
-  cudaF_mul_cols_vec(Gr, Bl, mat, scale, d, s);
+                              MatrixDim d) {
+  cudaF_mul_cols_vec(Gr, Bl, mat, scale, d);
 }
 inline void cuda_mul_rows_vec(dim3 Gr, dim3 Bl, float *mat, const float *scale,
-                              MatrixDim d) {
-  cudaF_mul_rows_vec(Gr, Bl, mat, scale, d);
+                              MatrixDim d, cudaStream_t s=NULL) {
+  cudaF_mul_rows_vec(Gr, Bl, mat, scale, d, s);
 }
 inline void cuda_mul_rows_group_mat(dim3 Gr, dim3 Bl, float *y, const float *x,
                                     MatrixDim d, int src_stride,
@@ -339,9 +339,9 @@ inline void cuda_add_mat(dim3 Gr, dim3 Bl, float alpha, const float *src,
 inline void cuda_add_mat_blocks(dim3 Gr, dim3 Bl, float alpha, const float *src,
                                 int32_cuda num_row_blocks,
                                 int32_cuda num_col_blocks, float *dst,
-                                MatrixDim d, int src_stride, int A_trans, cudaStream_t s=NULL) {
+                                MatrixDim d, int src_stride, int A_trans) {
   cudaF_add_mat_blocks(Gr, Bl, alpha, src, num_row_blocks, num_col_blocks, dst,
-                       d, src_stride, A_trans, s);
+                       d, src_stride, A_trans);
 }
 inline void cuda_add_mat_mat_div_mat(dim3 Gr, dim3 Bl, const float *A,
                                      const float *B, const float *C, float *dst,

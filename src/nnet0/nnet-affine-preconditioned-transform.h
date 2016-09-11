@@ -9,7 +9,7 @@
 #define NNET_NNET_AFFINE_PRECONDITIONED_TRANSFORM_H_
 
 #include "nnet2/nnet-precondition-online.h"
-#include "nnet/nnet-affine-transform.h"
+#include "nnet0/nnet-affine-transform.h"
 
 namespace kaldi {
 namespace nnet0 {

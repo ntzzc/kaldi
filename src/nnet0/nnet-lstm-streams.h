@@ -1,4 +1,4 @@
-// nnet/nnet-lstm-streams.h
+// nnet0/nnet-lstm-streams.h
 
 // Copyright 2014  Jiayu DU (Jerry), Wei Li
 
@@ -22,8 +22,8 @@
 #ifndef KALDI_NNET_NNET_LSTM_STREAMS_H_
 #define KALDI_NNET_NNET_LSTM_STREAMS_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 /*************************************

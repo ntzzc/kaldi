@@ -1,4 +1,4 @@
-// nnet/nnet-loss.cc
+// nnet0/nnet-loss.cc
 
 // Copyright 2011-2015  Brno University of Technology (author: Karel Vesely)
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
@@ -18,8 +18,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "nnet/nnet-loss.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-loss.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 #include "hmm/posterior.h"
 #include "util/edit-distance.h"

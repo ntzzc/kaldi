@@ -1,4 +1,4 @@
-// nnet/nnet-activation.h
+// nnet0/nnet-activation.h
 
 // Copyright 2011-2013  Brno University of Technology (author: Karel Vesely)
 
@@ -21,8 +21,8 @@
 #ifndef KALDI_NNET_NNET_ACTIVATION_H_
 #define KALDI_NNET_NNET_ACTIVATION_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 #include "cudamatrix/cu-rand.h"
 #include "util/text-utils.h"

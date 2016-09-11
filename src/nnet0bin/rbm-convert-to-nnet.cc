@@ -19,8 +19,8 @@
 
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-rbm.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-rbm.h"
 
 int main(int argc, char *argv[]) {
   try {

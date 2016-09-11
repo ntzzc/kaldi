@@ -1,4 +1,4 @@
-// nnet/nnet-rbm.h
+// nnet0/nnet-rbm.h
 
 // Copyright 2012-2013  Brno University of Technology (Author: Karel Vesely)
 
@@ -22,10 +22,10 @@
 #define KALDI_NNET_NNET_RBM_H_
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-utils.h"
-#include "nnet/nnet-various.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-utils.h"
+#include "nnet0/nnet-various.h"
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {

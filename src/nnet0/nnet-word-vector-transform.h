@@ -1,4 +1,4 @@
-	// nnet/nnet-word-vector-transform.h
+	// nnet0/nnet-word-vector-transform.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -22,8 +22,8 @@
 #define KALDI_NNET_WORD_VECTOR_TRANSFORM_H_
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 

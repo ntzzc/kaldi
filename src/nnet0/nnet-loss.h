@@ -1,4 +1,4 @@
-// nnet/nnet-loss.h
+// nnet0/nnet-loss.h
 
 // Copyright 2011-2015  Brno University of Technology (author: Karel Vesely)
 

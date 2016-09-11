@@ -1,4 +1,4 @@
-// nnet/nnet-batchnorm-transform.h
+// nnet0/nnet-batchnorm-transform.h
 // See ../../COPYING for clarification regarding multiple authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 #ifndef KALDI_NNET_NNET_BATCH_NORMALIZATION_H_
 #define KALDI_NNET_NNET_BATCH_NORMALIZATION_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-various.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-various.h"
 #include "cudamatrix/cu-math.h"
 #include "cudamatrix/cu-matrix.h"
 #include "cudamatrix/cu-vector.h"

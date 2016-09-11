@@ -1,4 +1,4 @@
-// nnet/nnet-gru-streams.h
+// nnet0/nnet-gru-streams.h
 
 // Copyright 2015  xutao
 
@@ -22,8 +22,8 @@
 #ifndef KALDI_NNET_NNET_GRU_STREAMS_H_
 #define KALDI_NNET_NNET_GRU_STREAMS_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 /*************************************

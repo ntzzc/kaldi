@@ -1,4 +1,4 @@
-// nnet/nnet-convolutional-component-svd.h
+// nnet0/nnet-convolutional-component-svd.h
 
 // Copyright 2014-2015  Johns Hopkins University (author: Sri Harish Mallidi)
 //                      Brno University of Technology (author: Karel Vesely),
@@ -24,8 +24,8 @@
 #define KALDI_NNET_NNET_CONVOLUTIONAL_2D_COMPONENT_SVD_H_
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-various.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-various.h"
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {

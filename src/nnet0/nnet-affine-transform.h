@@ -1,4 +1,4 @@
-	// nnet/nnet-affine-transform.h
+	// nnet0/nnet-affine-transform.h
 
 // Copyright 2011-2014  Brno University of Technology (author: Karel Vesely)
 
@@ -22,8 +22,8 @@
 #define KALDI_NNET_NNET_AFFINE_TRANSFORM_H_
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 

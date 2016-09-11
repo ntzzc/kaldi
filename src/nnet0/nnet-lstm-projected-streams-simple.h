@@ -1,4 +1,4 @@
-// nnet/nnet-lstm-projected-streams-simple.h
+// nnet0/nnet-lstm-projected-streams-simple.h
 
 // Copyright 2014  Jiayu DU (Jerry), Wei Li
 // Copyright 2015  Shanghai Jiao Tong University (author: Wei Deng)
@@ -23,8 +23,8 @@
 #ifndef KALDI_NNET_NNET_LSTM_PROJECTED_STREAMS_SIMPLE_H_
 #define KALDI_NNET_NNET_LSTM_PROJECTED_STREAMS_SIMPLE_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 /*************************************

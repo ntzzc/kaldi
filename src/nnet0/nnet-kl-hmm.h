@@ -1,4 +1,4 @@
-// nnet/nnet-kl-hmm.h
+// nnet0/nnet-kl-hmm.h
 
 // Copyright 2013  Idiap Research Institute (Author: David Imseng)
 //                 Karlsruhe Institute of Technology (Author: Ngoc Thang Vu)
@@ -23,7 +23,7 @@
 #ifndef KALDI_NNET_NNET_KL_HMM_H_
 #define KALDI_NNET_NNET_KL_HMM_H_
 
-#include "nnet/nnet-component.h"
+#include "nnet0/nnet-component.h"
 #include "cudamatrix/cu-math.h"
 #include "cudamatrix/cu-rand.h"
 #include "matrix/kaldi-vector.h"

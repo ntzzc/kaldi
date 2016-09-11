@@ -19,16 +19,16 @@
 
 #include <limits>
 
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-loss.h"
-#include "nnet/nnet-pdf-prior.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-loss.h"
+#include "nnet0/nnet-pdf-prior.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
-#include "nnet/nnet-compute-lstm-lm-parallel.h"
-#include "nnet/nnet-activation.h"
-#include "nnet/nnet-class-affine-transform.h"
-#include "nnet/nnet-word-vector-transform.h"
+#include "nnet0/nnet-compute-lstm-lm-parallel.h"
+#include "nnet0/nnet-activation.h"
+#include "nnet0/nnet-class-affine-transform.h"
+#include "nnet0/nnet-word-vector-transform.h"
 
 
 int main(int argc, char *argv[]) {

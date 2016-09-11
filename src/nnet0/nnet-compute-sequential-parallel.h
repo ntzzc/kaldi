@@ -1,4 +1,4 @@
-// nnet/nnet-compute-sequential-parallel.h
+// nnet0/nnet-compute-sequential-parallel.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -29,8 +29,8 @@
 
 #include "nnet-trnopts.h"
 #include "nnet-pdf-prior.h"
-#include "nnet/nnet-nnet.h"
-#include "nnet/nnet-model-sync.h"
+#include "nnet0/nnet-nnet.h"
+#include "nnet0/nnet-model-sync.h"
 
 #include "cudamatrix/cu-device.h"
 

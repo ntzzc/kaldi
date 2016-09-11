@@ -1,4 +1,4 @@
-// nnet/nnet-average-pooling-component.h
+// nnet0/nnet-average-pooling-component.h
 
 // Copyright 2014  Brno University of Technology (author: Karel Vesely)
 
@@ -22,8 +22,8 @@
 #define KALDI_NNET_NNET_AVERAGE_POOLING_COMPONENT_H_
 
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 namespace kaldi {

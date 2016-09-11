@@ -1,4 +1,4 @@
-// nnet/nnet-blstm-projected-streams.h
+// nnet0/nnet-blstm-projected-streams.h
 
 // Copyright 2014  Jiayu DU (Jerry), Wei Li
 // Copyright 2015  Chongjia Ni
@@ -22,8 +22,8 @@
 #ifndef KALDI_NNET_NNET_BLSTM_PROJECTED_STREAMS_H_
 #define KALDI_NNET_NNET_BLSTM_PROJECTED_STREAMS_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
+#include "nnet0/nnet-component.h"
+#include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
 
 /*************************************
