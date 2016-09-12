@@ -2169,6 +2169,7 @@ static void _heaviside(Real*y, const Real*x, MatrixDim d, int src_stride) {
   }
 }
 
+/*
 template<typename Real>
 __global__
 static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, Real *logsum) {
@@ -2245,6 +2246,77 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, R
   for (int j = tid; j < d.cols; j += CU1DBLOCK) {
     y[y_start + j] = exp(x[x_start + j] - max) * inv_sum;
   }
+}
+*/
+
+template<typename Real>
+__global__
+static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, Real *logsum) {
+  int j = blockIdx.x;
+  int THREADS = blockDim.x;
+  if (j >= d.rows) return;
+
+  __shared__ Real aux[CU1DBLOCK];
+  int steps = (d.cols - 1) / THREADS + 1;
+
+  //copy input to aux
+  aux[threadIdx.x] = x[threadIdx.x+j*d.stride];
+  for(int i=1; i<steps; ++i) {
+    if(threadIdx.x+i*THREADS < d.cols && aux[threadIdx.x] < x[threadIdx.x+i*THREADS+j*d.stride])
+    aux[threadIdx.x] = x[threadIdx.x+i*THREADS+j*d.stride];
+  }
+
+  //get the maximum value
+  int nTotalThreads = THREADS;
+  __syncthreads();
+  while(nTotalThreads > 1) {
+    int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
+    // only the first half of the threads will be active.
+    if (threadIdx.x < halfPoint)  {
+      // Get the shared value stored by another thread
+      if(threadIdx.x+halfPoint < nTotalThreads && aux[threadIdx.x] < aux[threadIdx.x+halfPoint])
+        aux[threadIdx.x] = aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
+  }
+  Real max = aux[0];
+  __syncthreads();
+  
+   // subtract max, apply exp, sum up...
+  y[threadIdx.x+j*d.stride] = exp(x[threadIdx.x+j*d.stride] - max);
+  aux[threadIdx.x] = y[threadIdx.x+j*d.stride];
+  for(int i=1; i<steps; i++) {
+    if(threadIdx.x+i*THREADS < d.cols) {
+      y[threadIdx.x+i*THREADS+j*d.stride] = exp(x[threadIdx.x+i*THREADS+j*d.stride] - max);
+      aux[threadIdx.x] += y[threadIdx.x+i*THREADS+j*d.stride];
+    }
+  }
+  nTotalThreads = THREADS;
+  __syncthreads();
+  while(nTotalThreads > 1) {
+    int halfPoint = ((1+nTotalThreads) >> 1);   // divide by two
+    // only the first half of the threads will be active.
+    if (threadIdx.x < halfPoint)  {
+      // Get the shared value stored by another thread
+      if(threadIdx.x+halfPoint < nTotalThreads)
+        aux[threadIdx.x] += aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1+nTotalThreads) >> 1);   // divide by two.
+  }
+  Real sum = aux[0];
+  __syncthreads();
+  
+  if (threadIdx.x == 0 && logsum != NULL) logsum[j] = log(sum)+max; // denominator log sum
+
+  //normalize by sum...
+  for(int i=0; i<steps; i++) {
+    if(threadIdx.x+i*THREADS < d.cols) {
+      y[threadIdx.x+i*THREADS+j*d.stride] = y[threadIdx.x+i*THREADS+j*d.stride] / sum;
+    }
+  }
+
 }
 
 // Per-row log-softmax operation on 'x', with writing to 'y'.

@@ -308,7 +308,9 @@ Real VecSumStreamed(const std::vector<CuSubVector<Real>* > &vec, std::vector<Rea
 		for (int32 i = 0; i < size; i++) {
 			size_t dimBlock = vec[i]->Dim() > CU1DBLOCK ? CU1DBLOCK : vec[i]->Dim();
 			int dimGrid = 1; // only 1 block here. we have loops in each thread.
-			cuda_vec_sum(dimGrid, dimBlock, vec[i]->Data(), value.Data()+i, vec[i]->Dim(), 1);
+            ::MatrixDim dim = { 1, vec[i]->Dim(), vec[i]->Dim()};
+			//cuda_vec_sum(dimGrid, dimBlock, vec[i]->Data(), value.Data()+i, vec[i]->Dim(), 1);
+			cuda_row_sum_reduce(dimGrid, dimBlock, 1.0, value.Data()+i, vec[i]->Data(), dim, 0.0, vec[i]->GetLocalCudaStream());
 		}
 		CU_SAFE_CALL(cudaGetLastError());
 
@@ -568,7 +570,8 @@ void CuVectorBase<Real>::ApplySoftMax() {
   if (CuDevice::Instantiate().Enabled()) {
     if (dim_ == 0) return;
     Timer tim;
-    size_t dimBlock = CU1DBLOCK;
+    //size_t dimBlock = CU1DBLOCK;
+    size_t dimBlock = dim_ > CU1DBLOCK ? CU1DBLOCK : dim_; // for cuda_softmax_reduce function, dimBlock value is fixed min(CU1DBLOCK, dim) , represent CU1DBLOCK threads reduce a row at the same time.
     size_t dimGrid = 1;       // dimGrid value represent the number of rows
     ::MatrixDim dim = { 1, this->dim_, this->dim_};
     cuda_softmax_reduce(dimGrid, dimBlock, data_, data_, dim, this->dim_);//actually dim is not stride...
