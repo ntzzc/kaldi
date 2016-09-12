@@ -2260,10 +2260,10 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, R
   int steps = (d.cols - 1) / THREADS + 1;
 
   //copy input to aux
-  aux[threadIdx.x] = x[threadIdx.x+j*d.stride];
+  aux[threadIdx.x] = x[threadIdx.x+j*src_stride];
   for(int i=1; i<steps; ++i) {
-    if(threadIdx.x+i*THREADS < d.cols && aux[threadIdx.x] < x[threadIdx.x+i*THREADS+j*d.stride])
-    aux[threadIdx.x] = x[threadIdx.x+i*THREADS+j*d.stride];
+    if(threadIdx.x+i*THREADS < d.cols && aux[threadIdx.x] < x[threadIdx.x+i*THREADS+j*src_stride])
+    aux[threadIdx.x] = x[threadIdx.x+i*THREADS+j*src_stride];
   }
 
   //get the maximum value
@@ -2284,11 +2284,11 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, R
   __syncthreads();
   
    // subtract max, apply exp, sum up...
-  y[threadIdx.x+j*d.stride] = exp(x[threadIdx.x+j*d.stride] - max);
+  y[threadIdx.x+j*d.stride] = exp(x[threadIdx.x+j*src_stride] - max);
   aux[threadIdx.x] = y[threadIdx.x+j*d.stride];
   for(int i=1; i<steps; i++) {
     if(threadIdx.x+i*THREADS < d.cols) {
-      y[threadIdx.x+i*THREADS+j*d.stride] = exp(x[threadIdx.x+i*THREADS+j*d.stride] - max);
+      y[threadIdx.x+i*THREADS+j*d.stride] = exp(x[threadIdx.x+i*THREADS+j*src_stride] - max);
       aux[threadIdx.x] += y[threadIdx.x+i*THREADS+j*d.stride];
     }
   }
