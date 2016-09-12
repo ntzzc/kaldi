@@ -2319,6 +2319,78 @@ static void _softmax_reduce(Real*y, const Real*x, MatrixDim d, int src_stride, R
 
 }
 
+template<typename Real>
+__global__
+static void _log_softmax_reduce(Real *y, const Real *x,
+                                MatrixDim d, int src_stride) {
+  int j = blockIdx.x;
+  int THREADS = blockDim.x;
+  if (j >= d.rows) return;
+
+  __shared__ Real aux[CU1DBLOCK];
+  int steps = (d.cols - 1) / THREADS + 1;
+
+  // Maximum step 1: loads input data to <aux>. If <d.cols> is larger than
+  //                 <blockDim.x>, then we do a first pass filtering and only
+  //                 keep a <blockDim.x> size array.
+  aux[threadIdx.x] = x[threadIdx.x + j * src_stride];
+  for (int i = 1; i < steps; ++i) {
+    if (threadIdx.x + i * THREADS < d.cols
+        && aux[threadIdx.x] < x[threadIdx.x + i * THREADS + j * src_stride])
+      aux[threadIdx.x] = x[threadIdx.x + i * THREADS + j * src_stride];
+  }
+
+  // Maximum step 2: the standard max reduce.
+  int nTotalThreads = THREADS;
+  __syncthreads();
+  while (nTotalThreads > 1) {
+    int halfPoint = ((1 + nTotalThreads) >> 1);
+    if (threadIdx.x < halfPoint) {
+      if (threadIdx.x + halfPoint < nTotalThreads
+          && aux[threadIdx.x] < aux[threadIdx.x + halfPoint])
+        aux[threadIdx.x] = aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1 + nTotalThreads) >> 1);
+  }
+  Real max = aux[0];
+  __syncthreads();
+
+  // Log sum step 1: substracts max, and takes exponentials.
+  y[threadIdx.x + j * d.stride] = x[threadIdx.x + j * src_stride] - max;
+  aux[threadIdx.x] = exp(y[threadIdx.x + j * d.stride]);
+  for (int i = 1; i < steps; ++i) {
+    if (threadIdx.x + i * THREADS < d.cols) {
+      y[threadIdx.x + i * THREADS + j * d.stride] =
+        x[threadIdx.x + i * THREADS + j * src_stride] - max;
+      aux[threadIdx.x] += exp(y[threadIdx.x + i * THREADS + j * d.stride]);
+    }
+  }
+
+  // Log sum step 2: comptes summation and then takes logarithm.
+  nTotalThreads = THREADS;
+  __syncthreads();
+  while (nTotalThreads > 1) {
+    int halfPoint = ((1 + nTotalThreads) >> 1);
+    if (threadIdx.x < halfPoint)  {
+      if (threadIdx.x + halfPoint < nTotalThreads)
+        aux[threadIdx.x] += aux[threadIdx.x + halfPoint];
+    }
+    __syncthreads();
+    nTotalThreads = ((1 + nTotalThreads) >> 1);
+  }
+  Real log_sum = log(aux[0]);
+  __syncthreads();
+
+  // Computes log softmax.
+  for (int i = 0; i < steps; ++i) {
+    if (threadIdx.x + i * THREADS < d.cols) {
+      y[threadIdx.x + i * THREADS + j * d.stride] -= log_sum;
+    }
+  }
+}
+
+/*
 // Per-row log-softmax operation on 'x', with writing to 'y'.
 // note, x and y may point to the same memory.  This is equivalent to setting
 // matrix y to matrix x and then, for each row of y, subtracting the offset that
@@ -2401,6 +2473,7 @@ static void _log_softmax_reduce(Real* y, const Real* x, MatrixDim y_dim,
     y[y_start + j] = x[x_start + j] - max - log_sum;
   }
 }
+*/
 
 template<typename Real>
 __global__
