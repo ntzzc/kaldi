@@ -21,6 +21,7 @@
 #ifndef KALDI_NNET_NNET_ACTIVATION_H_
 #define KALDI_NNET_NNET_ACTIVATION_H_
 
+#include <cudnn.h>
 #include "nnet0/nnet-component.h"
 #include "nnet0/nnet-utils.h"
 #include "cudamatrix/cu-math.h"
@@ -347,6 +348,99 @@ class Relu : public Component {
           in_diff->ApplyHeaviside();
           in_diff->MulElements(out_diff);
   }
+};
+
+class CudnnRelu : public Component {
+
+    public:
+        CudnnRelu(int32 dim_in, int32 dim_out):Component(dim_in, dim_out),initialized_(false),mode_(CUDNN_ACTIVATION_RELU),ceil_(50.0)
+        {}
+        ~CudnnRelu()
+        {
+            if(initialized_){
+
+                CHECK_EQ(cudnnDestroyTensorDescriptor(shape_desc_), CUDNN_STATUS_SUCCESS);
+                CHECK_EQ(cudnnDestroyActivationDescriptor(desc_), CUDNN_STATUS_SUCCESS);
+
+                cudaStreamDestroy(stream_);
+                cudnnDestroy(handle_);
+            }
+        }
+        Component* Copy() const {return new CudnnRelu(*this);}
+        ComponentType GetType() const {return kCudnnRelu;}
+
+        void Init(int32 dim, int32 batch_size){
+             
+            cudaStreamCreate(&stream_);
+            cudnnCreate(&handle_);
+            cudnnSetStream(handle_, stream_); 
+        
+            CHECK_EQ(cudnnCreateActivationDescriptor(&desc_), CUDNN_STATUS_SUCCESS);
+            CHECK_EQ(cudnnSetActivationDescriptor(desc_, mode_, CUDNN_NOT_PROPAGATE_NAN, ceil_),CUDNN_STATUS_SUCCESS);
+            CHECK_EQ(cudnnCreateTensorDescriptor(&shape_desc_), CUDNN_STATUS_SUCCESS);
+            CHECK_EQ(cudnnSetTensor4dDescriptor(shape_desc_,
+                                                CUDNN_TENSOR_NCHW,
+                                                CUDNN_DATA_FLOAT,
+                                                batch_size,
+                                                dim,
+                                                1,
+                                                1), CUDNN_STATUS_SUCCESS);
+        }
+        void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out){
+
+            if(!initialized_){
+                Init(in.NumCols(), in.NumRows());
+                initialized_ = true ;
+            }
+
+            BaseFloat alpha = 1.0f ;
+            BaseFloat beta = 0.0f ;
+            const BaseFloat* in_ptr = in.Data();
+            BaseFloat* out_ptr = out->Data();
+        
+            CHECK_EQ(cudnnActivationForward(handle_,
+                                            desc_,  
+                                            &alpha,
+                                            shape_desc_,
+                                            in_ptr,
+                                            &beta,
+                                            shape_desc_,
+                                            out_ptr), CUDNN_STATUS_SUCCESS);
+        }
+
+        
+
+        void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
+                              const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
+            BaseFloat alpha = 1.0f ;
+            BaseFloat beta = 0.0f ;
+            const BaseFloat* out_ptr = out.Data();
+            const BaseFloat* in_ptr = in.Data();
+            const BaseFloat* out_diff_ptr = out_diff.Data();
+            BaseFloat* in_diff_ptr = in_diff->Data();
+            
+            CHECK_EQ(cudnnActivationBackward(handle_,
+                                             desc_,
+                                             &alpha,
+                                             shape_desc_,
+                                             out_ptr,
+                                             shape_desc_,
+                                             out_diff_ptr,
+                                             shape_desc_,
+                                             in_ptr,
+                                             &beta,
+                                             shape_desc_,
+                                             in_diff_ptr),CUDNN_STATUS_SUCCESS);
+        }
+    private:
+        bool initialized_ ;
+        cudnnActivationMode_t mode_ ;
+        cudnnTensorDescriptor_t shape_desc_ ;
+        cudnnActivationDescriptor_t desc_ ;
+        BaseFloat ceil_ ;
+        cudnnHandle_t handle_ ;
+        cudaStream_t stream_ ;
+
 };
 
 

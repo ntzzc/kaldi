@@ -21,6 +21,7 @@
 #include "nnet0/nnet-affine-preconditioned-transform.h"
 #include "nnet0/nnet-batchnorm-transform.h"
 #include "nnet0/nnet-convolutional-2d-component-fast.h"
+#include "nnet0/nnet-cudnn-convolutional-2d-component.h"
 #include "nnet0/nnet-lstm-projected-streams-fast.h"
 #include "nnet0/nnet-lstm-projected-streams-simple.h"
 #include "nnet0/nnet-lstm-projected-streams.h"
@@ -109,6 +110,7 @@ NnetModelSync::GetDim(Nnet *nnet)
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
+    CudnnConvolutional2DComponent *cudnn_conv_t;
 	LstmProjectedStreamsFast *lstm_t;
 	LstmProjectedStreamsSimple *splstm_t;
 	//LstmProjectedStreams *plstm_t;
@@ -208,6 +210,11 @@ NnetModelSync::GetDim(Nnet *nnet)
 					dim += conv_t->filters_.SizeInBytes()/sizeof(BaseFloat);
 					dim += conv_t->bias_.Dim();
 					break;
+				case Component::kCudnnConvolutional2DComponent:
+					cudnn_conv_t = (CudnnConvolutional2DComponent*)(nnet->components_[n]);
+					dim += cudnn_conv_t->filters_.SizeInBytes()/sizeof(BaseFloat);
+					dim += cudnn_conv_t->bias_.Dim();
+					break;
 				case Component::kBatchNormTransform:
 					norm_t = (BatchNormTransform*)(nnet->components_[n]);
 					dim += norm_t->scale_.Dim();
@@ -256,6 +263,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
+    CudnnConvolutional2DComponent *cudnn_conv_t;
 	LstmProjectedStreamsFast *lstm_t;
 	LstmProjectedStreamsSimple *splstm_t;
 	LstmStreams *stlstm_t;
@@ -572,6 +580,22 @@ NnetModelSync::GetWeight(Nnet *nnet)
 
 				pos += size;
 				break;
+			case Component::kCudnnConvolutional2DComponent:
+				cudnn_conv_t = (CudnnConvolutional2DComponent*)(nnet->components_[n]);
+
+				dim = cudnn_conv_t->filters_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(host_data_+pos, dst_pitch,
+						cudnn_conv_t->filters_.Data(), src_pitch, width, dim.rows, cudaMemcpyDeviceToHost));
+				pos += cudnn_conv_t->filters_.SizeInBytes();
+				size = cudnn_conv_t->bias_.Dim()*sizeof(BaseFloat);
+				CU_SAFE_CALL(cudaMemcpy(host_data_+pos, cudnn_conv_t->bias_.Data(), size, cudaMemcpyDeviceToHost));
+
+				pos += size;
+				break;
 
 			case Component::kBatchNormTransform:
 				norm_t = (BatchNormTransform*)(nnet->components_[n]);
@@ -663,6 +687,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	AffineTransform* aff_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv;
+	CudnnConvolutional2DComponent *cudnn_conv;
 	LstmProjectedStreamsFast *lstm_t;
 	LstmProjectedStreamsSimple *splstm_t;
 	LstmStreams *stlstm_t;
@@ -986,6 +1011,25 @@ NnetModelSync::SetWeight(Nnet *nnet)
 				size = conv->bias_.Dim()*sizeof(BaseFloat);
 
 				CU_SAFE_CALL(cudaMemcpy(conv->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
+
+				pos += size;
+				break;
+			case Component::kCudnnConvolutional2DComponent:
+				cudnn_conv = (CudnnConvolutional2DComponent*)(nnet->components_[n]);
+
+				dim = cudnn_conv->filters_.Dim();
+				src_pitch = dim.stride*sizeof(BaseFloat);
+				dst_pitch = src_pitch;
+				width = dim.cols*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy2D(cudnn_conv->filters_.Data(), dst_pitch,
+							host_data_+pos, src_pitch, width, dim.rows, cudaMemcpyHostToDevice));
+
+				pos += cudnn_conv->filters_.SizeInBytes();
+
+				size = cudnn_conv->bias_.Dim()*sizeof(BaseFloat);
+
+				CU_SAFE_CALL(cudaMemcpy(cudnn_conv->bias_.Data(), host_data_+pos, size, cudaMemcpyHostToDevice));
 
 				pos += size;
 				break;

@@ -86,7 +86,7 @@ void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> 
   // we need at least L+1 input buffers
   KALDI_ASSERT((int32)propagate_buf_.size() >= NumComponents()+1);
   
-  propagate_buf_[0].Resize(in.NumRows(), in.NumCols());
+  propagate_buf_[0].Resize(in.NumRows(), in.NumCols(), kUndefined, kStrideEqualNumCols);
   propagate_buf_[0].CopyFromMat(in);
 
   for(int32 i=0; i<(int32)components_.size(); i++) {
@@ -151,7 +151,9 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<B
   KALDI_ASSERT((int32)backpropagate_buf_.size() == NumComponents()+1);
 
   // copy out_diff to last buffer
-  backpropagate_buf_[NumComponents()] = out_diff;
+  //backpropagate_buf_[NumComponents()] = out_diff;
+  backpropagate_buf_[NumComponents()].Resize(out_diff.NumRows(), out_diff.NumCols(), kUndefined, kStrideEqualNumCols);
+  backpropagate_buf_[NumComponents()].CopyFromMat(out_diff);
   // backpropagate using buffers
   for (int32 i = NumComponents()-1; i >= 0; i--) {
     components_[i]->Backpropagate(propagate_buf_[i], propagate_buf_[i+1],
@@ -264,21 +266,18 @@ void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *o
     return; 
   }
 
-  if (NumComponents() == 1) {
-    components_[0]->Propagate(in, out);
-    return;
-  }
-
   // we need at least 2 input buffers
   KALDI_ASSERT(propagate_buf_.size() >= 2);
 
   // propagate by using exactly 2 auxiliary buffers
+  propagate_buf_[0].Resize(in.NumRows(), in.NumCols(), kUndefined, kStrideEqualNumCols);
+  propagate_buf_[0].CopyFromMat(in);
+
   int32 L = 0;
-  components_[L]->Propagate(in, &propagate_buf_[L%2]);
-  for(L++; L<=NumComponents()-2; L++) {
-    components_[L]->Propagate(propagate_buf_[(L-1)%2], &propagate_buf_[L%2]);
+  for(L=0; L<NumComponents()-1; L++) {
+    components_[L]->Propagate(propagate_buf_[L%2], &propagate_buf_[(L+1)%2]);
   }
-  components_[L]->Propagate(propagate_buf_[(L-1)%2], out);
+  components_[L]->Propagate(propagate_buf_[L%2], out);
   // release the buffers we don't need anymore
   propagate_buf_[0].Resize(0,0);
   propagate_buf_[1].Resize(0,0);

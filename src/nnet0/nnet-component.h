@@ -58,6 +58,7 @@ class Component {
     kConvolutionalComponent,
     kConvolutional2DComponent,
     kConvolutional2DComponentFast,
+    kCudnnConvolutional2DComponent,
     kLstmProjectedStreams,
 	kLstmStreams,
 	kLstmProjectedStreamsFast,
@@ -70,6 +71,7 @@ class Component {
     kSoftmax, 
 	kCBSoftmax,
     kRelu,
+    kCudnnRelu,
     kBlockSoftmax, 
     kSigmoid,
     kTanh,
@@ -93,6 +95,7 @@ class Component {
     kMaxPoolingComponent,
     kMaxPooling2DComponent,
     kMaxPooling2DComponentFast,
+    kCudnnPooling2DComponent,
     kFramePoolingComponent, 
     kParallelComponent,
 	kParallelComponentMultiTask
@@ -253,7 +256,7 @@ inline void Component::Propagate(const CuMatrixBase<BaseFloat> &in,
               << " input-dim : " << input_dim_ << " data : " << in.NumCols();
   }
   // Allocate target buffer
-  out->Resize(in.NumRows(), output_dim_, kSetZero); // reset
+  out->Resize(in.NumRows(), output_dim_, kSetZero, kStrideEqualNumCols); // reset
   // Call the propagation implementation of the component
   PropagateFnc(in, out);
 }
@@ -280,7 +283,7 @@ inline void Component::Backpropagate(const CuMatrixBase<BaseFloat> &in,
     }
   } else {
     // Allocate target buffer
-    in_diff->Resize(out_diff.NumRows(), input_dim_, kSetZero); // reset
+    in_diff->Resize(out_diff.NumRows(), input_dim_, kSetZero, kStrideEqualNumCols); // reset
     // Asserts on the dims
     KALDI_ASSERT((in.NumRows() == out.NumRows()) &&
                  (in.NumRows() == out_diff.NumRows()) &&
