@@ -52,8 +52,11 @@ void CuMatrix<Real>::Resize(MatrixIndexT rows, MatrixIndexT cols,
   KALDI_ASSERT(resize_type == kSetZero || resize_type == kUndefined);
   if (rows * cols == 0) KALDI_ASSERT(rows == 0 && cols == 0);
   if (this->num_rows_ == rows && this->num_cols_ == cols) {
-    if (resize_type == kSetZero) this->SetZero();
-    return;
+    if ((stride_type == kStrideEqualNumCols && this->num_cols_ == this->stride_ && this->stride_ !=0) 
+        || stride_type == kDefaultStride) {
+      if (resize_type == kSetZero) this->SetZero();
+      return;
+    }
   }
   if (this->num_rows_ != 0)
     this->Destroy();
