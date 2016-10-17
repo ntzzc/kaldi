@@ -37,6 +37,7 @@ public:
     {}
     ~CudnnConvolutional2DComponent()
     {
+        initialized_ = false;
       if(initialized_){
         CHECK_EQ(cudnnDestroyTensorDescriptor(in_desc_), CUDNN_STATUS_SUCCESS);
         CHECK_EQ(cudnnDestroyTensorDescriptor(out_desc_), CUDNN_STATUS_SUCCESS);
@@ -211,7 +212,7 @@ public:
     
     inline void Init(int32 batch_size){
         
-        size_t workspace_byte = 8*1024*1024 ;
+        //size_t workspace_byte = 8*1024*1024 ;
         size_t back_size = 0 ;
         size_t back_size_w = 0 ;
         cudaStreamCreate(&stream_);
@@ -277,13 +278,14 @@ public:
                                             &bias_stride[0]), CUDNN_STATUS_SUCCESS);
 
       
+        //CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
         CHECK_EQ(cudnnGetConvolutionForwardAlgorithm(handle_,
                  in_desc_,
                  filter_desc_,
                  conv_desc_,
                  out_desc_,
-                 CUDNN_CONVOLUTION_FWD_SPECIFY_WORKSPACE_LIMIT,
-                 workspace_byte,
+                 CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+                 0,
                  &algo_), CUDNN_STATUS_SUCCESS);
 
         CHECK_EQ(cudnnGetConvolutionBackwardFilterAlgorithm(handle_,
@@ -291,8 +293,8 @@ public:
                  out_desc_,
                  conv_desc_,
                  filter_desc_,
-                 CUDNN_CONVOLUTION_BWD_FILTER_SPECIFY_WORKSPACE_LIMIT,
-                 workspace_byte,
+                 CUDNN_CONVOLUTION_BWD_FILTER_PREFER_FASTEST,
+                 0,
                  &back_algo_w_), CUDNN_STATUS_SUCCESS);
 
         CHECK_EQ(cudnnGetConvolutionBackwardDataAlgorithm(handle_,
@@ -300,8 +302,8 @@ public:
                  out_desc_,
                  conv_desc_,
                  in_desc_,
-                 CUDNN_CONVOLUTION_BWD_DATA_SPECIFY_WORKSPACE_LIMIT,
-                 workspace_byte,
+                 CUDNN_CONVOLUTION_BWD_DATA_PREFER_FASTEST,
+                 0,
                  &back_algo_), CUDNN_STATUS_SUCCESS);
 
         CHECK_EQ(cudnnGetConvolutionBackwardDataWorkspaceSize(handle_,

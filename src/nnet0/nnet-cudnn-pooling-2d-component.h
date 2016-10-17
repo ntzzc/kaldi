@@ -15,6 +15,7 @@ namespace nnet0{
         {}
         ~CudnnPooling2DComponent()
         {
+            initialized_ = false;
             if(initialized_){
                 CHECK_EQ(cudnnDestroyTensorDescriptor(in_desc_), CUDNN_STATUS_SUCCESS);
                 CHECK_EQ(cudnnDestroyTensorDescriptor(out_desc_), CUDNN_STATUS_SUCCESS);
