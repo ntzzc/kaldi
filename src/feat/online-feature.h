@@ -584,6 +584,7 @@ class OnlineAppendFeature: public OnlineFeatureInterface {
   OnlineFeatureInterface *src2_;
 };
 
+
 /// @} End of "addtogroup onlinefeat"
 }  // namespace kaldi
 

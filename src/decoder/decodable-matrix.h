@@ -83,6 +83,70 @@ class DecodableMatrixScaledMapped: public DecodableInterface {
   KALDI_DISALLOW_COPY_AND_ASSIGN(DecodableMatrixScaledMapped);
 };
 
+class OnlineDecodableMatrixMapped: public DecodableInterface {
+ public:
+	OnlineDecodableMatrixMapped(const TransitionModel &tm, BaseFloat scale):
+      trans_model_(tm), scale_(0), input_is_finished_(false) { }
+
+  virtual int32 NumFramesReady() { return loglikes_.NumRows(); }
+
+  // This function is destructive of the input "loglikes" because it may
+  // under some circumstances do a shallow copy using Swap().  This function
+  // appends loglikes to any existing likelihoods you've previously supplied.
+  // frames_to_discard, if nonzero, will discard that number of previously
+  // available frames, from the left, advancing FirstAvailableFrame() by
+  // a number equal to frames_to_discard.  You should only set frames_to_discard
+  // to nonzero if you know your decoder won't want to access the loglikes
+  // for older frames.
+  void AcceptLoglikes(Matrix<BaseFloat> *loglikes,
+                      int32 frames_to_discard) {
+    if (loglikes->NumRows() == 0) return;
+    KALDI_ASSERT(loglikes->NumCols() == trans_model_.NumPdfs());
+    KALDI_ASSERT(frames_to_discard <= loglikes_.NumRows() &&
+                 frames_to_discard >= 0);
+    if (frames_to_discard == loglikes_.NumRows()) {
+      loglikes_.Swap(loglikes);
+      loglikes->Resize(0, 0);
+    } else {
+      int32 old_rows_kept = loglikes_.NumRows() - frames_to_discard,
+          new_num_rows = old_rows_kept + loglikes->NumRows();
+      Matrix<BaseFloat> new_loglikes(new_num_rows, loglikes->NumCols());
+      new_loglikes.RowRange(0, old_rows_kept).CopyFromMat(
+          loglikes_.RowRange(frames_to_discard, old_rows_kept));
+      new_loglikes.RowRange(old_rows_kept, loglikes->NumRows()).CopyFromMat(
+          *loglikes);
+      loglikes_.Swap(&new_loglikes);
+    }
+  }
+
+  void InputIsFinished() { input_is_finished_ = true; }
+
+  virtual bool IsLastFrame(int32 frame) const {
+    KALDI_ASSERT(frame < NumFramesReady());
+    return (frame == NumFramesReady() - 1 && input_is_finished_);
+  }
+
+  virtual BaseFloat LogLikelihood(int32 frame, int32 tid) {
+	  return scale_ * (*loglikes_)(frame, trans_model_.TransitionIdToPdf(tid));
+  }
+
+  void Reset() {
+	  input_is_finished_ = false;
+	  loglikes_.Resize(0,0);
+  }
+
+  virtual int32 NumIndices() const { return trans_model_.NumTransitionIds(); }
+
+  // nothing special to do in destructor.
+  virtual ~OnlineDecodableMatrixMapped() { }
+ private:
+  const TransitionModel &trans_model_;  // for tid to pdf mapping
+  Matrix<BaseFloat> loglikes_;
+  BaseFloat scale_;
+  bool input_is_finished_;
+  KALDI_DISALLOW_COPY_AND_ASSIGN(OnlineDecodableMatrixMapped);
+};
+
 class DecodableMatrixScaledMappedCtc: public DecodableInterface {
  public:
   // This constructor creates an object that will not delete "likes"
@@ -194,12 +258,6 @@ class DecodableMatrixMappedOffset: public DecodableInterface {
     KALDI_ASSERT(index >= 0 && index < loglikes_.NumRows());
     return loglikes_(index, trans_model_.TransitionIdToPdf(tid));
   }
-
-  void Reset() {
-	  input_is_finished_ = false;
-	  frame_offset_ = 0;
-	  loglikes_.Resize(0,0);
-  }
                  
   virtual int32 NumIndices() const { return trans_model_.NumTransitionIds(); }
 
@@ -212,7 +270,6 @@ class DecodableMatrixMappedOffset: public DecodableInterface {
   bool input_is_finished_;
   KALDI_DISALLOW_COPY_AND_ASSIGN(DecodableMatrixMappedOffset);
 };
-
 
 class DecodableMatrixScaled: public DecodableInterface {
  public:

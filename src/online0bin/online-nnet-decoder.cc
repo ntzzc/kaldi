@@ -35,22 +35,23 @@ int main(int argc, char *argv[])
 	        "(nnet0 or nnet1 setup), Note: some configuration values and inputs are\n"
 	    	"set via config files whose filenames are passed as options\n"
 	    	"\n"
-	        "Usage: online-nnet-decoder [options] <model-in> <fst-in> <word-symbol-table>"
+	        "Usage: online-nnet-decoder [options] <model-in> <fst-in> "
 	        "<feature-rspecifier> <mqueue-wspecifier> <transcript-wspecifier> [alignments-wspecifier]\n"
 	        "Example: ./online-nnet-decoder --rt-min=0.3 --rt-max=0.5 "
 	        "--max-active=4000 --beam=12.0 --acoustic-scale=0.0769 "
-	        "model HCLG.fst words.txt ark:features.ark forward.mq ark,t:trans.txt ark,t:ali.txt";
+	        "model HCLG.fst ark:features.ark forward.mq ark,t:trans.txt ark,t:ali.txt";
 
 	    ParseOptions po(usage);
 
 	    OnlineNnetFasterDecoderOptions decoder_opts;
+	    decoder_opts.Register(&po, true);
 
 	    OnlineNnetDecodingOptions decoding_opts(decoder_opts);
-	    decoder_opts.Register(&po, true);
+	    decoding_opts.Register(&po);
 
 	    po.Read(argc, argv);
 
-		if (po.NumArgs() != 6 && po.NumArgs() != 7) {
+		if (po.NumArgs() != 5 && po.NumArgs() != 6) {
 			  po.PrintUsage();
 			  return 1;
 		}
@@ -58,11 +59,10 @@ int main(int argc, char *argv[])
 	    std::string
 		model_rspecifier = po.GetArg(1),
 		fst_rspecifier = po.GetArg(2),
-		word_syms_filename = po.GetArg(3),
-		feature_rspecifier = po.GetArg(4),
-		mqueue_wspecifier = po.GetArg(5),
-		words_wspecifier = po.GetArg(6),
-		alignment_wspecifier = po.GetOptArg(7);
+		feature_rspecifier = po.GetArg(3),
+		mqueue_wspecifier = po.GetArg(4),
+		words_wspecifier = po.GetArg(5),
+		alignment_wspecifier = po.GetOptArg(6);
 
 	    SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
 	    Int32VectorWriter words_writer(words_wspecifier);
@@ -77,9 +77,8 @@ int main(int argc, char *argv[])
 
 	    fst::Fst<fst::StdArc> *decode_fst = ReadFstKaldi(fst_rspecifier);
 	    fst::SymbolTable *word_syms = NULL;
-	    if (!(word_syms = fst::SymbolTable::ReadText(word_syms_filename)))
-	        KALDI_ERR << "Could not read symbol table from file "
-	                    << word_syms_filename;
+	    if (!(word_syms = fst::SymbolTable::ReadText(decoding_opts.word_syms_filename)))
+	        KALDI_ERR << "Could not read symbol table from file " << decoding_opts.word_syms_filename;
 
 		char mq_name[256];
 		sprintf(mq_name, "/%d.mq", getpid());

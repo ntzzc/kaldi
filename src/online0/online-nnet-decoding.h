@@ -33,15 +33,24 @@ namespace kaldi {
 struct OnlineNnetDecodingOptions {
 	const OnlineNnetFasterDecoderOptions &decoder_opts;
 
+
+	BaseFloat acoustic_scale;
+	bool allow_partial;
+	std::string word_syms_filename;
 	int32 chunk_length_secs;
 	std::string silence_phones_str;
 
 	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &decoder_opts):
+							acoustic_scale(0.1), allow_partial(true), word_syms_filename(""),
 							decoder_opts(decoder_opts),  silence_phones_str("")
     { }
 
 	void Register(OptionsItf *po)
 	{
+		po->Register("acoustic-scale", &acoustic_scale, "Scaling factor for acoustic likelihoods");
+		po->Register("allow-partial", &allow_partial, "Produce output even when final state was not reached");
+		po->Register("word-symbol-table", &word_syms_filename, "Symbol table for words [for debug output]");
+
 		po->Register("silence-phones", &silence_phones_str,
 		                     "Colon-separated list of integer ids of silence phones, e.g. 1:2:3");
 	    po->Register("chunk-length", &chunk_length_secs,
@@ -110,7 +119,7 @@ public:
 				trans_model_(trans_model), word_syms_(word_syms),
 				words_writer_(words_writer), alignment_writer_(alignment_writer)
 	{
-		decodable_ = new DecodableMatrixMappedOffset(trans_model_);
+		decodable_ = new OnlineDecodableMatrixMapped(trans_model_, opts.acoustic_scale);
 	}
 
 	~OnlineNnetDecodingClass() {}
@@ -187,7 +196,7 @@ private:
 	OnlineNnetFasterDecoder *decoder_;
 	MessageQueue *mq_decodable_;
 	DecoderSync *decoder_sync_;
-	DecodableMatrixMappedOffset *decodable_;
+	OnlineDecodableMatrixMapped *decodable_;
 	const TransitionModel &trans_model_; // needed for trans-id -> phone conversion
 	fst::SymbolTable &word_syms_;
 	Int32VectorWriter &words_writer_;
