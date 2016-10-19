@@ -18,9 +18,8 @@
 // limitations under the License.
 
 #ifndef THREAD_KALDI_MESSAGE_QUEUE_H_
-#define THREAD_KALDI_MESSAGE_QUEUE_H_
+#define THREAD_KALDI_MESSAGE_QUEUE_H_ 1
 
-#include "base/kaldi-error.h"
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -33,71 +32,32 @@ namespace kaldi {
 class MessageQueue {
 
 public:
-	MessageQueue(std::string pathname, int oflag, mode_t mode = NULL, struct mq_attr attr = NULL):
-		pathname_(pathname), oflag_(oflag), mode_(mode), attr_(attr)
-	{
-		if ( (mqd_ = mq_open(pathname.c_str(), oflag, mode, attr)) == (mqd_t)-1)
-			KALDI_ERR << "Cannot open message queue for " << pathname;
-	}
+	MessageQueue(std::string pathname, int oflag, mode_t mode = FILE_MODE, struct mq_attr *attr = NULL);
 
-	MessageQueue(): pathname_(""), mqd_(NULL), oflag_(0), mode_(NULL), attr_(NULL){}
+	MessageQueue();
 
-	~MessageQueue()
-	{
-		if (mq_unlink(pathname_.c_str()) == -1)
-			KALDI_ERR << "Unlink message queue error";
-	}
+	~MessageQueue();
 
-	void Open(std::string pathname, int oflag = O_RDWR)
-	{
-		if ( (mqd_ = mq_open(pathname.c_str(), oflag, FILE_MODE, NULL)) == (mqd_t)-1)
-					KALDI_ERR << "Cannot open message queue for " << pathname;
-	}
+	void Open(std::string pathname, int oflag = O_RDWR);
 
-	void Create(std::string pathname, struct mq_attr attr, int oflag = O_RDWR | O_CREAT | O_EXCL)
-	{
+	void Create(std::string pathname, struct mq_attr *attr, int oflag = O_RDWR | O_CREAT | O_EXCL);
 
-		while ( (mqd_ = mq_open(pathname.c_str(), oflag, FILE_MODE, attr)) == (mqd_t)-1)
-		{
-			if (mq_unlink(pathname_.c_str()) == -1)
-				KALDI_ERR << "Cannot create message queue for " << pathname;
-		}
-	}
+	int Send(char *ptr, size_t len, unsigned int prio);
 
-	int Send(char *ptr, size_t len, unsigned int prio)
-	{
-		int n;
-		n = mq_send(mqd_, ptr, len, prio);
-		return n;
-	}
+	ssize_t Receive(char *ptr, size_t len, unsigned int *prio);
 
-	ssize_t Receive(char *ptr, size_t len, unsigned int *prio)
-	{
-		ssize_t	n;
+	void Getattr(struct mq_attr *mqstat);
 
-		n = mq_receive(mqd_, ptr, len, prio);
-		return n;
-	}
-
-	void Getattr(struct mq_attr *mqstat)
-	{
-		if (mq_getattr(mqd_, mqstat) == -1)
-			KALDI_ERR << " Message queue getattr error";
-	}
-
-	void Setattr(struct mq_attr *mqstat, struct mq_attr *omqstat)
-	{
-		if (mq_setattr(mqd_, mqstat, omqstat) == -1)
-			KALDI_ERR << " Message queue setattr error";
-	}
+	void Setattr(struct mq_attr *mqstat, struct mq_attr *omqstat);
 
 private:
 
 	std::string pathname_;
 	mqd_t	mqd_;
 	int oflag_;
-	int mode_;
-	mq_attr attr_;
+	mode_t mode_;
+	mq_attr *attr_;
+    KALDI_DISALLOW_COPY_AND_ASSIGN(MessageQueue);
 };
 
 

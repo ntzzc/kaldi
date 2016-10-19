@@ -18,8 +18,8 @@
 // limitations under the License.
 
 
+#include "online/onlinebin-util.h"
 #include "online0/online-nnet-decoding.h"
-#include "thread/kaldi-message-queue.h"
 
 int main(int argc, char *argv[])
 {
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 		struct mq_attr decodable_attr;
 		decodable_attr.mq_maxmsg = MAX_OUTPUT_MQ_MQXMSG;
 		decodable_attr.mq_msgsize = MAX_OUTPUT_MQ_MSGSIZE;
-		mq_decodable->Create(mq_name, decodable_attr);
+		mq_decodable->Create(mq_name, &decodable_attr);
 
 	    MessageQueue mq_forward;
 	    mq_forward.Open(mqueue_wspecifier);
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 
 	    OnlineNnetDecodingClass decoding(decoding_opts,
 	    								&decoder, mq_decodable, &decoder_sync, trans_model,
-										word_syms, words_writer, alignment_writer);
+										*word_syms, words_writer, alignment_writer);
 		// The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<OnlineNnetDecodingClass> m(1, decoding);

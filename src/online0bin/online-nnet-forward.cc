@@ -25,6 +25,7 @@
 
 #include "online0/online-nnet-forwarding.h"
 #include "thread/kaldi-message-queue.h"
+#include "nnet0/nnet-nnet.h"
 
 int main(int argc, char *argv[]) {
 	  using namespace kaldi;
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]) {
     struct mq_attr sample_attr;
     sample_attr.mq_maxmsg = MAX_SAMPLE_MQ_MQXMSG;
     sample_attr.mq_msgsize = MAX_SAMPLE_MQ_MSGSIZE;
-    mq_forward.Create(mqueue_rspecifier, sample_attr, oflag);
+    mq_forward.Create(mqueue_rspecifier, &sample_attr, oflag);
 
     //Select the GPU
 #if HAVE_CUDA==1
@@ -78,19 +79,18 @@ int main(int argc, char *argv[]) {
 	bool no_softmax = opts.no_softmax;
 	std::string feature_transform = opts.feature_transform;
 	bool apply_log = opts.apply_log;
-	int32 time_shift = opts.time_shift;
 	int32 num_stream = opts.num_stream;
 	int32 batch_size = opts.batch_size;
 	int32 skip_frames = opts.skip_frames;
 
 
-	nnet0::Nnet nnet_transf;
+	Nnet nnet_transf;
 
     if (feature_transform != "") {
       nnet_transf.Read(feature_transform);
     }
 
-    nnet0::Nnet nnet;
+    Nnet nnet;
     nnet.Read(model_filename);
 
     // optionally remove softmax,
@@ -125,16 +125,12 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << "Nnet Forward STARTED";
 
     CuMatrix<BaseFloat>  cufeat, feats_transf, nnet_out;
-    std::vector<MessageQueue> mq_output(num_stream, NULL);
+    std::vector<MessageQueue> mq_output(num_stream);
 
-    struct mq_attr decodable_attr;
-    decodable_attr.mq_maxmsg = MAX_OUTPUT_MQ_MQXMSG;
-    decodable_attr.mq_msgsize = MAX_OUTPUT_MQ_MSGSIZE;
     MQSample mq_sample;
     MQDecodable mq_decodable;
-    std::vector<std::queue<MQDecodable*> > decodable_list;
+    std::vector<std::queue<MQDecodable*> > decodable_list(num_stream);
 
-    ssize_t size;
     Matrix<BaseFloat> sample;
     std::vector<Matrix<BaseFloat> > feats(num_stream);
     std::vector<int> curt(num_stream, 0);

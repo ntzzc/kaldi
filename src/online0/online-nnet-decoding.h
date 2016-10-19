@@ -20,12 +20,12 @@
 #ifndef ONLINE0_ONLINE_NNET_DECODING_H_
 #define ONLINE0_ONLINE_NNET_DECODING_H_
 
-#include "feat/wave-reader.h"
 #include "fstext/fstext-lib.h"
-#include "online0/online-nnet-forward.h"
 #include "online0/online-nnet-faster-decoder.h"
+#include "decoder/decodable-matrix.h"
 #include "thread/kaldi-message-queue.h"
 #include "thread/kaldi-semaphore.h"
+#include "thread/kaldi-mutex.h"
 #include "online0/online-message.h"
 
 namespace kaldi {
@@ -44,7 +44,7 @@ struct OnlineNnetDecodingOptions {
 	{
 		po->Register("silence-phones", &silence_phones_str,
 		                     "Colon-separated list of integer ids of silence phones, e.g. 1:2:3");
-	    po.Register("chunk-length", &chunk_length_secs,
+	    po->Register("chunk-length", &chunk_length_secs,
 	                "Length of chunk size in seconds, that we process.  Set to <= 0 "
 	                "to use all input in one chunk.");
 	}
@@ -117,11 +117,10 @@ public:
 
 	void operator () ()
 	{
-		VectorFst<LatticeArc> out_fst;
+		fst::VectorFst<LatticeArc> out_fst;
 		std::vector<int32> word_ids;
 		std::vector<int32> tids;
-		bool partial_res = false;
-		typedef OnlineFasterDecoder::DecodeState DecodeState;
+		typedef OnlineNnetFasterDecoder::DecodeState DecodeState;
 		int batch_size = opts_.decoder_opts.batch_size;
 		struct mq_attr attr;
 		mq_decodable_->Getattr(&attr);
@@ -144,11 +143,12 @@ public:
 
 				while (decodable_->NumFramesReady() >= decoder_->NumFramesDecoded()+batch_size)
 				{
-					decoder_->Decode(&decodable_);
+					decoder_->Decode(decodable_);
 					if (decoder_->PartialTraceback(&out_fst))
 					{
-						fst::GetLinearSymbolSequence(out_fst, NULL, &word_ids, NULL);
-						PrintPartialResult(word_ids, word_syms_, true);
+						fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
+                                                            &word_ids, static_cast<LatticeArc::Weight*>(0));
+						PrintPartialResult(word_ids, &word_syms_, true);
 					}
 				}
 
@@ -157,15 +157,16 @@ public:
 					utt = decoder_sync_->GetUtt();
 
 					decodable_->InputIsFinished();
-					decoder_->Decode(&decodable_);
+					decoder_->Decode(decodable_);
 
 					decoder_->FinishTraceBack(&out_fst);
-					fst::GetLinearSymbolSequence(out_fst, NULL, &word_ids, NULL);
-					PrintPartialResult(word_ids, word_syms_, true);
+					fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
+                                                        &word_ids, static_cast<LatticeArc::Weight*>(0));
+					PrintPartialResult(word_ids, &word_syms_, true);
 
 					// get best full path
 					decoder_->GetBestPath(&out_fst);
-					fst::GetLinearSymbolSequence(out_fst, &tids, &word_ids, NULL);
+					fst::GetLinearSymbolSequence(out_fst, &tids, &word_ids, static_cast<LatticeArc::Weight*>(0));
 
 					if (!word_ids.empty())
 						words_writer_.Write(utt, word_ids);
@@ -183,11 +184,11 @@ public:
 private:
 
 	const OnlineNnetDecodingOptions opts_;
-	const TransitionModel &trans_model_; // needed for trans-id -> phone conversion
 	OnlineNnetFasterDecoder *decoder_;
 	MessageQueue *mq_decodable_;
 	DecoderSync *decoder_sync_;
 	DecodableMatrixMappedOffset *decodable_;
+	const TransitionModel &trans_model_; // needed for trans-id -> phone conversion
 	fst::SymbolTable &word_syms_;
 	Int32VectorWriter &words_writer_;
 	Int32VectorWriter &alignment_writer_;

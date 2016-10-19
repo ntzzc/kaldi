@@ -75,8 +75,7 @@ public:
 	};
 
 	OnlineNnetFasterDecoder(const fst::Fst<fst::StdArc> &fst,
-							const OnlineNnetFasterDecoderOptions &opts,
-							const std::vector<int32> &sil_phones):
+							const OnlineNnetFasterDecoderOptions &opts):
 								FasterDecoder(fst, opts), opts_(opts),
 								max_beam_(opts.beam), effective_beam_(FasterDecoder::config_.beam),
 								state_(kEndFeats), frame_(0), utt_frames_(0),
@@ -98,9 +97,9 @@ public:
 
 	int32 frame() { return frame_; }
 
-private:
-
 	void ResetDecoder(bool full);
+
+private:
 
 	// Returns a linear fst by tracing back the last N frames, beginning
 	// from the best current token

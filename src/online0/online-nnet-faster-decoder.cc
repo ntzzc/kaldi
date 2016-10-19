@@ -209,7 +209,7 @@ OnlineNnetFasterDecoder::TracebackNFrames(int32 nframes,
 
 OnlineNnetFasterDecoder::DecodeState
 OnlineNnetFasterDecoder::Decode(DecodableInterface *decodable) {
-  if (state_ == kEndFeats || state_ == kEndUtt) // new utterance
+  if (state_ == kEndFeats) // new utterance
     ResetDecoder(state_ == kEndFeats);
   ProcessNonemitting(std::numeric_limits<float>::max());
   int32 batch_frame = 0;

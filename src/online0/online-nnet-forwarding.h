@@ -22,10 +22,13 @@
 
 #include "thread/kaldi-message-queue.h"
 #include "online0/online-message.h"
+#include "nnet0/nnet-trnopts.h"
+#include "nnet0/nnet-pdf-prior.h"
 
 namespace kaldi {
 
 struct OnlineNnetForwardingOptions {
+    typedef nnet0::PdfPriorOptions PdfPriorOptions;
     std::string feature_transform;
     bool no_softmax;
     bool apply_log;
