@@ -221,7 +221,7 @@ public:
 		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]+time_shift*skip_frames));
 		               } else {
 		            	   int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
-				   if (last >= 0)
+		            	   if (last >= 0)
 		                   feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
 		               }
 

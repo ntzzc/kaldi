@@ -195,7 +195,11 @@ class DecodableMatrixMappedOffset: public DecodableInterface {
     return loglikes_(index, trans_model_.TransitionIdToPdf(tid));
   }
 
-                 
+  void Reset() {
+	  input_is_finished_ = false;
+	  frame_offset_ = 0;
+	  loglikes_.Resize(0,0);
+  }
                  
   virtual int32 NumIndices() const { return trans_model_.NumTransitionIds(); }
 

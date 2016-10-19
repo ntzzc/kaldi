@@ -285,7 +285,7 @@ private:
 
 	        if (feat.NumCols() != feats[0].NumCols()) {
 	        	feat.Resize(batch_size * num_stream, feats[0].NumCols(), kSetZero);
-		}
+	        }
 
 	        // fill a multi-stream bptt batch
 	        // * frame_mask: 0 indicates padded frames, 1 indicates valid frames
