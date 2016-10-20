@@ -75,7 +75,7 @@ namespace kaldi {
 
 	ssize_t MessageQueue::Receive(char *ptr, size_t len, unsigned int *prio)
 	{
-		ssize_t	n;
+		ssize_t	n = 0;
 
 		n = mq_receive(mqd_, ptr, len, prio);
 		return n;

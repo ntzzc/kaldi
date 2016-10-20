@@ -33,7 +33,6 @@ namespace kaldi {
 struct OnlineNnetDecodingOptions {
 	const OnlineNnetFasterDecoderOptions &decoder_opts;
 
-
 	BaseFloat acoustic_scale;
 	bool allow_partial;
 	std::string word_syms_filename;
@@ -41,8 +40,9 @@ struct OnlineNnetDecodingOptions {
 	std::string silence_phones_str;
 
 	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &decoder_opts):
+                            decoder_opts(decoder_opts),
 							acoustic_scale(0.1), allow_partial(true), word_syms_filename(""),
-							decoder_opts(decoder_opts),  silence_phones_str("")
+							silence_phones_str("")
     { }
 
 	void Register(OptionsItf *po)
@@ -157,7 +157,7 @@ public:
 					{
 						fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
                                                             &word_ids, static_cast<LatticeArc::Weight*>(0));
-						PrintPartialResult(word_ids, &word_syms_, true);
+						//PrintPartialResult(word_ids, &word_syms_, false);
 					}
 				}
 
@@ -171,19 +171,22 @@ public:
 					decoder_->FinishTraceBack(&out_fst);
 					fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
                                                         &word_ids, static_cast<LatticeArc::Weight*>(0));
-					PrintPartialResult(word_ids, &word_syms_, true);
+					//PrintPartialResult(word_ids, &word_syms_, true);
 
 					// get best full path
 					decoder_->GetBestPath(&out_fst);
 					fst::GetLinearSymbolSequence(out_fst, &tids, &word_ids, static_cast<LatticeArc::Weight*>(0));
 
+					/*
 					if (!word_ids.empty())
 						words_writer_.Write(utt, word_ids);
 					alignment_writer_.Write(utt, tids);
+					*/
 
 					decoder_sync_->UtteranceSignal();
 					break;
 				}
+
 				if (decoder_sync_->IsFinsihed())
 					break;
 			} // message queue

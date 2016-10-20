@@ -119,12 +119,22 @@ int main(int argc, char *argv[])
 	    	{
 	    		mq_sample.num_sample = utt_feat.NumRows()-i >= chunk ? chunk : utt_feat.NumRows()-i;
 	    		memcpy((char*)mq_sample.sample, (char*)utt_feat.RowData(i), mq_sample.num_sample*utt_feat.NumCols()*sizeof(BaseFloat));
+                
+	    		if (utt_feat.NumRows()-i <= chunk)
+	    			mq_sample.is_end = true;
+
+                if (mq_forward.Send((char*)&mq_sample, sizeof(MQSample), 0) == -1)
+                {
+                    const char *c = strerror(errno);
+                    if (c == NULL) { c = "[NULL]"; }
+                    KALDI_ERR << "Error send message to queue " << mqueue_wspecifier << " , errno was: " << c;
+                }
 
 	    		if (utt_feat.NumRows()-i <= chunk)
-	    		{
-	    			mq_sample.is_end = true;
+                {
 	    			decoder_sync.UtteranceWait();
-	    		}
+                    KALDI_LOG << "Finish decode utterance : " << utt_key;
+                }
 	    	}
 	    }
 

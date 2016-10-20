@@ -127,7 +127,7 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
   }
 
   virtual BaseFloat LogLikelihood(int32 frame, int32 tid) {
-	  return scale_ * (*loglikes_)(frame, trans_model_.TransitionIdToPdf(tid));
+	  return scale_ * loglikes_(frame, trans_model_.TransitionIdToPdf(tid));
   }
 
   void Reset() {

@@ -41,7 +41,7 @@ struct OnlineNnetFasterDecoderOptions : public FasterDecoderOptions {
 	  BaseFloat max_beam_update; // maximum rate of beam adjustment
 
 	  OnlineNnetFasterDecoderOptions() :
-	    rt_min(0.7), rt_max(0.75), batch_size(27),
+	    rt_min(0.7), rt_max(0.75), batch_size(16),
 	    inter_utt_sil(50), max_utt_len_(1500),
 	    update_interval(3), beam_update(0.01),
 	    max_beam_update(0.05) {}

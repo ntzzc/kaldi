@@ -142,6 +142,9 @@ int main(int argc, char *argv[]) {
     std::vector<pid_t> key_pid(num_stream, -1);
     std::unordered_map<pid_t, int> pid_key;
     Matrix<BaseFloat> feat, nnet_out_host;
+    int feat_dim = nnet_transf.InputDim();
+    int input_dim = nnet.InputDim();
+    int out_dim = nnet.OutputDim();
     int step = 1024, t, s , k, dim;
 
     while (true)
@@ -199,7 +202,6 @@ int main(int argc, char *argv[]) {
     			if (ret == -1) break;
     			// send successful
     			decodable_list[s].pop();
-    			delete mq_decodable;
 
     			// initialization for new utterance
     			if(mq_decodable->is_end)
@@ -208,8 +210,10 @@ int main(int argc, char *argv[]) {
     				curt[s] = 0;
     				utt_curt[s] = 0;
     				new_utt_flags[s] = 1;
-    				feats[s].Resize(step, dim, kUndefined, kStrideEqualNumCols);
+    				feats[s].Resize(step, feat_dim, kUndefined, kStrideEqualNumCols);
     			}
+
+    			delete mq_decodable;
     		}
     	}
 
@@ -220,12 +224,13 @@ int main(int argc, char *argv[]) {
         }
 
         if (done) {
-        	usleep(0.05*1000000);
+        	usleep(0.02*1000000);
         	continue;
         }
 
-    	if (feat.NumCols() != dim) {
-    		feat.Resize(batch_size * num_stream, dim, kSetZero, kStrideEqualNumCols);
+    	if (feat.NumCols() != input_dim) {
+    		feat.Resize(batch_size * num_stream, input_dim, kSetZero, kStrideEqualNumCols);
+            nnet_out_host.Resize(batch_size * num_stream, out_dim, kSetZero, kStrideEqualNumCols);
     	}
     	 // fill a multi-stream bptt batch
     	for (t = 0; t < batch_size; t++) {
@@ -233,12 +238,12 @@ int main(int argc, char *argv[]) {
 				// feat shifting & padding
 				if (curt[s] < lent[s]) {
 					feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]));
+				    curt[s] += skip_frames;
 				} else {
-					int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
-					if (last >= 0)
-					feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
+					//int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
+					//if (last >= 0)
+					//feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
 				}
-				curt[s] += skip_frames;
     		}
     	}
 
