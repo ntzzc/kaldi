@@ -21,6 +21,7 @@
 #define KALDI_UTIL_CIRCULAR_QUEUE_H_
 
 #include <vector>
+#include <list>
 #include "util/stl-utils.h"
 
 namespace kaldi {
@@ -30,26 +31,26 @@ class CircularQueue {
 public:
 	CircularQueue(int size = 4);
 
-	inline void push(const T &value);
+	void push(const T &value);
 
-	inline void pop();
+	void pop();
 
-	inline T front();
+	T front();
 
-	inline T back();
+	T back();
 
-	inline int size();
+	int size();
 
-	inline bool empty();
+	bool empty();
 
-	inline void clear();
+	void clear();
 
-	inline std::list<T>& GetList();
+	std::list<T>& GetList();
 private:
 
 	std::list<T> buffer_;
-	std::list<T>::iterator front_;
-	std::list<T>::iterator rear_;
+	typename std::list<T>::iterator front_;
+	typename std::list<T>::iterator rear_;
 	int	 size_;
 };
 

@@ -25,11 +25,11 @@ void TestCircularQueue()
 {
 	CircularQueue<T> queue;
 
-	for (size_t j = 0; j < 50; j++) {
+	for (size_t j = 1; j < 50; j++) {
 		queue.push(j);
 	}
 
-	for (size_t j = 0; j < 50; j++) {
+	for (size_t j = 1; j < 50; j++) {
 		int i = queue.front();
 		queue.pop();
 		KALDI_ASSERT(i == j);
@@ -37,15 +37,17 @@ void TestCircularQueue()
 
 	queue.clear();
 
-	for (size_t j = 0; j < 50; j++) {
+	for (size_t j = 1; j < 50; j++) {
 		queue.push(j);
 	}
+    KALDI_ASSERT(queue.size()==49);
 
-	for (size_t j = 0; j < 50; j++) {
+	for (size_t j = 1; j < 50; j++) {
 		int i = queue.front();
 		queue.pop();
 		KALDI_ASSERT(i == j);
 	}
+	KALDI_ASSERT(queue.empty());
 }
 
 
