@@ -1,6 +1,6 @@
 // nnetbin/nnet-forward-evaluate.cc
 
-// Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
+// Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
 // See ../../COPYING for clarification regarding multiple authors
 //

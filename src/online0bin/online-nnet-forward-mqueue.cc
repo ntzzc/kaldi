@@ -19,11 +19,11 @@
 
 #include <limits>
 
+#include "../online0/online-nnet-forwarding-mqueue.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
 
-#include "online0/online-nnet-forwarding.h"
 #include "thread/kaldi-message-queue.h"
 #include "nnet0/nnet-nnet.h"
 

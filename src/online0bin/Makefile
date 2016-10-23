@@ -7,7 +7,7 @@ LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
 LDLIBS += $(MPICH_LDLIBS)
 
-BINFILES = online-nnet-decoder  online-nnet-forward
+BINFILES = online-nnet-decoder  online-nnet-forward-parallel
 
 OBJFILES =
 

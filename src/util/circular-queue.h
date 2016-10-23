@@ -29,28 +29,31 @@ namespace kaldi {
 template<class T>
 class CircularQueue {
 public:
-	CircularQueue(int size = 4);
+	CircularQueue(int size = 1);
 
-	void push(const T &value);
+	void Push();
 
-	void pop();
+	void Pop();
 
-	T front();
+	T* Front();
 
-	T back();
+	T* Back();
 
-	int size();
+	int Size();
 
-	bool empty();
+	bool Empty();
 
-	void clear();
+	int Capacity();
 
-	std::list<T>& GetList();
+	void Clear();
+
+	void Resize(int size = 1);
 private:
 
 	std::list<T> buffer_;
 	typename std::list<T>::iterator front_;
 	typename std::list<T>::iterator rear_;
+	typename std::list<T>::iterator back_;
 	int	 size_;
 };
 

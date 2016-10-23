@@ -152,6 +152,7 @@ class MultiThreader {
       }
     }
   }
+
   ~MultiThreader() {
     for (size_t thread = 0; thread < cvec_.size(); thread++)
       if (KALDI_PTHREAD_PTR(threads_[thread]) != 0)
@@ -171,8 +172,6 @@ class MultiThreader {
 template<class C> void RunMultiThreaded(const C &c_in) {
   MultiThreader<C> m(g_num_threads, c_in);
 }
-
-
 
 } // namespace kaldi
 #endif  // KALDI_THREAD_KALDI_THREAD_H_

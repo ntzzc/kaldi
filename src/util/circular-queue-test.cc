@@ -24,30 +24,51 @@ template<class T>
 void TestCircularQueue()
 {
 	CircularQueue<T> queue;
+	int *t;
 
 	for (size_t j = 1; j < 50; j++) {
-		queue.push(j);
+		queue.Push();
+		t = queue.Back();
+		*t = j;
 	}
 
 	for (size_t j = 1; j < 50; j++) {
-		int i = queue.front();
-		queue.pop();
-		KALDI_ASSERT(i == j);
+		t = queue.Front();
+		queue.Pop();
+		KALDI_ASSERT(*t == j);
 	}
 
-	queue.clear();
-
-	for (size_t j = 1; j < 50; j++) {
-		queue.push(j);
-	}
-    KALDI_ASSERT(queue.size()==49);
+	queue.Clear();
 
 	for (size_t j = 1; j < 50; j++) {
-		int i = queue.front();
-		queue.pop();
-		KALDI_ASSERT(i == j);
+		queue.Push();
+		t = queue.Back();
+		*t = j;
 	}
-	KALDI_ASSERT(queue.empty());
+    KALDI_ASSERT(queue.Size()==49);
+
+	for (size_t j = 1; j < 50; j++) {
+		t = queue.Front();
+		queue.Pop();
+		KALDI_ASSERT(*t == j);
+	}
+	KALDI_ASSERT(queue.Empty());
+
+	queue.Resize(5);
+
+	for (size_t j = 1; j < 50; j++) {
+		queue.Push();
+		t = queue.Back();
+		*t = j;
+	}
+    KALDI_ASSERT(queue.Size()==49);
+
+	for (size_t j = 1; j < 50; j++) {
+		t = queue.Front();
+		queue.Pop();
+		KALDI_ASSERT(*t == j);
+	}
+	KALDI_ASSERT(queue.Empty());
 }
 
 

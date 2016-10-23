@@ -25,16 +25,16 @@ namespace kaldi {
 	template<class T>
 	CircularQueue<T>::CircularQueue(int size)
 	{
-		KALDI_ASSERT(size>1);
+		KALDI_ASSERT(size>0);
 
-		buffer_.resize(size);
+		buffer_.resize(size+1);
 		rear_ = buffer_.begin();
-		front_ = rear_;
+		back_ = front_ = rear_;
 		size_ = 0;
 	}
 
 	template<class T>
-	void CircularQueue<T>::push(const T &value)
+	void CircularQueue<T>::Push()
 	{
 		typename std::list<T>::iterator it = front_;
         it++;
@@ -43,16 +43,21 @@ namespace kaldi {
 
 		if (it != rear_)
 		{
-			*front_ = value;
+			back_ = front_;
 			front_ = it;
 		}
 		else // it == rear_ : queue full
+		{
+			T value;
+			// insert from front of front_
 			buffer_.insert(front_, value);
+			back_++;
+		}
 		size_++;
 	}
 
 	template<class T>
-	void CircularQueue<T>::pop()
+	void CircularQueue<T>::Pop()
 	{
 		if (rear_ != front_)
 		{
@@ -62,14 +67,21 @@ namespace kaldi {
 	}
 
 	template<class T>
-	T CircularQueue<T>::front()
+	T* CircularQueue<T>::Front()
 	{
 		KALDI_ASSERT(size_ > 0);
-		return *rear_;
+		return &(*rear_);
 	}
 
 	template<class T>
-	bool CircularQueue<T>::empty()
+	T* CircularQueue<T>::Back()
+	{
+		KALDI_ASSERT(size_ > 0);
+		return &(*back_);
+	}
+
+	template<class T>
+	bool CircularQueue<T>::Empty()
 	{
 		if (size_ == 0)
 			KALDI_ASSERT(rear_ == front_);
@@ -77,24 +89,35 @@ namespace kaldi {
 	}
 
 	template<class T>
-	void CircularQueue<T>::clear()
+	void CircularQueue<T>::Clear()
 	{
 		buffer_.resize(2);
 		rear_ = buffer_.begin();
-		front_ = rear_;
+		back_ = front_ = rear_;
 		size_ = 0;
 	}
 
 	template<class T>
-	int CircularQueue<T>::size()
+	int CircularQueue<T>::Capacity()
+	{
+		return buffer_.size()-1;
+	}
+
+	template<class T>
+	int CircularQueue<T>::Size()
 	{
 		return size_;
 	}
 
 	template<class T>
-	std::list<T>& CircularQueue<T>::GetList()
+	void CircularQueue<T>::Resize(int size)
 	{
-		return buffer_;
+		KALDI_ASSERT(size>0);
+
+		buffer_.resize(size+1);
+		rear_ = buffer_.begin();
+		back_ = front_ = rear_;
+		size_ = 0;
 	}
 }
 

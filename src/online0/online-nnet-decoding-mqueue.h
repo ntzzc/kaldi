@@ -17,17 +17,16 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ONLINE0_ONLINE_NNET_DECODING_H_
-#define ONLINE0_ONLINE_NNET_DECODING_H_
+#ifndef ONLINE0_ONLINE_NNET_DECODING_MQUEUE_H_
+#define ONLINE0_ONLINE_NNET_DECODING_MQUEUE_H_
 
 #include "fstext/fstext-lib.h"
+#include "online0/online-nnet-faster-decoder.h"
 #include "decoder/decodable-matrix.h"
+#include "thread/kaldi-message-queue.h"
 #include "thread/kaldi-semaphore.h"
 #include "thread/kaldi-mutex.h"
-
 #include "online0/online-message.h"
-#include "online0/online-nnet-faster-decoder.h"
-#include "online0/kaldi-unix-domain-socket.h"
 
 namespace kaldi {
 
@@ -63,7 +62,7 @@ struct OnlineNnetDecodingOptions {
 class DecoderSync
 {
 public:
-	DecoderSync() : sema_utt_(0), is_finished_(false) {}
+	DecoderSync() : sema_utt_(0), is_finished(false) {}
 	~DecoderSync() {}
 
 	void UtteranceWait()
@@ -90,18 +89,18 @@ public:
 
 	void Abort()
 	{
-		is_finished_ = true;
+		is_finished = true;
 	}
 
 	bool IsFinsihed()
 	{
-		return is_finished_;
+		return is_finished;
 	}
 private:
 	Semaphore sema_utt_;
 	Mutex mutex_;
 	std::string cur_utt_;
-	bool is_finished_;
+	bool is_finished;
 };
 
 class OnlineNnetDecodingClass : public MultiThreadable
@@ -109,14 +108,14 @@ class OnlineNnetDecodingClass : public MultiThreadable
 public:
 	OnlineNnetDecodingClass(const OnlineNnetDecodingOptions &opts,
 			OnlineNnetFasterDecoder *decoder,
-			UnixDomainSocket *socket,
+			MessageQueue *mq_decodable,
 			DecoderSync *decoder_sync,
 			const TransitionModel &trans_model,
 			fst::SymbolTable &word_syms,
 			Int32VectorWriter &words_writer,
 			Int32VectorWriter &alignment_writer):
 				opts_(opts),
-				decoder_(decoder), socket_(socket), decoder_sync_(decoder_sync),
+				decoder_(decoder), mq_decodable_(mq_decodable), decoder_sync_(decoder_sync),
 				trans_model_(trans_model), word_syms_(word_syms),
 				words_writer_(words_writer), alignment_writer_(alignment_writer)
 	{
@@ -132,7 +131,9 @@ public:
 		std::vector<int32> tids;
 		typedef OnlineNnetFasterDecoder::DecodeState DecodeState;
 		int batch_size = opts_.decoder_opts.batch_size;
-		SocketDecodable decodable;
+		struct mq_attr attr;
+		mq_decodable_->Getattr(&attr);
+		MQDecodable mq_decodable;
 		int num_pdfs = trans_model_.NumPdfs();
 		std::string utt;
 
@@ -144,9 +145,9 @@ public:
 
 			while (true)
 			{
-				socket_->Receive((char*)&decodable, sizeof(SocketDecodable));
-				Matrix<BaseFloat> loglikes(decodable.num_sample, num_pdfs, kUndefined, kStrideEqualNumCols);
-				memcpy(loglikes.Data(), decodable.sample, loglikes.SizeInBytes());
+				mq_decodable_->Receive((char*)&mq_decodable, attr.mq_msgsize, NULL);
+				Matrix<BaseFloat> loglikes(mq_decodable.num_sample, num_pdfs, kUndefined, kStrideEqualNumCols);
+				memcpy(loglikes.Data(), mq_decodable.sample, loglikes.SizeInBytes());
 				decodable_->AcceptLoglikes(&loglikes, 0);
 
 				while (decodable_->NumFramesReady() >= decoder_->NumFramesDecoded()+batch_size)
@@ -160,7 +161,7 @@ public:
 					}
 				}
 
-				if (decodable.is_end)
+				if (mq_decodable.is_end)
 				{
 					utt = decoder_sync_->GetUtt();
 
@@ -194,9 +195,9 @@ public:
 
 private:
 
-	const OnlineNnetDecodingOptions &opts_;
+	const OnlineNnetDecodingOptions opts_;
 	OnlineNnetFasterDecoder *decoder_;
-	UnixDomainSocket *socket_;
+	MessageQueue *mq_decodable_;
 	DecoderSync *decoder_sync_;
 	OnlineDecodableMatrixMapped *decodable_;
 	const TransitionModel &trans_model_; // needed for trans-id -> phone conversion
