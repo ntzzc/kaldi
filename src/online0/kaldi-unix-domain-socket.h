@@ -22,6 +22,7 @@
 
 #include <sys/un.h>
 #include <sys/socket.h>	/* basic socket definitions */
+#include <sys/ioctl.h>
 #include <fcntl.h>		/* for nonblocking */
 #include <unistd.h>
 
@@ -30,13 +31,21 @@
 class UnixDomainSocket {
 public:
 	UnixDomainSocket(std::string unix_filepath,
-			int type = SOCK_STREAM, bool block = true) : block_(block)
+			int type = SOCK_STREAM, bool block = true) : socket_(-1), block_(block)
 	{
 		if ((socket_ = socket(AF_LOCAL, type, 0)) < 0) {
 			const char *c = strerror(errno);
 			if (c == NULL) { c = "[NULL]"; }
 				KALDI_ERR << "Error open socket , errno was: " << c;
 		}
+
+        int buffer_size = 4194304;
+        setsockopt(socket_, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(int));
+        setsockopt(socket_, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(int));
+        
+        //socklen_t len = sizeof(buffer_size);
+        //getsockopt(socket_, SOL_SOCKET, SO_SNDBUF, &buffer_size, &len);
+        //KALDI_LOG << "getsockopt SO_SNDBUF: " << buffer_size; 
 
 		// non block connect
 		if (!block) {
@@ -62,7 +71,7 @@ public:
 	UnixDomainSocket(int socket, struct sockaddr_un	socket_addr, bool block = true)
 	: socket_(socket), socket_addr_(socket_addr), block_(block) {}
 
-	UnixDomainSocket(int type = SOCK_STREAM) : block_(true)
+	UnixDomainSocket(int type = SOCK_STREAM) : socket_(-1), block_(true)
 	{
 		if ((socket_ = socket(AF_LOCAL, type, 0)) < 0) {
 			const char *c = strerror(errno);
@@ -132,7 +141,7 @@ public:
 		tval.tv_sec = 0;
 		tval.tv_usec = nmsec*1000; // microseconds
 
-		ret = select(socket_+1, &rset, &wset, NULL, nsec ? &tval : NULL);
+		ret = select(socket_+1, &rset, &wset, NULL, nmsec ? &tval : NULL);
 		if (ret == 0) {
 			close(socket_);		/* timeout */
 			errno = ETIMEDOUT;
@@ -162,26 +171,44 @@ public:
 
 	ssize_t Send(void *buff, size_t nbytes, int flags = 0)
 	{
-		ssize_t size = send(socket_, buff, nbytes, flags);
-		if (block_ && !(flags & MSG_DONTWAIT) && size != nbytes)
-		{
-			const char *c = strerror(errno);
-			if (c == NULL) { c = "[NULL]"; }
-			KALDI_ERR << "Error send " << nbytes <<" data to socket , errno was: " << c;
-		}
-		return size;
+        ssize_t nsend = 0, n = 0, req = nbytes;
+        while (nsend < nbytes) {
+            n = send(socket_, (char*)buff+nsend, req, flags);
+            if ((!block_ || (flags & MSG_DONTWAIT)) && (nsend == 0 && n < 0)) 
+                return n;
+            if (n > 0) {
+                nsend += n;
+                req -= n; 
+            }
+        }
+        return nsend;
 	}
+
+            /*
+            {
+			    const char *c = strerror(errno);
+			    if (c == NULL) { c = "[NULL]"; }
+			    KALDI_ERR << "Error receive " << nbytes <<" data from socket , errno was: " << c;
+		    }
+            */
 
 	ssize_t Receive(void *buff, size_t nbytes, int flags = 0)
 	{
-		ssize_t size = recv(socket_, buff, nbytes, flags);
-		if (block_ && !(flags & MSG_DONTWAIT) && size != nbytes)
-		{
-			const char *c = strerror(errno);
-			if (c == NULL) { c = "[NULL]"; }
-			KALDI_ERR << "Error receive " << nbytes <<" data from socket , errno was: " << c;
-		}
-		return size;
+        ssize_t nrecv = 0, avali, n = 0, req = nbytes;
+        
+        if (!block_ || (flags & MSG_DONTWAIT)) {
+            ioctl(socket_, FIONREAD, &avali);
+            if (avali < nbytes)
+                return -1;
+        }
+            
+        while (nrecv < nbytes) {
+            n = recv(socket_, (char*)buff+nrecv, req, flags);
+            if (n < 0) return n;
+            nrecv += n;
+            req -= n;
+        }
+        return nrecv;
 	}
 
 	void Close()
@@ -200,9 +227,9 @@ public:
 	}
 
 private:
-	struct sockaddr_un	socket_addr_;
 	int socket_; // listening socket
 	bool block_;
+	struct sockaddr_un	socket_addr_;
 
 };
 

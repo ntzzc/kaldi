@@ -144,7 +144,7 @@ public:
 
 			while (true)
 			{
-				socket_->Receive((char*)&decodable, sizeof(SocketDecodable));
+				socket_->Receive((char*)&decodable, sizeof(SocketDecodable), MSG_WAITALL);
 				Matrix<BaseFloat> loglikes(decodable.num_sample, num_pdfs, kUndefined, kStrideEqualNumCols);
 				memcpy(loglikes.Data(), decodable.sample, loglikes.SizeInBytes());
 				decodable_->AcceptLoglikes(&loglikes, 0);

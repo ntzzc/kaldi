@@ -24,6 +24,7 @@
 
 #include "nnet0/nnet-nnet.h"
 #include "online0/online-nnet-forwarding.h"
+#include "online0/kaldi-unix-domain-socket-server.h"
 
 int main(int argc, char *argv[]) {
 	  using namespace kaldi;
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
     int num_stream = opts.num_stream;
 
     std::vector<std::vector<UnixDomainSocket*> > client_list(num_threads);
+    std::vector<MultiThreader<OnlineNnetForwardingClass> *> forward_thread(num_threads, NULL);
     UnixDomainSocketServer *server = new UnixDomainSocketServer(socket_filepath);
     UnixDomainSocket *client = NULL;
 
@@ -76,10 +78,12 @@ int main(int argc, char *argv[]) {
     	client_list[i].resize(num_stream, NULL);
 
 		// initialize forward thread
+		// forward_thread[i] = new OnlineNnetForwardingClass(opts, client_list[i], model_filename);
 		OnlineNnetForwardingClass forwarding(opts, client_list[i], model_filename);
 		// The initialization of the following class spawns the threads that
 		// process the examples.  They get re-joined in its destructor.
-		MultiThreader<OnlineNnetDecodingClass> m(1, forwarding);
+		// MultiThreader<OnlineNnetForwardingClass> m(1, *forward_thread[i]);
+		forward_thread[i] = new  MultiThreader<OnlineNnetForwardingClass>(1, forwarding);
     }
 
     Timer time;
@@ -90,7 +94,7 @@ int main(int argc, char *argv[]) {
     // accept client decoder request
     while (true)
     {
-    	client = server->Accept(false);
+    	client = server->Accept(false); // non block
 
     	if (client == NULL) {
     		const char *c = strerror(errno);
@@ -105,7 +109,7 @@ int main(int argc, char *argv[]) {
     			if (client_list[i][s] == NULL) {
 					client_list[i][s] = client;
 					success = true;
-					KALDI_LOG << "client decoder " << i*num_stream+client_list[i].size()-1 << " connected.";
+					KALDI_LOG << "client decoder " << i*num_stream+s << " connected.";
 					break;
 				}
     		}
@@ -115,13 +119,20 @@ int main(int argc, char *argv[]) {
     	if (!success)
     	{
     		std::vector<UnixDomainSocket*> newlist(num_stream, NULL);
-    		// initialize forward thread
-    		OnlineNnetForwardingClass forwarding(opts, newlist, model_filename);
-    		MultiThreader<OnlineNnetDecodingClass> m(1, forwarding);
     		client_list.push_back(newlist);
+
+            int size = client_list.size();
+            forward_thread.resize(size);
+    		// initialize forward thread
+		    // forward_thread[size-1] = new OnlineNnetForwardingClass(opts, client_list[size-1], model_filename);
+		    // MultiThreader<OnlineNnetForwardingClass> m(1, *forward_thread[size-1]);
+		    OnlineNnetForwardingClass forwarding(opts, client_list[size-1], model_filename);
+		    forward_thread[size-1] = new  MultiThreader<OnlineNnetForwardingClass>(1, forwarding);
     	}
     }
 
+    for (int i = 0; i < forward_thread.size(); i++)
+        delete forward_thread[i];
 
     KALDI_LOG << "Nnet Forward FINISHED; ";
 

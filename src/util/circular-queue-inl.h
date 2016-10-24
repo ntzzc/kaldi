@@ -62,6 +62,8 @@ namespace kaldi {
 		if (rear_ != front_)
 		{
 			rear_++;
+            if (rear_ == buffer_.end())
+                rear_ = buffer_.begin();
 			size_--;
 		}
 	}

@@ -121,6 +121,10 @@ public:
 			fcntl(conn_socket_fd, F_SETFL, flags | O_NONBLOCK);
 		}
 
+        int buffer_size = 4194304;
+        setsockopt(conn_socket_fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(int));
+        setsockopt(conn_socket_fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(int));
+
 		UnixDomainSocket *socket = new UnixDomainSocket(conn_socket_fd, socket_addr_, block);
 		return socket;
 	}
@@ -141,8 +145,8 @@ public:
 	}
 
 private:
-	struct sockaddr_un	socket_addr_;
 	int socket_; // listening socket
+	struct sockaddr_un	socket_addr_;
 
 };
 

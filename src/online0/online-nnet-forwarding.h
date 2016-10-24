@@ -20,10 +20,11 @@
 #ifndef ONLINE0_ONLINE_NNET_FORWARDING_H_
 #define ONLINE0_ONLINE_NNET_FORWARDING_H_
 
-#include "online0/online-message.h"
+#include "util/circular-queue.h"
 #include "nnet0/nnet-trnopts.h"
 #include "nnet0/nnet-pdf-prior.h"
-#include "util/circular-queue.h"
+#include "online0/online-message.h"
+#include "online0/kaldi-unix-domain-socket.h"
 
 namespace kaldi {
 
@@ -59,7 +60,7 @@ struct OnlineNnetForwardingOptions {
     	po->Register("no-softmax", &no_softmax, "No softmax on MLP output (or remove it if found), the pre-softmax activations will be used as log-likelihoods, log-priors will be subtracted");
     	po->Register("apply-log", &apply_log, "Transform MLP output to logscale");
     	po->Register("copy-posterior", &copy_posterior, "Copy posterior for skip frames output");
-    	po->Register("use-gpu", &use_gpu,` "yes|no|optional, only has effect if compiled with CUDA");
+    	po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
 
 
     	po->Register("num-threads", &num_threads, "Number of threads(GPUs) to use");
@@ -103,14 +104,16 @@ public:
 	void operator () ()
 	{
 #if HAVE_CUDA==1
-    if (opts.use_gpu == "yes")
+    if (opts_.use_gpu == "yes")
     	CuDevice::Instantiate().SelectGpu();
 #endif
+
+        using namespace kaldi::nnet0;
 
 		bool no_softmax = opts_.no_softmax;
 		std::string feature_transform = opts_.feature_transform;
 		bool apply_log = opts_.apply_log;
-		bool copy_posterior = opts_.copy_posterior;
+		//bool copy_posterior = opts_.copy_posterior;
 		int32 num_stream = opts_.num_stream;
 		int32 batch_size = opts_.batch_size;
 		int32 skip_frames = opts_.skip_frames;
@@ -142,7 +145,7 @@ public:
 	    }
 
 	    // we will subtract log-priors later,
-	    PdfPrior pdf_prior(prior_opts);
+	    PdfPrior pdf_prior(*prior_opts);
 
 		std::vector<int32> sweep_frames;
 		if (!kaldi::SplitStringToIntegers(opts_.sweep_frames_str, ":", false, &sweep_frames))
@@ -173,7 +176,7 @@ public:
 	    int feat_dim = nnet_transf.InputDim();
 	    int input_dim = nnet.InputDim();
 	    int out_dim = nnet.OutputDim();
-	    int t, s , k, dim;
+	    int t, s , k, dim, len;
 
 	    while (true)
 	    {
@@ -206,7 +209,6 @@ public:
 	    			send_end[s] = true;
 	    			continue;
 	    		}
-
 	    		if (send_end[s]) {
 	    			recv_end[s] = true;
     				lent[s] = 0;
@@ -217,7 +219,7 @@ public:
     				decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
 	    		}
 
-	    		while (client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample)) > 0)
+	    		while ((len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample))) > 0)
 	    		{
 					if (feats[s].NumRows() < lent[s]+socket_sample.num_sample)
 					{
@@ -242,7 +244,7 @@ public:
 	        }
 
 	        if (done) {
-	        	usleep(0.02*1000000);
+	        	//usleep(0.02*1000000);
 	        	continue;
 	        }
 
@@ -266,14 +268,17 @@ public:
 	    	}
 
 	    	// apply optional feature transform
-	    	nnet_transf.Feedforward(CuMatrix<BaseFloat>(feat), &feats_transf);
+	    	// cufeat.Resize(feat.NumRows(), feat.NumCols(), kUndefined, kStrideEqualNumCols);
+	    	cufeat.Resize(feat.NumRows(), feat.NumCols(), kUndefined);
+            cufeat.CopyFromMat(feat);
+	    	nnet_transf.Feedforward(cufeat, &feats_transf);
 
 			// for streams with new utterance, history states need to be reset
 			nnet.ResetLstmStreams(new_utt_flags);
 			nnet.SetSeqLengths(new_utt_flags);
 
 			// forward pass
-			nnet.Propagate(CuMatrix<BaseFloat>(feat), &nnet_out);
+			nnet.Propagate(feats_transf, &nnet_out);
 
 	    	// convert posteriors to log-posteriors,
 	    	if (apply_log) {
