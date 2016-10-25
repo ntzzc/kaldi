@@ -18,6 +18,7 @@
 // limitations under the License.
 
 #include <limits>
+#include <signal.h>
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
@@ -69,21 +70,24 @@ int main(int argc, char *argv[]) {
     int num_threads = opts.num_threads;
     int num_stream = opts.num_stream;
 
+    signal(SIGPIPE, SIG_IGN);
+
     std::vector<std::vector<UnixDomainSocket*> > client_list(num_threads);
     std::vector<MultiThreader<OnlineNnetForwardingClass> *> forward_thread(num_threads, NULL);
     UnixDomainSocketServer *server = new UnixDomainSocketServer(socket_filepath);
     UnixDomainSocket *client = NULL;
+    ForwardSync forward_sync;
 
     for (int i = 0; i < num_threads; i++) {
     	client_list[i].resize(num_stream, NULL);
 
 		// initialize forward thread
 		// forward_thread[i] = new OnlineNnetForwardingClass(opts, client_list[i], model_filename);
-		OnlineNnetForwardingClass forwarding(opts, client_list[i], model_filename);
+		OnlineNnetForwardingClass *forwarding = new OnlineNnetForwardingClass(opts, client_list[i], forward_sync, model_filename);
 		// The initialization of the following class spawns the threads that
 		// process the examples.  They get re-joined in its destructor.
 		// MultiThreader<OnlineNnetForwardingClass> m(1, *forward_thread[i]);
-		forward_thread[i] = new  MultiThreader<OnlineNnetForwardingClass>(1, forwarding);
+		forward_thread[i] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
     }
 
     Timer time;
@@ -113,6 +117,7 @@ int main(int argc, char *argv[]) {
 					break;
 				}
     		}
+            if (success) break;
     	}
 
     	// create new forward thread for more client decoder
@@ -122,12 +127,13 @@ int main(int argc, char *argv[]) {
     		client_list.push_back(newlist);
 
             int size = client_list.size();
+			client_list[size-1][0] = client;
             forward_thread.resize(size);
     		// initialize forward thread
 		    // forward_thread[size-1] = new OnlineNnetForwardingClass(opts, client_list[size-1], model_filename);
 		    // MultiThreader<OnlineNnetForwardingClass> m(1, *forward_thread[size-1]);
-		    OnlineNnetForwardingClass forwarding(opts, client_list[size-1], model_filename);
-		    forward_thread[size-1] = new  MultiThreader<OnlineNnetForwardingClass>(1, forwarding);
+		    OnlineNnetForwardingClass *forwarding = new OnlineNnetForwardingClass(opts, client_list[size-1], forward_sync, model_filename);
+		    forward_thread[size-1] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
     	}
     }
 

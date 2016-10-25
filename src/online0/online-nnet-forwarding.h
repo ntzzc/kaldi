@@ -21,6 +21,7 @@
 #define ONLINE0_ONLINE_NNET_FORWARDING_H_
 
 #include "util/circular-queue.h"
+#include "thread/kaldi-mutex.h"
 #include "nnet0/nnet-trnopts.h"
 #include "nnet0/nnet-pdf-prior.h"
 #include "online0/online-message.h"
@@ -81,19 +82,37 @@ struct OnlineNnetForwardingOptions {
 
 };
 
+class ForwardSync {
+public:
+    ForwardSync() {}
+
+    void LockGpu() {
+        gpu_mutex_.Lock();
+    }
+
+    void UnlockGpu(){
+        gpu_mutex_.Unlock();
+    }
+
+private:
+    Mutex gpu_mutex_;
+};
+
 class OnlineNnetForwardingClass : public MultiThreadable {
 private:
-	const static int MAX_BUFFER_SIZE = 5;
+	const static int MAX_BUFFER_SIZE = 800;
 	const static int MATRIX_INC_STEP = 1024;
 	const OnlineNnetForwardingOptions &opts_;
 	std::vector<UnixDomainSocket*> &client_socket_;
+    ForwardSync &forward_sync_;
 	std::string model_filename_;
 
 public:
 	OnlineNnetForwardingClass(const OnlineNnetForwardingOptions &opts,
 			std::vector<UnixDomainSocket*> &client_socket,
-			std::string model_filename):
-				opts_(opts), client_socket_(client_socket), model_filename_(model_filename)
+			ForwardSync &forward_sync, std::string model_filename):
+				opts_(opts), client_socket_(client_socket), 
+                forward_sync_(forward_sync), model_filename_(model_filename)
 
 	{
 
@@ -103,10 +122,12 @@ public:
 
 	void operator () ()
 	{
+        forward_sync_.LockGpu();
 #if HAVE_CUDA==1
     if (opts_.use_gpu == "yes")
     	CuDevice::Instantiate().SelectGpu();
 #endif
+        forward_sync_.UnlockGpu();
 
         using namespace kaldi::nnet0;
 
@@ -161,7 +182,8 @@ public:
 
 	    SocketSample socket_sample;
 	    SocketDecodable socket_decodable;
-	    std::vector<CircularQueue<SocketDecodable>> decodable_buffer(num_stream);
+	    //std::vector<CircularQueue<SocketDecodable>> decodable_buffer(num_stream);
+	    std::vector<std::queue<SocketDecodable*> > decodable_buffer(num_stream);
 
 	    Matrix<BaseFloat> sample;
 	    std::vector<Matrix<BaseFloat> > feats(num_stream);
@@ -176,23 +198,39 @@ public:
 	    int feat_dim = nnet_transf.InputDim();
 	    int input_dim = nnet.InputDim();
 	    int out_dim = nnet.OutputDim();
-	    int t, s , k, dim, len;
+	    int t, s , k, len;
 
+        /*
+        while (true) {
+	    	// apply optional feature transform
+	    	cufeat.Resize(batch_size * num_stream, input_dim, kUndefined);
+	    	nnet_transf.Feedforward(cufeat, &feats_transf);
+
+			// for streams with new utterance, history states need to be reset
+			nnet.ResetLstmStreams(new_utt_flags);
+			nnet.SetSeqLengths(new_utt_flags);
+
+			// forward pass
+			nnet.Propagate(feats_transf, &nnet_out);
+        }
+        */
+        
 	    while (true)
 	    {
 	    	for (s = 0; s < num_stream; s++)
 	    	{
-	    		while (!decodable_buffer[s].Empty())
+	    		while (!decodable_buffer[s].empty() && send_end[s] == false && client_socket_[s] != NULL)
 	    		{
-	    			SocketDecodable* decodable = decodable_buffer[s].Front();
-	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable));
-	    			if (ret == -1) break;
+	    			SocketDecodable* decodable = decodable_buffer[s].front();
+	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable), MSG_NOSIGNAL);
+	    			if (ret < 0) break;
 	    			// send successful
-	    			decodable_buffer[s].Pop();
+	    			decodable_buffer[s].pop();
 
 	    			// send a utterance finished
 	    			if(decodable->is_end)
 	    				send_end[s] = true;
+                    delete decodable;
 	    		}
 	    	}
 
@@ -207,8 +245,16 @@ public:
 	    			delete client_socket_[s];
 	    			client_socket_[s] = NULL;
 	    			send_end[s] = true;
+    				lent[s] = 0;
+                    while (!decodable_buffer[s].empty()) {
+                         SocketDecodable* decodable = decodable_buffer[s].front();
+                         decodable_buffer[s].pop();
+                         delete decodable;
+                    }
+                    KALDI_LOG << "client decoder " << s << " disconnected.";
 	    			continue;
 	    		}
+
 	    		if (send_end[s]) {
 	    			recv_end[s] = true;
     				lent[s] = 0;
@@ -216,19 +262,18 @@ public:
     				utt_curt[s] = 0;
     				new_utt_flags[s] = 1;
     				feats[s].Resize(MATRIX_INC_STEP, feat_dim, kUndefined, kStrideEqualNumCols);
-    				decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
 	    		}
 
 	    		while ((len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample))) > 0)
 	    		{
 					if (feats[s].NumRows() < lent[s]+socket_sample.num_sample)
 					{
-						Matrix<BaseFloat> tmp(feats[s].NumRows()+MATRIX_INC_STEP, dim, kUndefined, kStrideEqualNumCols);
+						Matrix<BaseFloat> tmp(feats[s].NumRows()+MATRIX_INC_STEP, feat_dim, kUndefined, kStrideEqualNumCols);
 						tmp.RowRange(0, lent[s]).CopyFromMat(feats[s].RowRange(0, lent[s]));
 						feats[s].Swap(&tmp);
 					}
 
-					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, sizeof(float)*dim*socket_sample.num_sample);
+					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, sizeof(float)*feat_dim*socket_sample.num_sample);
 					lent[s] += socket_sample.num_sample;
 					recv_end[s] = socket_sample.is_end;
 
@@ -236,7 +281,6 @@ public:
 					frame_num_utt[s] += lent[s]%skip_frames > sweep_frames[0] ? 1 : 0;
 	    		}
 	    	}
-
 	        // we are done if all streams are exhausted
 	        bool done = true;
 	        for (s = 0; s < num_stream; s++) {
@@ -244,7 +288,7 @@ public:
 	        }
 
 	        if (done) {
-	        	//usleep(0.02*1000000);
+	        	usleep(0.02*1000000);
 	        	continue;
 	        }
 
@@ -268,7 +312,6 @@ public:
 	    	}
 
 	    	// apply optional feature transform
-	    	// cufeat.Resize(feat.NumRows(), feat.NumCols(), kUndefined, kStrideEqualNumCols);
 	    	cufeat.Resize(feat.NumRows(), feat.NumCols(), kUndefined);
             cufeat.CopyFromMat(feat);
 	    	nnet_transf.Feedforward(cufeat, &feats_transf);
@@ -303,9 +346,12 @@ public:
 					continue;
 
 				// get new decodable buffer
-				decodable_buffer[s].Push();
-				SocketDecodable *decodable = decodable_buffer[s].Back();
-				dim = nnet_out_host.NumCols();
+				//decodable_buffer[s].Push();
+				//SocketDecodable *decodable = decodable_buffer[s].Back();
+				SocketDecodable *decodable = new SocketDecodable;
+                decodable->clear(); 
+
+				out_dim = nnet_out_host.NumCols();
 				float *dest = decodable->sample;
 
 				for (t = 0; t < batch_size; t++) {
@@ -313,8 +359,8 @@ public:
 					if (opts_.copy_posterior) {
 					   for (k = 0; k < skip_frames; k++){
 							if (utt_curt[s] < lent[s]) {
-								memcpy((char*)dest, (char*)nnet_out_host.RowData(t * num_stream + s), dim*sizeof(float));
-								dest += dim;
+								memcpy((char*)dest, (char*)nnet_out_host.RowData(t * num_stream + s), out_dim*sizeof(float));
+								dest += out_dim;
 								utt_curt[s]++;
 								decodable->num_sample++;
 							}
@@ -322,19 +368,20 @@ public:
 					}
 					else {
 					   if (utt_curt[s] < frame_num_utt[s]) {
-						   memcpy((char*)dest, (char*)nnet_out_host.RowData(t * num_stream + s), dim*sizeof(float));
-						   dest += dim;
+						   memcpy((char*)dest, (char*)nnet_out_host.RowData(t * num_stream + s), out_dim*sizeof(float));
+						   dest += out_dim;
 						   utt_curt[s]++;
 						   decodable->num_sample++;
 					   }
 					}
 				}
 
-				decodable->dim = dim;
+				decodable->dim = out_dim;
 				decodable->is_end = recv_end[s] && ((opts_.copy_posterior && utt_curt[s] == lent[s]) ||
 										(!opts_.copy_posterior && utt_curt[s] == frame_num_utt[s]));
 				new_utt_flags[s] = decodable->is_end ? 1 : 0;
 				send_end[s] = false;
+                decodable_buffer[s].push(decodable);
 			} // rearrangement
 
 	    } // while loop

@@ -174,23 +174,24 @@ public:
         ssize_t nsend = 0, n = 0, req = nbytes;
         while (nsend < nbytes) {
             n = send(socket_, (char*)buff+nsend, req, flags);
-            if ((!block_ || (flags & MSG_DONTWAIT)) && (nsend == 0 && n < 0)) 
-                return n;
-            if (n > 0) {
+            if (n >= 0) {
                 nsend += n;
                 req -= n; 
+            }
+            else {
+                if (block_ && !(flags & MSG_DONTWAIT))
+                    return n;
+                if ((!block_ || (flags & MSG_DONTWAIT)) && (nsend == 0 && n < 0)) 
+                    return n;
+                switch (errno) {
+                case EPIPE :
+                case ECONNRESET:
+                    return n;
+                }
             }
         }
         return nsend;
 	}
-
-            /*
-            {
-			    const char *c = strerror(errno);
-			    if (c == NULL) { c = "[NULL]"; }
-			    KALDI_ERR << "Error receive " << nbytes <<" data from socket , errno was: " << c;
-		    }
-            */
 
 	ssize_t Receive(void *buff, size_t nbytes, int flags = 0)
 	{

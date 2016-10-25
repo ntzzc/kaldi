@@ -59,6 +59,12 @@ struct MQDecodable {
 
 struct SocketSample {
 	SocketSample():pid(-1),is_end(false),num_sample(0),dim(0){}
+    void clear() { 
+        pid = -1;
+        is_end = false;
+        num_sample = 0;
+        dim = 0;
+    }
 	pid_t pid;
 	char uttt_key[MAX_KEY_LEN];
 	bool is_end;
@@ -69,6 +75,11 @@ struct SocketSample {
 
 struct SocketDecodable {
 	SocketDecodable():is_end(false),num_sample(0),dim(0){}
+    void clear() { 
+        is_end = false;
+        num_sample = 0;
+        dim = 0;
+    }
 	bool is_end;
 	int  num_sample;
 	int	 dim;

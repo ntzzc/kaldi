@@ -88,15 +88,16 @@ public:
 		mutex_.Unlock();
 	}
 
-	void Abort()
-	{
-		is_finished_ = true;
-	}
+    bool IsFinsihed()
+    {
+        return is_finished_;
+    }
 
-	bool IsFinsihed()
-	{
-		return is_finished_;
-	}
+    void Abort() 
+    {
+        is_finished_ = true;
+    }
+
 private:
 	Semaphore sema_utt_;
 	Mutex mutex_;
@@ -136,7 +137,7 @@ public:
 		int num_pdfs = trans_model_.NumPdfs();
 		std::string utt;
 
-		while (true)
+		while (!decoder_sync_->IsFinsihed())
 		{
 			decoder_->ResetDecoder(true);
 			decoder_->InitDecoding();
@@ -156,7 +157,7 @@ public:
 					{
 						fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
                                                             &word_ids, static_cast<LatticeArc::Weight*>(0));
-						//PrintPartialResult(word_ids, &word_syms_, false);
+						PrintPartialResult(word_ids, &word_syms_, false);
 					}
 				}
 
@@ -170,7 +171,7 @@ public:
 					decoder_->FinishTraceBack(&out_fst);
 					fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
                                                         &word_ids, static_cast<LatticeArc::Weight*>(0));
-					//PrintPartialResult(word_ids, &word_syms_, true);
+					PrintPartialResult(word_ids, &word_syms_, true);
 
 					// get best full path
 					decoder_->GetBestPath(&out_fst);
@@ -186,8 +187,6 @@ public:
 					break;
 				}
 
-				if (decoder_sync_->IsFinsihed())
-					break;
 			} // message queue
 		}
 	}

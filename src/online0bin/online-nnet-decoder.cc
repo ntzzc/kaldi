@@ -18,6 +18,7 @@
 // limitations under the License.
 
 
+#include "base/timer.h"
 #include "online/onlinebin-util.h"
 #include "online0/online-nnet-decoding.h"
 #include "online0/kaldi-unix-domain-socket.h"
@@ -94,12 +95,17 @@ int main(int argc, char *argv[])
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<OnlineNnetDecodingClass> m(1, decoding);
 
+        // client feature
+        Timer timer;
+
+        kaldi::int64 frame_count = 0;
 	    SocketSample sample;
 	    std::string utt_key;
 	    Matrix<BaseFloat> utt_feat;
 	    int chunk = 10;
 	    sample.pid = getpid();
-	    for (; !feature_reader.Done(); feature_reader.Next()) {
+        while (!feature_reader.Done())
+        {
 	    	utt_key = feature_reader.Key();
 	    	utt_feat = feature_reader.Value();
 	    	memcpy(sample.uttt_key, utt_key.c_str(), MAX_KEY_LEN);
@@ -116,16 +122,20 @@ int main(int argc, char *argv[])
 	    			sample.is_end = true;
 
 	    		socket->Send((char*)&sample, sizeof(SocketSample), 0);
-
-	    		if (utt_feat.NumRows()-i <= chunk)
-                {
-	    			decoder_sync.UtteranceWait();
-                    KALDI_LOG << "Finish decode utterance : " << utt_key;
-                }
 	    	}
+
+            frame_count += utt_feat.NumRows();
+            feature_reader.Next();
+            if (feature_reader.Done())
+                decoder_sync.Abort();
+	    	decoder_sync.UtteranceWait();
+            KALDI_LOG << "Finish decode utterance : " << utt_key;
 	    }
 
-	    decoder_sync.Abort();
+        double elapsed = timer.Elapsed();
+        KALDI_LOG << "Time taken [excluding initialization] "<< elapsed
+              << "s: real-time factor assuming 100 frames/sec is "
+              << (elapsed*100.0/frame_count);
 
 	    delete socket;
 	    delete decode_fst;
