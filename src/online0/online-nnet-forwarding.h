@@ -100,7 +100,7 @@ private:
 
 class OnlineNnetForwardingClass : public MultiThreadable {
 private:
-	const static int MAX_BUFFER_SIZE = 800;
+	const static int MAX_BUFFER_SIZE = 10;
 	const static int MATRIX_INC_STEP = 1024;
 	const OnlineNnetForwardingOptions &opts_;
 	std::vector<UnixDomainSocket*> &client_socket_;
@@ -175,15 +175,13 @@ public:
 		if (sweep_frames[0] > skip_frames || sweep_frames.size() > 1)
 			KALDI_ERR << "invalid sweep frame index";
 
-	    Timer time;
-	    double time_now = 0;
 
 	    CuMatrix<BaseFloat>  cufeat, feats_transf, nnet_out;
 
 	    SocketSample socket_sample;
 	    SocketDecodable socket_decodable;
-	    //std::vector<CircularQueue<SocketDecodable>> decodable_buffer(num_stream);
-	    std::vector<std::queue<SocketDecodable*> > decodable_buffer(num_stream);
+	    std::vector<CircularQueue<SocketDecodable>> decodable_buffer(num_stream);
+	    //std::vector<std::queue<SocketDecodable*> > decodable_buffer(num_stream);
 
 	    Matrix<BaseFloat> sample;
 	    std::vector<Matrix<BaseFloat> > feats(num_stream);
@@ -200,37 +198,23 @@ public:
 	    int out_dim = nnet.OutputDim();
 	    int t, s , k, len;
 
-        /*
-        while (true) {
-	    	// apply optional feature transform
-	    	cufeat.Resize(batch_size * num_stream, input_dim, kUndefined);
-	    	nnet_transf.Feedforward(cufeat, &feats_transf);
 
-			// for streams with new utterance, history states need to be reset
-			nnet.ResetLstmStreams(new_utt_flags);
-			nnet.SetSeqLengths(new_utt_flags);
-
-			// forward pass
-			nnet.Propagate(feats_transf, &nnet_out);
-        }
-        */
-        
 	    while (true)
 	    {
 	    	for (s = 0; s < num_stream; s++)
 	    	{
-	    		while (!decodable_buffer[s].empty() && send_end[s] == false && client_socket_[s] != NULL)
+	    		while (!decodable_buffer[s].Empty() && send_end[s] == false && client_socket_[s] != NULL)
 	    		{
-	    			SocketDecodable* decodable = decodable_buffer[s].front();
+	    			SocketDecodable* decodable = decodable_buffer[s].Front();
 	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable), MSG_NOSIGNAL);
-	    			if (ret < 0) break;
+	    			if (ret <= 0) break;
 	    			// send successful
-	    			decodable_buffer[s].pop();
+	    			decodable_buffer[s].Pop();
 
 	    			// send a utterance finished
 	    			if(decodable->is_end)
 	    				send_end[s] = true;
-                    delete decodable;
+                    //delete decodable;
 	    		}
 	    	}
 
@@ -246,11 +230,7 @@ public:
 	    			client_socket_[s] = NULL;
 	    			send_end[s] = true;
     				lent[s] = 0;
-                    while (!decodable_buffer[s].empty()) {
-                         SocketDecodable* decodable = decodable_buffer[s].front();
-                         decodable_buffer[s].pop();
-                         delete decodable;
-                    }
+                    decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
                     KALDI_LOG << "client decoder " << s << " disconnected.";
 	    			continue;
 	    		}
@@ -262,6 +242,7 @@ public:
     				utt_curt[s] = 0;
     				new_utt_flags[s] = 1;
     				feats[s].Resize(MATRIX_INC_STEP, feat_dim, kUndefined, kStrideEqualNumCols);
+                    decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
 	    		}
 
 	    		while ((len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample))) > 0)
@@ -346,9 +327,8 @@ public:
 					continue;
 
 				// get new decodable buffer
-				//decodable_buffer[s].Push();
-				//SocketDecodable *decodable = decodable_buffer[s].Back();
-				SocketDecodable *decodable = new SocketDecodable;
+				decodable_buffer[s].Push();
+				SocketDecodable *decodable = decodable_buffer[s].Back();
                 decodable->clear(); 
 
 				out_dim = nnet_out_host.NumCols();
@@ -381,7 +361,6 @@ public:
 										(!opts_.copy_posterior && utt_curt[s] == frame_num_utt[s]));
 				new_utt_flags[s] = decodable->is_end ? 1 : 0;
 				send_end[s] = false;
-                decodable_buffer[s].push(decodable);
 			} // rearrangement
 
 	    } // while loop

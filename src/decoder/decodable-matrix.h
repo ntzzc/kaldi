@@ -86,9 +86,9 @@ class DecodableMatrixScaledMapped: public DecodableInterface {
 class OnlineDecodableMatrixMapped: public DecodableInterface {
  public:
 	OnlineDecodableMatrixMapped(const TransitionModel &tm, BaseFloat scale):
-      trans_model_(tm), scale_(0), input_is_finished_(false) { }
+      trans_model_(tm), scale_(scale), input_is_finished_(false) { }
 
-  virtual int32 NumFramesReady() { return loglikes_.NumRows(); }
+  virtual int32 NumFramesReady() const { return loglikes_.NumRows(); }
 
   // This function is destructive of the input "loglikes" because it may
   // under some circumstances do a shallow copy using Swap().  This function

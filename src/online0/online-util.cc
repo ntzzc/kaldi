@@ -68,7 +68,7 @@ void PrintPartialResult(const std::vector<int32>& words,
     std::cout << word << ' ';
   }
   if (line_break)
-    std::cout << "\n\n";
+    std::cout << "\n";
   else
     std::cout.flush();
 }

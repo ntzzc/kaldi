@@ -69,7 +69,7 @@ public:
 	UnixDomainSocket() : socket_(-1), block_(true) {}
 
 	UnixDomainSocket(int socket, struct sockaddr_un	socket_addr, bool block = true)
-	: socket_(socket), socket_addr_(socket_addr), block_(block) {}
+	: socket_(socket), block_(block), socket_addr_(socket_addr) {}
 
 	UnixDomainSocket(int type = SOCK_STREAM) : socket_(-1), block_(true)
 	{
@@ -174,14 +174,14 @@ public:
         ssize_t nsend = 0, n = 0, req = nbytes;
         while (nsend < nbytes) {
             n = send(socket_, (char*)buff+nsend, req, flags);
-            if (n >= 0) {
+            if (n > 0) {
                 nsend += n;
                 req -= n; 
             }
             else {
                 if (block_ && !(flags & MSG_DONTWAIT))
                     return n;
-                if ((!block_ || (flags & MSG_DONTWAIT)) && (nsend == 0 && n < 0)) 
+                if ((!block_ || (flags & MSG_DONTWAIT)) && (nsend == 0 && n <= 0)) 
                     return n;
                 switch (errno) {
                 case EPIPE :
@@ -205,7 +205,7 @@ public:
             
         while (nrecv < nbytes) {
             n = recv(socket_, (char*)buff+nrecv, req, flags);
-            if (n < 0) return n;
+            if (n <= 0) return n;
             nrecv += n;
             req -= n;
         }

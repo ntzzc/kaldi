@@ -72,8 +72,9 @@ int main(int argc, char *argv[]) {
 
     signal(SIGPIPE, SIG_IGN);
 
-    std::vector<std::vector<UnixDomainSocket*> > client_list(num_threads);
-    std::vector<MultiThreader<OnlineNnetForwardingClass> *> forward_thread(num_threads, NULL);
+    int max_thread = 20;
+    std::vector<std::vector<UnixDomainSocket*> > client_list(max_thread);
+    std::vector<MultiThreader<OnlineNnetForwardingClass> *> forward_thread(max_thread, NULL);
     UnixDomainSocketServer *server = new UnixDomainSocketServer(socket_filepath);
     UnixDomainSocket *client = NULL;
     ForwardSync forward_sync;
@@ -90,8 +91,6 @@ int main(int argc, char *argv[]) {
 		forward_thread[i] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
     }
 
-    Timer time;
-    double time_now = 0;
 
     KALDI_LOG << "Nnet Forward STARTED";
 
@@ -108,7 +107,7 @@ int main(int argc, char *argv[]) {
     	}
 
     	bool success = false;
-    	for (int i = 0; i < client_list.size(); i++) {
+    	for (int i = 0; i < num_threads; i++) {
     		for (int s = 0; s < num_stream; s++) {
     			if (client_list[i][s] == NULL) {
 					client_list[i][s] = client;
@@ -123,17 +122,12 @@ int main(int argc, char *argv[]) {
     	// create new forward thread for more client decoder
     	if (!success)
     	{
-    		std::vector<UnixDomainSocket*> newlist(num_stream, NULL);
-    		client_list.push_back(newlist);
-
-            int size = client_list.size();
-			client_list[size-1][0] = client;
-            forward_thread.resize(size);
+            client_list[num_threads].resize(num_stream, NULL);
+			client_list[num_threads][0] = client;
     		// initialize forward thread
-		    // forward_thread[size-1] = new OnlineNnetForwardingClass(opts, client_list[size-1], model_filename);
-		    // MultiThreader<OnlineNnetForwardingClass> m(1, *forward_thread[size-1]);
-		    OnlineNnetForwardingClass *forwarding = new OnlineNnetForwardingClass(opts, client_list[size-1], forward_sync, model_filename);
-		    forward_thread[size-1] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
+		    OnlineNnetForwardingClass *forwarding = new OnlineNnetForwardingClass(opts, client_list[num_threads], forward_sync, model_filename);
+		    forward_thread[num_threads] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
+            num_threads++;
     	}
     }
 
@@ -141,8 +135,6 @@ int main(int argc, char *argv[]) {
         delete forward_thread[i];
 
     KALDI_LOG << "Nnet Forward FINISHED; ";
-
-    time_now = time.Elapsed();
 
 
 #if HAVE_CUDA==1
