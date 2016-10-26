@@ -83,6 +83,10 @@ struct OnlineNnetForwardingOptions {
         sweep_time = skip_frames;
         po->Register("sweep-time", &sweep_time, "Sweep times for each utterance in skip frames training(Deprecated, use --sweep-frames instead)");
         po->Register("sweep-frames", &sweep_frames_str, "Sweep frames index for each utterance in skip frames decoding, e.g. 0");
+        // +/-splice feature
+        po->Register("left-splice", &left_splice, "number of frames to concatenate with left of the central frame, e.g. 0");
+        po->Register("right-splice", &right_splice, "number of frames to concatenate with right of the central frame, e.g. 0");
+        po->Register("splice", &splice, "number of frames to concatenate with the central frame, e.g. 0");
     }
 
 };
@@ -201,7 +205,7 @@ public:
 	    std::vector<bool> send_end(num_stream, true);
 	    std::vector<MatrixIndexT> splice_idx(left_splice+right_splice+1);
 	    Matrix<BaseFloat> feat, nnet_out_host;
-	    int feat_dim = nnet_transf.InputDim();
+	    //int feat_dim = nnet_transf.InputDim();
 	    int input_dim = nnet.InputDim();
 	    int out_dim = nnet.OutputDim();
 	    int t, s , k, len;
@@ -249,21 +253,22 @@ public:
     				curt[s] = 0;
     				utt_curt[s] = 0;
     				new_utt_flags[s] = 1;
-    				feats[s].Resize(MATRIX_INC_STEP, feat_dim, kUndefined, kStrideEqualNumCols);
                     decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
 	    		}
 
 	    		while ((len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample))) > 0)
 	    		{
+                    if (feats[s].NumRows() == 0)
+                        feats[s].Resize(MATRIX_INC_STEP, socket_sample.dim, kUndefined, kStrideEqualNumCols);
 					if (feats[s].NumRows() < lent[s]+socket_sample.num_sample)
 					{
-						Matrix<BaseFloat> tmp(feats[s].NumRows()+MATRIX_INC_STEP, feat_dim, kUndefined, kStrideEqualNumCols);
+						Matrix<BaseFloat> tmp(feats[s].NumRows()+MATRIX_INC_STEP, socket_sample.dim, kUndefined, kStrideEqualNumCols);
 						tmp.RowRange(0, lent[s]).CopyFromMat(feats[s].RowRange(0, lent[s]));
 						feats[s].Swap(&tmp);
 					}
 
 					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample,
-							sizeof(float)*feat_dim*socket_sample.num_sample);
+							sizeof(float)*socket_sample.dim*socket_sample.num_sample);
 					lent[s] += socket_sample.num_sample;
 					recv_end[s] = socket_sample.is_end;
 
@@ -302,8 +307,9 @@ public:
 		    				}
 		    			}
 		    			feat.Row(t * num_stream + s).CopyRowsFromMat(feats[s], &splice_idx.front());
+                        curt[s] += skip_frames;
 	    			}
-	    			/*
+					/*
 					if (curt[s] < lent[s]) {
 						feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]));
 					    curt[s] += skip_frames;
@@ -311,7 +317,8 @@ public:
 						//int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
 						//if (last >= 0)
 						//feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
-					}*/
+					}
+                    */
 	    		}
 	    	}
 

@@ -136,6 +136,7 @@ public:
 		SocketDecodable decodable;
 		int num_pdfs = trans_model_.NumPdfs();
 		std::string utt;
+        int size = sizeof(SocketDecodable);
 
 		while (!decoder_sync_->IsFinsihed())
 		{
@@ -177,7 +178,7 @@ public:
 					decoder_->GetBestPath(&out_fst);
 					fst::GetLinearSymbolSequence(out_fst, &tids, &word_ids, static_cast<LatticeArc::Weight*>(0));
 
-					/*
+                    /*
 					if (!word_ids.empty())
 						words_writer_.Write(utt, word_ids);
 					alignment_writer_.Write(utt, tids);

@@ -39,6 +39,7 @@ public:
 				KALDI_ERR << "Error open socket , errno was: " << c;
 		}
 
+        // set socket buffer
         int buffer_size = 4194304;
         setsockopt(socket_, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(int));
         setsockopt(socket_, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(int));
@@ -46,6 +47,11 @@ public:
         //socklen_t len = sizeof(buffer_size);
         //getsockopt(socket_, SOL_SOCKET, SO_SNDBUF, &buffer_size, &len);
         //KALDI_LOG << "getsockopt SO_SNDBUF: " << buffer_size; 
+        
+        // set send/recv timeout
+        struct timeval timeout = {5,0};
+        setsockopt(socket_, SOL_SOCKET,SO_SNDTIMEO, (char *)&timeout, sizeof(struct timeval));
+        setsockopt(socket_, SOL_SOCKET,SO_RCVTIMEO, (char *)&timeout, sizeof(struct timeval));
 
 		// non block connect
 		if (!block) {
@@ -220,10 +226,18 @@ public:
 	bool isClosed()
 	{
 		int error = 0;
+        // disconect error
 		socklen_t len = sizeof(error);
 		int ret = getsockopt(socket_, SOL_SOCKET, SO_ERROR, &error, &len);
 		if (error != 0 || ret != 0)
 			return true;
+
+        // socket closed normally
+        char c;
+        ssize_t n = recv(socket_, &c, 1, MSG_PEEK);
+        if (n == 0)
+            return true;
+
 		return false;
 	}
 
