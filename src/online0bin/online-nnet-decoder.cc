@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
 	    	memcpy(sample.uttt_key, utt_key.c_str(), MAX_KEY_LEN);
 	    	sample.dim = utt_feat.NumCols();
 	    	decoder_sync.SetUtt(utt_key);
+	    	chunk = MAX_SAMPLE_SIZE / sample.dim;
 
 	    	for (int i = 0; i < utt_feat.NumRows(); i += chunk)
 	    	{

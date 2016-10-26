@@ -45,12 +45,17 @@ struct OnlineNnetForwardingOptions {
     int32 skip_frames;
     int32 sweep_time;
     std::string sweep_frames_str;
+    int32 left_splice;
+    int32 right_splice;
+    int32 splice;
 
     const PdfPriorOptions *prior_opts;
 
     OnlineNnetForwardingOptions(const PdfPriorOptions *prior_opts)
     	:feature_transform(""),no_softmax(true),apply_log(false),copy_posterior(true),use_gpu("no"),num_threads(1),
-		 	 	 	 	 	 	 time_shift(0),batch_size(16),num_stream(0),dump_interval(0), skip_frames(1), sweep_time(1), sweep_frames_str("0"), prior_opts(prior_opts)
+		 	 	 	 	 	 	 time_shift(0),batch_size(8),num_stream(10),dump_interval(0),
+								 skip_frames(1), sweep_time(1), sweep_frames_str("0"),
+								 left_splice(0), right_splice(0), splice(0), prior_opts(prior_opts)
     {
 
     }
@@ -138,6 +143,8 @@ public:
 		int32 num_stream = opts_.num_stream;
 		int32 batch_size = opts_.batch_size;
 		int32 skip_frames = opts_.skip_frames;
+		int32 left_splice = opts_.left_splice == 0 ? opts_.splice : opts_.left_splice;
+		int32 right_splice = opts_.right_splice == 0 ? opts_.splice : opts_.right_splice;
 		const PdfPriorOptions *prior_opts = opts_.prior_opts;
 
 		Nnet nnet_transf;
@@ -192,6 +199,7 @@ public:
 	    std::vector<int> new_utt_flags(num_stream, 1);
 	    std::vector<bool> recv_end(num_stream, true);
 	    std::vector<bool> send_end(num_stream, true);
+	    std::vector<MatrixIndexT> splice_idx(left_splice+right_splice+1);
 	    Matrix<BaseFloat> feat, nnet_out_host;
 	    int feat_dim = nnet_transf.InputDim();
 	    int input_dim = nnet.InputDim();
@@ -254,7 +262,8 @@ public:
 						feats[s].Swap(&tmp);
 					}
 
-					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, sizeof(float)*feat_dim*socket_sample.num_sample);
+					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample,
+							sizeof(float)*feat_dim*socket_sample.num_sample);
 					lent[s] += socket_sample.num_sample;
 					recv_end[s] = socket_sample.is_end;
 
@@ -281,6 +290,20 @@ public:
 	    	for (t = 0; t < batch_size; t++) {
 	    		for (s = 0; s < num_stream; s++) {
 					// feat shifting & padding
+	    			if (curt[s] < lent[s]) {
+		    			if (lent[s] > right_splice) {
+		    				for (int i = 0; i < left_splice+right_splice+1; i++) {
+		    						if (curt[s]+i-left_splice < 0)
+		    							splice_idx[i] = 0;
+		    						else if (curt[s]+i-left_splice > lent[s]-1)
+		    							splice_idx[i] = lent[s]-1;
+		    						else
+		    							splice_idx[i] = curt[s]+i-left_splice;
+		    				}
+		    			}
+		    			feat.Row(t * num_stream + s).CopyRowsFromMat(feats[s], &splice_idx.front());
+	    			}
+	    			/*
 					if (curt[s] < lent[s]) {
 						feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]));
 					    curt[s] += skip_frames;
@@ -288,7 +311,7 @@ public:
 						//int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
 						//if (last >= 0)
 						//feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
-					}
+					}*/
 	    		}
 	    	}
 
@@ -372,4 +395,4 @@ public:
 
 }// namespace kaldi
 
-#endif /* ONLINE0_ONLINE_NNET_DECODING_H_ */
+#endif /* ONLINE0_ONLINE_NNET_FORWARDING_H_ */

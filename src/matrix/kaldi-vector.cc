@@ -349,6 +349,22 @@ void VectorBase<Real>::CopyRowsFromMat(const MatrixBase<Real> &mat) {
 }
 
 template<typename Real>
+void VectorBase<Real>::CopyRowsFromMat(const MatrixBase<Real> &src,
+              const MatrixIndexT *indices) {
+  KALDI_ASSERT(dim_ % src.NumCols() == 0);
+
+  Real *inc_data = data_;
+  const MatrixIndexT cols = src.NumCols(), rows = dim_/src.NumCols();
+
+	for (MatrixIndexT i = 0; i < rows; i++) {
+	  // copy the data to the propper position
+	  memcpy(inc_data, src.RowData(i), cols * sizeof(Real));
+	  // set new copy position
+	  inc_data += cols;
+	}
+}
+
+template<typename Real>
 template<typename OtherReal>
 void VectorBase<Real>::CopyRowsFromMat(const MatrixBase<OtherReal> &mat) {
   KALDI_ASSERT(dim_ == mat.NumCols() * mat.NumRows());

@@ -254,6 +254,8 @@ class VectorBase {
 
   /// Performs a row stack of the matrix M
   void CopyRowsFromMat(const MatrixBase<Real> &M);
+  void CopyRowsFromMat(const MatrixBase<Real> &src,
+                const MatrixIndexT *indices);
   template<typename OtherReal>
   void CopyRowsFromMat(const MatrixBase<OtherReal> &M);
 
