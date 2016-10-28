@@ -108,8 +108,9 @@ int main(int argc, char *argv[])
         {
 	    	utt_key = feature_reader.Key();
 	    	utt_feat = feature_reader.Value();
-	    	memcpy(sample.uttt_key, utt_key.c_str(), MAX_KEY_LEN);
+	    	memcpy(sample.utt_key, utt_key.c_str(), MAX_KEY_LEN);
 	    	sample.dim = utt_feat.NumCols();
+            sample.is_end = false;
 	    	decoder_sync.SetUtt(utt_key);
 	    	chunk = MAX_SAMPLE_SIZE / sample.dim;
 

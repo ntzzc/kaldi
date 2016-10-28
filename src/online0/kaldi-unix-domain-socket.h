@@ -49,7 +49,7 @@ public:
         //KALDI_LOG << "getsockopt SO_SNDBUF: " << buffer_size; 
         
         // set send/recv timeout
-        struct timeval timeout = {5,0};
+        struct timeval timeout = {20,0};
         setsockopt(socket_, SOL_SOCKET,SO_SNDTIMEO, (char *)&timeout, sizeof(struct timeval));
         setsockopt(socket_, SOL_SOCKET,SO_RCVTIMEO, (char *)&timeout, sizeof(struct timeval));
 

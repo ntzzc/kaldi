@@ -136,7 +136,6 @@ public:
 		SocketDecodable decodable;
 		int num_pdfs = trans_model_.NumPdfs();
 		std::string utt;
-        int size = sizeof(SocketDecodable);
 
 		while (!decoder_sync_->IsFinsihed())
 		{

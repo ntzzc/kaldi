@@ -201,8 +201,8 @@ public:
 	    std::vector<int> frame_num_utt(num_stream, 0);
 	    std::vector<int> utt_curt(num_stream, 0);
 	    std::vector<int> new_utt_flags(num_stream, 1);
-	    std::vector<bool> recv_end(num_stream, true);
-	    std::vector<bool> send_end(num_stream, true);
+	    std::vector<int> recv_end(num_stream, 0);
+	    std::vector<int> send_end(num_stream, 1);
 	    std::vector<MatrixIndexT> splice_idx(left_splice+right_splice+1);
 	    Matrix<BaseFloat> feat, nnet_out_host;
 	    //int feat_dim = nnet_transf.InputDim();
@@ -213,9 +213,10 @@ public:
 
 	    while (true)
 	    {
+            // send network output data
 	    	for (s = 0; s < num_stream; s++)
 	    	{
-	    		while (!decodable_buffer[s].Empty() && send_end[s] == false && client_socket_[s] != NULL)
+	    		while (!decodable_buffer[s].Empty() && send_end[s] == 0 && client_socket_[s] != NULL)
 	    		{
 	    			SocketDecodable* decodable = decodable_buffer[s].Front();
 	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable), MSG_NOSIGNAL);
@@ -225,7 +226,7 @@ public:
 
 	    			// send a utterance finished
 	    			if(decodable->is_end)
-	    				send_end[s] = true;
+	    				send_end[s] = 1;
                     //delete decodable;
 	    		}
 	    	}
@@ -240,7 +241,7 @@ public:
 	    		{
 	    			delete client_socket_[s];
 	    			client_socket_[s] = NULL;
-	    			send_end[s] = true;
+	    			send_end[s] = 1;
     				lent[s] = 0;
                     decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
                     KALDI_LOG << "client decoder " << s << " disconnected.";
@@ -248,7 +249,7 @@ public:
 	    		}
 
 	    		if (send_end[s]) {
-	    			recv_end[s] = true;
+	    			recv_end[s] = 0;
     				lent[s] = 0;
     				curt[s] = 0;
     				utt_curt[s] = 0;
@@ -256,8 +257,20 @@ public:
                     decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
 	    		}
 
-	    		while ((len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample))) > 0)
+	    		while (recv_end[s] == 0)
 	    		{
+                    len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample));
+                    if (len <= 0)
+                        break;
+
+                    // socket error
+                    int size = socket_sample.dim * socket_sample.num_sample * sizeof(float);
+                    if (len != sizeof(SocketSample) || size > MAX_OUTPUT_SIZE) {
+                        send_end[s] = 1;
+                        client_socket_[s]->Close();
+                        break;
+                    }
+
                     if (feats[s].NumRows() == 0)
                         feats[s].Resize(MATRIX_INC_STEP, socket_sample.dim, kUndefined, kStrideEqualNumCols);
 					if (feats[s].NumRows() < lent[s]+socket_sample.num_sample)
@@ -267,8 +280,7 @@ public:
 						feats[s].Swap(&tmp);
 					}
 
-					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample,
-							sizeof(float)*socket_sample.dim*socket_sample.num_sample);
+					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, size);
 					lent[s] += socket_sample.num_sample;
 					recv_end[s] = socket_sample.is_end;
 
@@ -276,6 +288,7 @@ public:
 					frame_num_utt[s] += lent[s]%skip_frames > sweep_frames[0] ? 1 : 0;
 	    		}
 	    	}
+
 	        // we are done if all streams are exhausted
 	        bool done = true;
 	        for (s = 0; s < num_stream; s++) {
@@ -291,6 +304,7 @@ public:
 	    		feat.Resize(batch_size * num_stream, input_dim, kSetZero, kStrideEqualNumCols);
 	            nnet_out_host.Resize(batch_size * num_stream, out_dim, kSetZero, kStrideEqualNumCols);
 	    	}
+
 	    	 // fill a multi-stream bptt batch
 	    	for (t = 0; t < batch_size; t++) {
 	    		for (s = 0; s < num_stream; s++) {
@@ -347,8 +361,8 @@ public:
 
 			nnet_out.CopyToMat(&nnet_out_host);
 
+            // rearrange output for each client
 			for (s = 0; s < num_stream; s++) {
-
 				if (opts_.copy_posterior) {
 					if (utt_curt[s] >= lent[s])
 						continue;
@@ -387,10 +401,10 @@ public:
 				}
 
 				decodable->dim = out_dim;
-				decodable->is_end = recv_end[s] && ((opts_.copy_posterior && utt_curt[s] == lent[s]) ||
+				decodable->is_end = recv_end[s] == 1 && ((opts_.copy_posterior && utt_curt[s] == lent[s]) ||
 										(!opts_.copy_posterior && utt_curt[s] == frame_num_utt[s]));
 				new_utt_flags[s] = decodable->is_end ? 1 : 0;
-				send_end[s] = false;
+				send_end[s] = 0;
 			} // rearrangement
 
 	    } // while loop

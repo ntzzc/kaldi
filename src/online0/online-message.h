@@ -41,7 +41,7 @@ struct MQSample {
 	pid_t pid;
 	char mq_callback_name[MAX_FILE_PATH];
 	char uttt_key[MAX_KEY_LEN];
-	bool is_end;
+	int is_end;
 	int  num_sample;
 	int	 dim;
 	int	 prio;
@@ -49,40 +49,52 @@ struct MQSample {
 };
 
 struct MQDecodable {
-	MQDecodable():is_end(false),num_sample(0),dim(0),prio(0){}
-	bool is_end;
-	int  num_sample;
-	int	 dim;
-	int	 prio;
+	MQDecodable():is_end(0),num_sample(0),dim(0),prio(0){}
+	int is_end;
+	int num_sample;
+	int	dim;
+	int	prio;
 	float sample[MAX_OUTPUT_SIZE];
 };
 
+// feature for network input
 struct SocketSample {
-	SocketSample():pid(-1),is_end(false),num_sample(0),dim(0){}
+	SocketSample():pid(-1),is_end(0),num_sample(0),dim(0){}
     void clear() { 
         pid = -1;
         is_end = false;
         num_sample = 0;
         dim = 0;
     }
+    // client decoder pid
 	pid_t pid;
-	char uttt_key[MAX_KEY_LEN];
-	bool is_end;
+    // utterance name 
+	char utt_key[MAX_KEY_LEN];
+    // utterance end flag
+	int is_end;
+    // number of frame
 	int  num_sample;
+    // a frame dim
 	int	 dim;
+    // frames data
 	float sample[MAX_SAMPLE_SIZE];
 };
 
+// network output for client decoder
 struct SocketDecodable {
-	SocketDecodable():is_end(false),num_sample(0),dim(0){}
+	SocketDecodable():is_end(0),num_sample(0),dim(0){}
     void clear() { 
         is_end = false;
         num_sample = 0;
         dim = 0;
     }
-	bool is_end;
+    // utterance end flag
+	int is_end;
+    // number of frame
 	int  num_sample;
+    // a frame dim
 	int	 dim;
+    // frames data
 	float sample[MAX_OUTPUT_SIZE];
 };
 
