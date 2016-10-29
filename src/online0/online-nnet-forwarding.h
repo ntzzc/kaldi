@@ -186,8 +186,10 @@ public:
 		if (sweep_frames[0] > skip_frames || sweep_frames.size() > 1)
 			KALDI_ERR << "invalid sweep frame index";
 
-		int in_frames = MAX_SAMPLE_SIZE/nnet_transf.InputDim();
+		int in_frames = MAX_SAMPLE_SIZE/(nnet_transf.InputDim()/(left_splice+right_splice+1));
 		int out_frames = MAX_OUTPUT_SIZE/nnet.OutputDim();
+        if (opts_.copy_posterior)
+            out_frames /= skip_frames; 
 		int min_frames = in_frames < out_frames ? in_frames : out_frames;
 		if (batch_size != min_frames) {
 			batch_size = min_frames;
