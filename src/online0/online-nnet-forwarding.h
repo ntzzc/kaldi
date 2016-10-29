@@ -186,6 +186,13 @@ public:
 		if (sweep_frames[0] > skip_frames || sweep_frames.size() > 1)
 			KALDI_ERR << "invalid sweep frame index";
 
+		int in_frames = MAX_SAMPLE_SIZE/nnet_transf.InputDim();
+		int out_frames = MAX_OUTPUT_SIZE/nnet.OutputDim();
+		int min_frames = in_frames < out_frames ? in_frames : out_frames;
+		if (batch_size != min_frames) {
+			batch_size = min_frames;
+			KALDI_LOG << "According to network input/output cache, adjust batch size to " << batch_size;
+		}
 
 	    CuMatrix<BaseFloat>  cufeat, feats_transf, nnet_out;
 
