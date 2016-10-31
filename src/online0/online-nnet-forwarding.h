@@ -32,6 +32,8 @@ namespace kaldi {
 struct OnlineNnetForwardingOptions {
     typedef nnet0::PdfPriorOptions PdfPriorOptions;
     std::string feature_transform;
+    std::string network_model;
+    std::string socket_filename;
     bool no_softmax;
     bool apply_log;
     bool copy_posterior;
@@ -52,7 +54,7 @@ struct OnlineNnetForwardingOptions {
     const PdfPriorOptions *prior_opts;
 
     OnlineNnetForwardingOptions(const PdfPriorOptions *prior_opts)
-    	:feature_transform(""),no_softmax(true),apply_log(false),copy_posterior(true),use_gpu("no"),num_threads(1),
+    	:feature_transform(""),network_model(""),socket_filename(""),no_softmax(true),apply_log(false),copy_posterior(true),use_gpu("no"),num_threads(1),
 		 	 	 	 	 	 	 time_shift(0),batch_size(8),num_stream(10),dump_interval(0),
 								 skip_frames(1), sweep_time(1), sweep_frames_str("0"),
 								 left_splice(0), right_splice(0), splice(0), prior_opts(prior_opts)
@@ -62,7 +64,9 @@ struct OnlineNnetForwardingOptions {
 
     void Register(OptionsItf *po)
     {
-    	po->Register("feature-transform", &feature_transform, "Feature transform in front of main network (in nnet format)");
+    	po->Register("feature-transform", &feature_transform, "Feature transform in front of main network (in nnet0 format)");
+    	po->Register("network-model", &network_model, "Main neural network model (in nnet0 format)");
+    	po->Register("socket-filename", &socket_filename, "Unix domain socket file name");
     	po->Register("no-softmax", &no_softmax, "No softmax on MLP output (or remove it if found), the pre-softmax activations will be used as log-likelihoods, log-priors will be subtracted");
     	po->Register("apply-log", &apply_log, "Transform MLP output to logscale");
     	po->Register("copy-posterior", &copy_posterior, "Copy posterior for skip frames output");
@@ -201,7 +205,6 @@ public:
 	    SocketSample socket_sample;
 	    SocketDecodable socket_decodable;
 	    std::vector<CircularQueue<SocketDecodable>> decodable_buffer(num_stream);
-	    //std::vector<std::queue<SocketDecodable*> > decodable_buffer(num_stream);
 
 	    Matrix<BaseFloat> sample;
 	    std::vector<Matrix<BaseFloat> > feats(num_stream);
@@ -236,7 +239,6 @@ public:
 	    			// send a utterance finished
 	    			if(decodable->is_end)
 	    				send_end[s] = 1;
-                    //delete decodable;
 	    		}
 	    	}
 
@@ -274,9 +276,10 @@ public:
 
                     // socket error
                     int size = socket_sample.dim * socket_sample.num_sample * sizeof(float);
-                    if (len != sizeof(SocketSample) || size > MAX_OUTPUT_SIZE) {
+                    if (len != sizeof(SocketSample) || size > MAX_OUTPUT_SIZE || input_dim != socket_sample.dim) { 
                         send_end[s] = 1;
                         client_socket_[s]->Close();
+                        KALDI_LOG << "client sample dim " << socket_sample.dim << " is not consistent with model input dim " << input_dim;
                         break;
                     }
 
@@ -318,6 +321,7 @@ public:
 	    	for (t = 0; t < batch_size; t++) {
 	    		for (s = 0; s < num_stream; s++) {
 					// feat shifting & padding
+					/*
 	    			if (curt[s] < lent[s]-right_splice) {
 	    				for (int i = 0; i < left_splice+right_splice+1; i++) {
 	    					if (curt[s]+i-left_splice < 0)
@@ -340,8 +344,8 @@ public:
 		    			feat.Row(t * num_stream + s).CopyRowsFromMat(feats[s], &splice_idx.front());
                         curt[s] += skip_frames;
 	    			}
+                    */
 
-					/*
 					if (curt[s] < lent[s]) {
 						feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]));
 					    curt[s] += skip_frames;
@@ -350,14 +354,13 @@ public:
 						//if (last >= 0)
 						//feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
 					}
-                    */
 	    		}
 	    	}
 
 	    	// apply optional feature transform
 	    	cufeat.Resize(feat.NumRows(), feat.NumCols(), kUndefined);
             cufeat.CopyFromMat(feat);
-	    	nnet_transf.Feedforward(cufeat, &feats_transf);
+	    	nnet_transf.Propagate(cufeat, &feats_transf); // Feedforward
 
 			// for streams with new utterance, history states need to be reset
 			nnet.ResetLstmStreams(new_utt_flags);
@@ -400,7 +403,7 @@ public:
 					// feat shifting & padding
 					if (opts_.copy_posterior) {
 					   for (k = 0; k < skip_frames; k++){
-							if (utt_curt[s] < lent[s]) {
+							if (utt_curt[s] < curt[s] && utt_curt[s] < lent[s]) {
 								memcpy((char*)dest, (char*)nnet_out_host.RowData(t * num_stream + s), out_dim*sizeof(float));
 								dest += out_dim;
 								utt_curt[s]++;
@@ -409,10 +412,10 @@ public:
 					   }
 					}
 					else {
-					   if (utt_curt[s] < frame_num_utt[s]) {
+					   if (utt_curt[s] < curt[s] && utt_curt[s] < lent[s]) {
 						   memcpy((char*)dest, (char*)nnet_out_host.RowData(t * num_stream + s), out_dim*sizeof(float));
 						   dest += out_dim;
-						   utt_curt[s]++;
+						   utt_curt[s]+=skip_frames;
 						   decodable->num_sample++;
 					   }
 					}
@@ -428,7 +431,6 @@ public:
 	    } // while loop
 	}
 };
-
 
 
 

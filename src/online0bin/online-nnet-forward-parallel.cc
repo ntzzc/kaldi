@@ -51,13 +51,15 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
+    /*
     if (po.NumArgs() != 2) {
       po.PrintUsage();
       exit(1);
     }
+    */
 
-    std::string model_filename = po.GetArg(1),
-    		socket_filepath = po.GetArg(2);
+    std::string model_filename = opts.network_model, //po.GetArg(1),
+    		socket_filepath = opts.socket_filename; //po.GetArg(2);
 
     //Select the GPU
 #if HAVE_CUDA==1
