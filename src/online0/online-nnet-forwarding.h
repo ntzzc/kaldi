@@ -38,6 +38,7 @@ struct OnlineNnetForwardingOptions {
     bool apply_log;
     bool copy_posterior;
     std::string use_gpu;
+    int32 gpuid;
     int32 num_threads;
 
     int32 time_shift;
@@ -54,7 +55,7 @@ struct OnlineNnetForwardingOptions {
     const PdfPriorOptions *prior_opts;
 
     OnlineNnetForwardingOptions(const PdfPriorOptions *prior_opts)
-    	:feature_transform(""),network_model(""),socket_filename(""),no_softmax(true),apply_log(false),copy_posterior(true),use_gpu("no"),num_threads(1),
+    	:feature_transform(""),network_model(""),socket_filename(""),no_softmax(true),apply_log(false),copy_posterior(true),use_gpu("no"),gpuid(-1),num_threads(1),
 		 	 	 	 	 	 	 time_shift(0),batch_size(8),num_stream(10),dump_interval(0),
 								 skip_frames(1), sweep_time(1), sweep_frames_str("0"),
 								 left_splice(0), right_splice(0), splice(0), prior_opts(prior_opts)
@@ -71,6 +72,7 @@ struct OnlineNnetForwardingOptions {
     	po->Register("apply-log", &apply_log, "Transform MLP output to logscale");
     	po->Register("copy-posterior", &copy_posterior, "Copy posterior for skip frames output");
     	po->Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
+        po->Register("gpuid", &gpuid, "gpuid < 0 for automatic select gpu, gpuid >= 0 for select specified gpu, only has effect if compiled with CUDA");
 
 
     	po->Register("num-threads", &num_threads, "Number of threads(GPUs) to use");
@@ -137,8 +139,12 @@ public:
 	{
         forward_sync_.LockGpu();
 #if HAVE_CUDA==1
-    if (opts_.use_gpu == "yes")
-    	CuDevice::Instantiate().SelectGpu();
+    if (opts_.use_gpu == "yes") {
+        if (opts_.gpuid < 0)
+            CuDevice::Instantiate().SelectGpu();
+        else
+            CuDevice::Instantiate().SelectGpu(opts_.gpuid);
+    }
 #endif
         forward_sync_.UnlockGpu();
 
