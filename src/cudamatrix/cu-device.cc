@@ -862,7 +862,7 @@ CuDevice::SelectGpu(int gpu_id)
 	}
 
 
-    KALDI_LOG << "Selected device: " << gpu_id << " (automatically)";
+    KALDI_LOG << "Selected device: " << gpu_id << " (specified)";
 
     KALDI_LOG << "free: " << gpuinfo_[gpu_id].mem_free/1024/1024 << "M, "
               << "total: "<< gpuinfo_[gpu_id].mem_total/1024/1024 << "M, "
