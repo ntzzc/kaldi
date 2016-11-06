@@ -1715,7 +1715,7 @@ static void _copy_rows(Real* dst, const Real *src,
       Real val = src[src_index];
       dst[dst_index] = val;
     } else {
-      dst[dst_index] = 0;
+      //dst[dst_index] = 0;
     }
   }
 }

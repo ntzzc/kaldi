@@ -219,6 +219,7 @@ public:
 	    std::vector<int> frame_num_utt(num_stream, 0);
 	    std::vector<int> utt_curt(num_stream, 0);
 	    std::vector<int> new_utt_flags(num_stream, 1);
+	    std::vector<int> update_state_flags(num_stream, 1);
 	    std::vector<int> recv_end(num_stream, 0);
 	    std::vector<int> send_end(num_stream, 1);
 	    std::vector<MatrixIndexT> splice_idx(left_splice+right_splice+1);
@@ -326,39 +327,12 @@ public:
 	    	 // fill a multi-stream bptt batch
 	    	for (t = 0; t < batch_size; t++) {
 	    		for (s = 0; s < num_stream; s++) {
-					// feat shifting & padding
-					/*
-	    			if (curt[s] < lent[s]-right_splice) {
-	    				for (int i = 0; i < left_splice+right_splice+1; i++) {
-	    					if (curt[s]+i-left_splice < 0)
-								splice_idx[i] = 0;
-							else
-								splice_idx[i] = curt[s]+i-left_splice;
-	    				}
-		    			feat.Row(t * num_stream + s).CopyRowsFromMat(feats[s], &splice_idx.front());
-                        curt[s] += skip_frames;
-	    			}
-	    			else if (recv_end[s] == 1) {
-	    				for (int i = 0; i < left_splice+right_splice+1; i++) {
-							if (curt[s]+i-left_splice < 0)
-								splice_idx[i] = 0;
-							else if (curt[s]+i-left_splice > lent[s]-1)
-								splice_idx[i] = lent[s]-1;
-							else
-								splice_idx[i] = curt[s]+i-left_splice;
-						}
-		    			feat.Row(t * num_stream + s).CopyRowsFromMat(feats[s], &splice_idx.front());
-                        curt[s] += skip_frames;
-	    			}
-                    */
-
 					if (curt[s] < lent[s]) {
 						feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]));
 					    curt[s] += skip_frames;
+					    update_state_flags[s] = 1;
 					} else {
-						//int last = (frame_num_utt[s]-1)*skip_frames; // lent[s]-1
-						//if (last >= 0)
-						//feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(last));
+						update_state_flags[s] = 0;
 					}
 	    		}
 	    	}
@@ -368,6 +342,8 @@ public:
             cufeat.CopyFromMat(feat);
 	    	nnet_transf.Propagate(cufeat, &feats_transf); // Feedforward
 
+	    	// for streams with new data, history states need to be update
+	    	nnet.UpdateLstmStreamsState(update_state_flags);
 			// for streams with new utterance, history states need to be reset
 			nnet.ResetLstmStreams(new_utt_flags);
 			nnet.SetSeqLengths(new_utt_flags);

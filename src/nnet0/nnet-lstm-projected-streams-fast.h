@@ -347,6 +347,14 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	  *context = prev_nnet_state_;
   }
 
+  void UpdateLstmStreamsState(const std::vector<int32> &update_state_flag) {
+	  KALDI_ASSERT(nstream_ == update_state_flag.size());
+	  std::vector<int32> idx(nstream_);
+	  for (int i = 0; i < nstream_; i++)
+		  idx[i] = update_state_flag == 1 ? i : -1;
+	  keep_state_indices_.CopyFromVec(idx);
+  }
+
   void ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size) {
     // allocate prev_nnet_state_ if not done yet,
     if (nstream_ != stream_reset_flag.size()) {
@@ -513,7 +521,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     out->CopyFromMat(YR->RowRange(1*S,T*S));
 
     // now the last frame state becomes previous network state for next batch
-    prev_nnet_state_.CopyFromMat(propagate_buf_.RowRange(T*S,S));
+    if (keep_state_indices_.Dim() != nstream_)
+    	prev_nnet_state_.CopyFromMat(propagate_buf_.RowRange(T*S,S));
+    else
+    	prev_nnet_state_.CopyRows(propagate_buf_.RowRange(T*S,S), keep_state_indices_);
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
@@ -1046,6 +1057,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   int32 ntruncated_bptt_size_;
 
   CuMatrix<BaseFloat> prev_nnet_state_;
+  CuArray<MatrixIndexT> keep_state_indices_;
 
   // gradient-clipping value,
   BaseFloat clip_gradient_;

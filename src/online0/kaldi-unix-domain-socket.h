@@ -48,10 +48,12 @@ public:
         //getsockopt(socket_, SOL_SOCKET, SO_SNDBUF, &buffer_size, &len);
         //KALDI_LOG << "getsockopt SO_SNDBUF: " << buffer_size; 
         
+        /*
         // set send/recv timeout
         struct timeval timeout = {20,0};
         setsockopt(socket_, SOL_SOCKET,SO_SNDTIMEO, (char *)&timeout, sizeof(struct timeval));
         setsockopt(socket_, SOL_SOCKET,SO_RCVTIMEO, (char *)&timeout, sizeof(struct timeval));
+        */
 
 		// non block connect
 		if (!block) {
@@ -106,7 +108,7 @@ public:
 
 		// connect server socket with a absolute local file path
 		int ret = connect(socket_, (struct sockaddr*)&socket_addr_, sizeof(sockaddr_un));
-		if (ret < 0 && (!block_ && errno != EINPROGRESS)) {
+		if ((ret < 0 && (!block_ && errno != EINPROGRESS)) || (ret < 0 && block_)) {
 			const char *c = strerror(errno);
 			if (c == NULL) { c = "[NULL]"; }
 			KALDI_ERR << "Error connect socket with path " << unix_filepath << " , errno was: " << c;
@@ -185,8 +187,12 @@ public:
                 req -= n; 
             }
             else {
-                if (block_ && !(flags & MSG_DONTWAIT))
+                if (block_ && !(flags & MSG_DONTWAIT)) {
+                	//const char *c = strerror(errno);
+                	//if (c == NULL) { c = "[NULL]"; }
+                	//KALDI_ERR << "Error send block socket, errno was: " << c;
                     return n;
+                }
                 if ((!block_ || (flags & MSG_DONTWAIT)) && (nsend == 0 && n <= 0)) 
                     return n;
                 switch (errno) {
@@ -211,7 +217,12 @@ public:
             
         while (nrecv < nbytes) {
             n = recv(socket_, (char*)buff+nrecv, req, flags);
-            if (n <= 0) return n;
+            if (n <= 0) {
+                //const char *c = strerror(errno);
+                //if (c == 0) { c = "[NULL]"; }
+                //KALDI_ERR << "Error receive block socket, errno was: " << c;
+            	return n;
+            }
             nrecv += n;
             req -= n;
         }
