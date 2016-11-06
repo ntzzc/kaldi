@@ -124,6 +124,9 @@ int main(int argc, char *argv[]) {
     	// create new forward thread for more client decoder
     	if (!success)
     	{
+            if (num_threads >= max_thread)
+                KALDI_ERR << "Exceed max worker gpu threads " << max_thread ;
+
             client_list[num_threads].resize(num_stream, NULL);
 			client_list[num_threads][0] = client;
     		// initialize forward thread

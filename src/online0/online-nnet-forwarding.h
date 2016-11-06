@@ -310,7 +310,7 @@ public:
 	        // we are done if all streams are exhausted
 	        bool done = true;
 	        for (s = 0; s < num_stream; s++) {
-	            if (curt[s] < lent[s]) done = false;  // this stream still contains valid data, not exhausted
+	            if (curt[s] < lent[s] || (recv_end[s] == 1 && send_end[s] == 0)) done = false;  // this stream still contains valid data, not exhausted
 	        }
 
 	        if (done) {
@@ -391,10 +391,12 @@ public:
             // rearrange output for each client
 			for (s = 0; s < num_stream; s++) {
 				if (opts_.copy_posterior) {
-					if (utt_curt[s] >= lent[s])
+					if ((utt_curt[s] >= lent[s] && send_end[s] == 1) || 
+                        (utt_curt[s] >= lent[s] && recv_end[s] == 0 && send_end[s] == 0))
 						continue;
 				}
-				else if (utt_curt[s] >= frame_num_utt[s])
+				else if ((utt_curt[s] >= frame_num_utt[s] && send_end[s] == 1) ||
+                        (utt_curt[s] >= frame_num_utt[s] && recv_end[s] == 0 && send_end[s] == 0))
 					continue;
 
 				// get new decodable buffer
