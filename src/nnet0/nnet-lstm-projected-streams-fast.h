@@ -351,7 +351,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	  KALDI_ASSERT(nstream_ == update_state_flag.size());
 	  std::vector<int32> idx(nstream_);
 	  for (int i = 0; i < nstream_; i++)
-		  idx[i] = update_state_flag == 1 ? i : -1;
+		  idx[i] = update_state_flag[i] == 1 ? i : -1;
 	  keep_state_indices_.CopyFromVec(idx);
   }
 

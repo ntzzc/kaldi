@@ -239,6 +239,9 @@ public:
 	    		{
 	    			SocketDecodable* decodable = decodable_buffer[s].Front();
 	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable), MSG_NOSIGNAL);
+
+	    			if (ret > 0 && ret != sizeof(SocketDecodable)) 
+                        KALDI_WARN << "Send socket decodable: " << ret << " less than " << sizeof(SocketDecodable);
 	    			if (ret <= 0) break;
 	    			// send successful
 	    			decodable_buffer[s].Pop();
@@ -342,11 +345,11 @@ public:
             cufeat.CopyFromMat(feat);
 	    	nnet_transf.Propagate(cufeat, &feats_transf); // Feedforward
 
-	    	// for streams with new data, history states need to be update
-	    	nnet.UpdateLstmStreamsState(update_state_flags);
 			// for streams with new utterance, history states need to be reset
 			nnet.ResetLstmStreams(new_utt_flags);
 			nnet.SetSeqLengths(new_utt_flags);
+	    	// for streams with new data, history states need to be update
+	    	nnet.UpdateLstmStreamsState(update_state_flags);
 
 			// forward pass
 			nnet.Propagate(feats_transf, &nnet_out);
