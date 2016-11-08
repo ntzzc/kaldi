@@ -222,6 +222,7 @@ public:
 	    std::vector<int> update_state_flags(num_stream, 1);
 	    std::vector<int> recv_end(num_stream, 0);
 	    std::vector<int> send_end(num_stream, 1);
+	    std::vector<int> send_frames(num_stream, 0);
 	    std::vector<MatrixIndexT> splice_idx(left_splice+right_splice+1);
 	    Matrix<BaseFloat> feat, nnet_out_host;
 	    //int feat_dim = nnet_transf.InputDim();
@@ -245,6 +246,7 @@ public:
 	    			if (ret <= 0) break;
 	    			// send successful
 	    			decodable_buffer[s].Pop();
+                    send_frames[s] += decodable->num_sample;
 
 	    			// send a utterance finished
 	    			if(decodable->is_end)
@@ -275,6 +277,7 @@ public:
     				curt[s] = 0;
     				utt_curt[s] = 0;
     				new_utt_flags[s] = 1;
+                    send_frames[s] = 0;
                     decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
 	    		}
 

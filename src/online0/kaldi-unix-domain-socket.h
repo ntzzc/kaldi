@@ -207,7 +207,8 @@ public:
 
 	ssize_t Receive(void *buff, size_t nbytes, int flags = 0)
 	{
-        ssize_t nrecv = 0, avali, n = 0, req = nbytes;
+        ssize_t nrecv = 0, n = 0, req = nbytes;
+        int avali = 0;
         
         if (!block_ || (flags & MSG_DONTWAIT)) {
             ioctl(socket_, FIONREAD, &avali);
@@ -218,9 +219,9 @@ public:
         while (nrecv < nbytes) {
             n = recv(socket_, (char*)buff+nrecv, req, flags);
             if (n <= 0) {
-                //const char *c = strerror(errno);
-                //if (c == 0) { c = "[NULL]"; }
-                //KALDI_ERR << "Error receive block socket, errno was: " << c;
+                const char *c = strerror(errno);
+                if (c == 0) { c = "[NULL]"; }
+                KALDI_WARN << "Error receive block socket, errno was: " << c;
             	return n;
             }
             nrecv += n;
