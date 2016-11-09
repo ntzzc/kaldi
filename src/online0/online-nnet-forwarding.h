@@ -308,7 +308,7 @@ public:
                         break;
 
                     // socket sample validity
-                    if (len != sizeof(SocketSample) && !CheckSample(socket_sample, input_dim)) { 
+                    if (len != sizeof(SocketSample) || !CheckSample(socket_sample, input_dim)) { 
                         send_end[s] = 1;
                         client_socket_[s]->Close();
                         break;
