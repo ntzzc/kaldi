@@ -163,7 +163,7 @@ public:
         if (opts_.gpuid < 0)
             CuDevice::Instantiate().SelectGpu();
         else
-            CuDevice::Instantiate().SelectGpu(opts_.gpuid);
+            CuDevice::Instantiate().SelectPreferGpu(opts_.gpuid);
     }
 #endif
         forward_sync_.UnlockGpu();

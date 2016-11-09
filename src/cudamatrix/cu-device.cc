@@ -734,10 +734,12 @@ bool CuDevice::Initialize()
 	    switch(ret) {
 	      case cudaSuccess : {
 	        //create the CUDA context for the thread
-		e = cudaThreadSynchronize(); // deprecated, but for legacy not cudaDeviceSynchronize
+	    	  e = cudaThreadSynchronize(); // deprecated, but for legacy not cudaDeviceSynchronize
       		if (e != cudaSuccess) {
         		KALDI_WARN << "Cannot select this device: return code " << e 
           		<< ", Error message: \"" << cudaGetErrorString(e) << "\"";
+        		gpuinfo_[n].used = true;
+        		continue;
       		}    
 
 	        //get GPU name
@@ -856,8 +858,8 @@ CuDevice::SelectGpu(int gpu_id)
 
 	int32 n_gpu = 0;
 	cudaGetDeviceCount(&n_gpu);
-	if(gpu_id >= n_gpu) {
-    KALDI_ERR << "Cannot select GPU " << gpu_id
+	if(gpu_id >= n_gpu || gpu_id < 0) {
+		KALDI_ERR << "Cannot select GPU " << gpu_id
               << ", detected " << n_gpu << " CUDA capable cards!";
 	}
 
@@ -883,6 +885,56 @@ CuDevice::SelectGpu(int gpu_id)
 
 	gpuinfo_[gpu_id].used = true;
 
+}
+
+void
+CuDevice::SelectPreferGpu(int gpu_id)
+{
+
+	int32 n_gpu = 0, select_id = gpu_id;
+	cudaGetDeviceCount(&n_gpu);
+	if(gpu_id >= n_gpu || gpu_id < 0) {
+		KALDI_ERR << "Cannot select GPU " << gpu_id
+              << ", detected " << n_gpu << " CUDA capable cards!";
+	}
+
+	if (gpuinfo_[gpu_id].used) {
+		KALDI_WARN << "Cannot select specified device "<<  gpu_id <<
+				", maybe something wrong happened.";
+		select_id = -1;
+		for (int i = 0; i < gpuinfo_.size(); i++) {
+			if (!gpuinfo_[i].used) {
+				select_id = i;
+				break;
+			}
+		}
+	}
+
+	if (select_id < 0) {
+		KALDI_ERR << "Cannot select valid CUDA capable GPU cards!";
+	}
+
+	gpu_id = select_id;
+    KALDI_LOG << "Selected device: " << gpu_id << " (specified)";
+
+    KALDI_LOG << "free: " << gpuinfo_[gpu_id].mem_free/1024/1024 << "M, "
+              << "total: "<< gpuinfo_[gpu_id].mem_total/1024/1024 << "M, "
+              << "ratio: "<< gpuinfo_[gpu_id].mem_ratio << "   "
+    	      << "d2h bandwidth: " << gpuinfo_[gpu_id].d2h_bandwidth << "MB/s, "
+              << "h2d bandwidth: "<< gpuinfo_[gpu_id].h2d_bandwidth << "MB/s";
+
+	CU_SAFE_CALL(cudaSetDevice(gpu_id));
+	//initialize the CUBLAS
+	//CU_SAFE_CALL(cublasInit());
+
+	//create the context
+	cudaError_t e;
+	e = cudaThreadSynchronize(); //deprecated, but for legacy not cudaDeviceSynchronize
+	if(e != cudaSuccess) {
+		KALDI_WARN << "Failed to create CUDA context on a GPU.";
+	}
+
+	//gpuinfo_[gpu_id].used = true;
 }
 
 int CuDevice::GetDeviceId()
