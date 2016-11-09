@@ -36,9 +36,9 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform forward pass through Neural Network in online decoding.\n"
         "\n"
-        "Usage:  online-nnet-forward-parallel [options] <model-in> <socket-pathname>  \n"
+        "Usage:  online-nnet-forward-parallel [config option]\n"
         "e.g.: \n"
-        " online-nnet-forward-parallel final.nnet /tmp/forward.socket\n";
+        " online-nnet-forward-parallel --config=conf/forward.conf\n";
 
     ParseOptions po(usage);
 
@@ -48,8 +48,12 @@ int main(int argc, char *argv[]) {
     OnlineNnetForwardingOptions opts(&prior_opts);
     opts.Register(&po);
 
-
     po.Read(argc, argv);
+    
+    if (argc < 2) {
+        po.PrintUsage();
+        exit(1);
+    }
 
     /*
     if (po.NumArgs() != 2) {

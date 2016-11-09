@@ -122,6 +122,26 @@ private:
     ForwardSync &forward_sync_;
 	std::string model_filename_;
 
+    // check client data sample validity
+    inline bool CheckSample(SocketSample &sample, int input_dim) {
+        int size = sample.dim * sample.num_sample * sizeof(float);
+        if (size > MAX_SAMPLE_SIZE) {
+            KALDI_LOG << "client sample size " << size << " exceed maximum socket sample size " << MAX_SAMPLE_SIZE;
+            return false;
+        }
+        else if (input_dim != sample.dim) {
+            KALDI_LOG << "client sample dim " << sample.dim << " is not consistent with model input dim " << input_dim;
+            return false;
+        }
+        else if (sample.is_end == 0 && sample.num_sample != opts_.batch_size) {
+            KALDI_LOG << "number of frame in client sample " << sample.num_sample << " is not consistent with forward batch size " << opts_.batch_size;
+            return false;
+        }
+    
+        return true;
+    }
+        
+
 public:
 	OnlineNnetForwardingClass(const OnlineNnetForwardingOptions &opts,
 			std::vector<UnixDomainSocket*> &client_socket,
@@ -287,12 +307,10 @@ public:
                     if (len <= 0)
                         break;
 
-                    // socket error
-                    int size = socket_sample.dim * socket_sample.num_sample * sizeof(float);
-                    if (len != sizeof(SocketSample) || size > MAX_OUTPUT_SIZE || input_dim != socket_sample.dim) { 
+                    // socket sample validity
+                    if (len != sizeof(SocketSample) && !CheckSample(socket_sample, input_dim)) { 
                         send_end[s] = 1;
                         client_socket_[s]->Close();
-                        KALDI_LOG << "client sample dim " << socket_sample.dim << " is not consistent with model input dim " << input_dim;
                         break;
                     }
 
@@ -305,6 +323,7 @@ public:
 						feats[s].Swap(&tmp);
 					}
 
+                    int size = socket_sample.dim * socket_sample.num_sample * sizeof(float);
 					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, size);
 					lent[s] += socket_sample.num_sample;
 					recv_end[s] = socket_sample.is_end;
