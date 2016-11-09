@@ -899,7 +899,7 @@ CuDevice::SelectPreferGpu(int gpu_id)
 	}
 
 	if (gpuinfo_[gpu_id].used) {
-		KALDI_WARN << "Cannot select specified device "<<  gpu_id <<
+		KALDI_WARN << "Cannot select specified recommend device "<<  gpu_id <<
 				", maybe something wrong happened.";
 		select_id = -1;
 		for (int i = 0; i < gpuinfo_.size(); i++) {
@@ -915,7 +915,7 @@ CuDevice::SelectPreferGpu(int gpu_id)
 	}
 
 	gpu_id = select_id;
-    KALDI_LOG << "Selected device: " << gpu_id << " (specified)";
+    KALDI_LOG << "Selected device: " << gpu_id << " (automatically)";
 
     KALDI_LOG << "free: " << gpuinfo_[gpu_id].mem_free/1024/1024 << "M, "
               << "total: "<< gpuinfo_[gpu_id].mem_total/1024/1024 << "M, "

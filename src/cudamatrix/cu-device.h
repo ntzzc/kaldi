@@ -96,7 +96,7 @@ class CuDevice {
   void SelectGpu(int32 gpu_idx);
   int  SelectGpu();
   /// select recommend gpu card
-  void SelectPreferGpu(int32 gpu_idx)
+  void SelectPreferGpu(int32 gpu_idx);
 
   void GetBandwidth(int32 gpu_idx, float &d2h, float &h2d);
 
