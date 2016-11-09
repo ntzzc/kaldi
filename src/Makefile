@@ -9,13 +9,13 @@ SUBDIRS = base matrix util feat tree thread gmm transform sgmm \
           fstext hmm lm decoder lat kws cudamatrix nnet \
           bin fstbin gmmbin fgmmbin sgmmbin featbin \
           nnetbin latbin sgmm2 sgmm2bin nnet2 nnet3 nnet0 chain nnet3bin nnet2bin nnet0bin kwsbin \
-          ivector ivectorbin online2 online2bin lmbin chainbin
+          ivector ivectorbin online2 online2bin online0 online0bin lmbin chainbin
 
 MEMTESTDIRS = base matrix util feat tree thread gmm transform sgmm \
           fstext hmm lm decoder lat nnet kws chain \
           bin fstbin gmmbin fgmmbin sgmmbin featbin \
           nnetbin latbin sgmm2 nnet2 nnet3 nnet0 nnet2bin nnet3bin nnet0bin sgmm2bin kwsbin \
-          ivector ivectorbin online2 online2bin lmbin
+          ivector ivectorbin online2 online2bin online0 online0bin lmbin
 
 CUDAMEMTESTDIR = cudamatrix
 
@@ -146,9 +146,9 @@ $(EXT_SUBDIRS) : mklibdir
 # this is necessary for correct parallel compilation
 #1)The tools depend on all the libraries
 
-bin fstbin gmmbin fgmmbin sgmmbin sgmm2bin featbin nnetbin nnet2bin nnet3bin nnet0bin chainbin latbin ivectorbin lmbin kwsbin online2bin: \
+bin fstbin gmmbin fgmmbin sgmmbin sgmm2bin featbin nnetbin nnet2bin nnet3bin nnet0bin chainbin latbin ivectorbin lmbin kwsbin online2bin online0bin: \
  base matrix util feat tree thread gmm transform sgmm sgmm2 fstext hmm \
- decoder lat cudamatrix nnet nnet2 nnet3 nnet0 lm ivector chain kws online2
+ decoder lat cudamatrix nnet nnet2 nnet3 nnet0 lm ivector chain kws online2 online0
 
 #2)The libraries have inter-dependencies
 base:
@@ -178,5 +178,6 @@ onlinebin: base matrix util feat tree gmm transform sgmm sgmm2 fstext hmm lm dec
 # python-kaldi-decoding: base matrix util feat tree thread gmm transform sgmm sgmm2 fstext hmm decoder lat online
 online: decoder gmm transform feat matrix util base lat hmm thread tree
 online2: decoder gmm transform feat matrix util base lat hmm thread tree ivector cudamatrix nnet2 nnet3 chain
+online0: decoder gmm transform feat matrix util base lat hmm thread tree
 kws: base util thread hmm tree matrix lat
 

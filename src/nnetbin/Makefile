@@ -5,6 +5,7 @@ include ../kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
+LDLIBS += $(MPICH_LDLIBS)
 
 BINFILES = nnet-train-frmshuff \
         nnet-train-perutt \
