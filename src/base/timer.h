@@ -73,6 +73,13 @@ class Timer {
     return t2-t1;
   }
 
+  /// Returns current time in string.
+  static char* CurrentTime() {
+	  struct time_t time_now;
+	  time(&time_now);
+	  return asctime(localtime(&time_now));
+  }
+
  private:
   struct timeval time_start_;
   struct timezone time_zone_;
