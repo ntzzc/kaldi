@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     	if (client == NULL) {
     		const char *c = strerror(errno);
     		if (c == NULL) { c = "[NULL]"; }
-    		KALDI_WARN << "Error accept socket, errno was: " << c;
+    		KALDI_WARN << Timer::CurrentTime() << " Error accept socket, errno was: " << c;
     		continue;
     	}
 
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
     			if (client_list[i][s] == NULL) {
 					client_list[i][s] = client;
 					success = true;
-					KALDI_LOG << "client decoder " << i*num_stream+s << " connected.";
+					KALDI_LOG << Timer::CurrentTime() << " Client decoder " << i*num_stream+s << " connected.";
 					break;
 				}
     		}
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
     	if (!success)
     	{
             if (num_threads >= max_thread)
-                KALDI_ERR << "Exceed max worker gpu threads " << max_thread ;
+                KALDI_ERR << Timer::CurrentTime() << " Exceed max worker gpu threads " << max_thread ;
 
             client_list[num_threads].resize(num_stream, NULL);
 			client_list[num_threads][0] = client;

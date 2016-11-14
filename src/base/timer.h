@@ -75,9 +75,11 @@ class Timer {
 
   /// Returns current time in string.
   static char* CurrentTime() {
-	  struct time_t time_now;
+	  time_t time_now;
 	  time(&time_now);
-	  return asctime(localtime(&time_now));
+	  char *tm = asctime(localtime(&time_now));
+      tm[strlen(tm)-1] = '\0';
+      return tm;
   }
 
  private:
