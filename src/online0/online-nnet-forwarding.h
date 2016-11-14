@@ -126,15 +126,15 @@ private:
     inline bool CheckSample(SocketSample &sample, int input_dim) {
         int size = sample.dim * sample.num_sample * sizeof(float);
         if (size > MAX_SAMPLE_SIZE) {
-            KALDI_LOG << "client sample size " << size << " exceed maximum socket sample size " << MAX_SAMPLE_SIZE;
+            KALDI_LOG << Timer::CurrentTime() <<" Client sample size " << size << " exceed maximum socket sample size " << MAX_SAMPLE_SIZE;
             return false;
         }
         else if (input_dim != sample.dim) {
-            KALDI_LOG << "client sample dim " << sample.dim << " is not consistent with model input dim " << input_dim;
+            KALDI_LOG << Timer::CurrentTime() <<" Client sample dim " << sample.dim << " is not consistent with model input dim " << input_dim;
             return false;
         }
         else if (sample.is_end == 0 && sample.num_sample != opts_.batch_size) {
-            KALDI_LOG << "number of frame in client sample " << sample.num_sample << " is not consistent with forward batch size " << opts_.batch_size;
+            KALDI_LOG << Timer::CurrentTime() << " number of frame in client sample " << sample.num_sample << " is not consistent with forward batch size " << opts_.batch_size;
             return false;
         }
     
@@ -262,7 +262,7 @@ public:
 	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable), MSG_NOSIGNAL);
 
 	    			if (ret > 0 && ret != sizeof(SocketDecodable)) 
-                        KALDI_WARN << "Send socket decodable: " << ret << " less than " << sizeof(SocketDecodable);
+                        KALDI_WARN << Timer::CurrentTime() <<" Send socket decodable: " << ret << " less than " << sizeof(SocketDecodable);
 	    			if (ret <= 0) break;
 	    			// send successful
 	    			decodable_buffer[s].Pop();
@@ -287,7 +287,7 @@ public:
 	    			send_end[s] = 1;
     				lent[s] = 0;
                     decodable_buffer[s].Resize(MAX_BUFFER_SIZE);
-                    KALDI_LOG << "client decoder " << s << " disconnected.";
+                    KALDI_LOG << Timer::CurrentTime() << " Client decoder " << s << " disconnected.";
 	    			continue;
 	    		}
 
