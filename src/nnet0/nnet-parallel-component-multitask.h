@@ -49,7 +49,8 @@ class ParallelComponentMultiTask : public UpdatableComponent {
     // std::vector<std::string> nested_nnet_filename;
     // parse config
     std::string token, name;
-	int32 offset, len = 0, scale, escale;
+	int32 offset, len = 0; 
+    BaseFloat scale, escale;
     while (!is.eof()) {
       ReadToken(is, false, &token); 
       if (token == "<NestedNnet>" || token == "<NestedNnetFilename>") {
@@ -202,10 +203,10 @@ class ParallelComponentMultiTask : public UpdatableComponent {
         WriteBasicType(os, binary, output_offset.find(name)->second.first);
 
         WriteToken(os, binary, "<Scale>");
-        WriteBasicType(os, binary, forward_scale.find(name)->second.first);
+        WriteBasicType(os, binary, forward_scale.find(name)->second);
 
         WriteToken(os, binary, "<ErrorScale>");
-        WriteBasicType(os, binary, error_scale.find(name)->second.first);
+        WriteBasicType(os, binary, error_scale.find(name)->second);
 
         if(binary == false) os << std::endl;
         nnet_.find(name)->second.Write(os, binary);

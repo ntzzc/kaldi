@@ -124,7 +124,7 @@ private:
 
     // check client data sample validity
     inline bool CheckSample(SocketSample &sample, int input_dim) {
-        int size = sample.dim * sample.num_sample * sizeof(float);
+        int size = sample.dim * sample.num_sample;
         if (size > MAX_SAMPLE_SIZE) {
             KALDI_LOG << Timer::CurrentTime() <<" Client sample size " << size << " exceed maximum socket sample size " << MAX_SAMPLE_SIZE;
             return false;

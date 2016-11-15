@@ -508,6 +508,10 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 n
     	GruStreams& comp = dynamic_cast<GruStreams&>(GetComponent(c));
       comp.ResetGRUStreams(stream_reset_flag, ntruncated_bptt_size);
     }    
+    else if (GetComponent(c).GetType() == Component::kParallelComponentMultiTask) {
+      ParallelComponentMultiTask& comp = dynamic_cast<ParallelComponentMultiTask&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);
+    }
   }
 }
 

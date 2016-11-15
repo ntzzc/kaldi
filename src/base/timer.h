@@ -20,6 +20,7 @@
 #define KALDI_BASE_TIMER_H_
 
 #include "base/kaldi-utils.h"
+#include <cstring>
 // Note: Sleep(float secs) is included in base/kaldi-utils.h.
 
 
