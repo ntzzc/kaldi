@@ -359,6 +359,18 @@ class ParallelComponentMultiTask : public UpdatableComponent {
       this->error_scale = error_scale;
   }
 
+  void UpdateLstmStreamsState(const std::vector<int32> &update_state_flag)
+  {
+	  if (nnet_.find("lstm") != nnet_.end())
+		  nnet_["lstm"].UpdateLstmStreamsState(update_state_flag);
+  }
+
+  void ResetLstmStreams(const std::vector<int32> &stream_reset_flag, int32 ntruncated_bptt_size)
+  {
+	  if (nnet_.find("lstm") != nnet_.end())
+		  nnet_["lstm"].ResetLstmStreams(stream_reset_flag, ntruncated_bptt_size);
+  }
+
  private:
   void check()
   {

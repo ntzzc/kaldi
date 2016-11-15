@@ -521,6 +521,10 @@ void Nnet::UpdateLstmStreamsState(const std::vector<int32> &stream_update_flag) 
       LstmProjectedStreamsFast& comp = dynamic_cast<LstmProjectedStreamsFast&>(GetComponent(c));
       comp.UpdateLstmStreamsState(stream_update_flag);
     }
+	else if (GetComponent(c).GetType() == Component::kParallelComponentMultiTask) {
+	  ParallelComponentMultiTask& comp = dynamic_cast<ParallelComponentMultiTask&>(GetComponent(c));
+	  comp.UpdateLstmStreamsState(stream_update_flag);
+	}
   }
 }
 
