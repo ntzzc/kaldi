@@ -49,7 +49,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
     // std::vector<std::string> nested_nnet_filename;
     // parse config
     std::string token, name;
-	int32 offset, len = 0;
+	int32 offset, len = 0, scale, escale;
     while (!is.eof()) {
       ReadToken(is, false, &token); 
       if (token == "<NestedNnet>" || token == "<NestedNnetFilename>") {
@@ -63,6 +63,14 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 		  ExpectToken(is, false, "<OutputOffset>");
 		  ReadBasicType(is, false, &offset);
 		  output_offset[name] = std::pair<int32, int32>(offset, len);
+
+		  ExpectToken(is, false, "<Scale>");
+		  ReadBasicType(is, false, &scale);
+		  forward_scale[name] = scale;
+
+		  ExpectToken(is, false, "<ErrorScale>");
+		  ReadBasicType(is, false, &escale);
+		  error_scale[name] = escale;
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
@@ -89,6 +97,14 @@ class ParallelComponentMultiTask : public UpdatableComponent {
       	  ExpectToken(is, false, "<OutputOffset>");
       	  ReadBasicType(is, false, &offset);
       	  output_offset[name] = std::pair<int32, int32>(offset, len);
+
+		  ExpectToken(is, false, "<Scale>");
+		  ReadBasicType(is, false, &scale);
+		  forward_scale[name] = scale;
+
+		  ExpectToken(is, false, "<ErrorScale>");
+		  ReadBasicType(is, false, &escale);
+		  error_scale[name] = escale;
 
           std::string file_or_end;
           ReadToken(is, false, &file_or_end);
@@ -122,6 +138,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
     std::pair<int32, int32> offset;
     std::string name;
     int32 nnet_count;
+    BaseFloat scale, escale;
     ReadBasicType(is, binary, &nnet_count);
     for (int32 i=0; i<nnet_count; i++) {
       ExpectToken(is, binary, "<NestedNnet>");
@@ -138,6 +155,14 @@ class ParallelComponentMultiTask : public UpdatableComponent {
       ExpectToken(is, binary, "<OutputOffset>");
       ReadBasicType(is, binary, &offset.first);
       output_offset[name] = offset;
+
+      ExpectToken(is, binary, "<Scale>");
+      ReadBasicType(is, binary, &scale);
+      forward_scale[name] = scale;
+
+      ExpectToken(is, binary, "<ErrorScale>");
+      ReadBasicType(is, binary, &escale);
+      error_scale[name] = escale;
 
       Nnet nnet;
       nnet.Read(is, binary);
@@ -176,7 +201,15 @@ class ParallelComponentMultiTask : public UpdatableComponent {
         WriteToken(os, binary, "<OutputOffset>");
         WriteBasicType(os, binary, output_offset.find(name)->second.first);
 
+        WriteToken(os, binary, "<Scale>");
+        WriteBasicType(os, binary, forward_scale.find(name)->second.first);
+
+        WriteToken(os, binary, "<ErrorScale>");
+        WriteBasicType(os, binary, error_scale.find(name)->second.first);
+
+        if(binary == false) os << std::endl;
         nnet_.find(name)->second.Write(os, binary);
+        if(binary == false) os << std::endl;
     }
     WriteToken(os, binary, "</ParallelComponentMultiTask>");
   }
@@ -244,7 +277,9 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 		  CuSubMatrix<BaseFloat> src(in.ColRange(input_offset[name].first, input_offset[name].second));
 		  CuSubMatrix<BaseFloat> tgt(out->ColRange(output_offset[name].first, output_offset[name].second));
 		  //
-		  nnet_[name].Propagate(src, &tgt);
+		  CuMatrix<BaseFloat> tgt_aux;
+		  nnet_[name].Propagate(src, &tgt_aux);
+		  tgt.AddMat(forward_scale[name], tgt_aux);
     }
   }
 
@@ -345,6 +380,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
   std::unordered_map<std::string, Nnet> nnet_;
   std::unordered_map<std::string, std::pair<int32, int32> > input_offset;  // pair<offset, length>
   std::unordered_map<std::string, std::pair<int32, int32> > output_offset;
+  std::unordered_map<std::string, BaseFloat> forward_scale;
   std::unordered_map<std::string, BaseFloat> error_scale;
 };
 
