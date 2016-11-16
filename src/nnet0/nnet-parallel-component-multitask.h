@@ -385,7 +385,7 @@ class ParallelComponentMultiTask : public UpdatableComponent {
 	    	dim = output_offset[name].first + output_offset[name].second;
 	    	if (nnet_output_max < dim) nnet_output_max = dim;
 	    }
-	    KALDI_ASSERT(InputDim() == nnet_input_max);
+	    KALDI_ASSERT(InputDim() >= nnet_input_max);
 	    KALDI_ASSERT(OutputDim() == nnet_output_max);
   }
 

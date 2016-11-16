@@ -216,7 +216,7 @@ public:
 		if (sweep_frames[0] > skip_frames || sweep_frames.size() > 1)
 			KALDI_ERR << "invalid sweep frame index";
 
-		int in_frames = MAX_SAMPLE_SIZE/(nnet_transf.InputDim()/(left_splice+right_splice+1));
+		int in_frames = MAX_SAMPLE_SIZE/(nnet.InputDim()/(left_splice+right_splice+1));
 		int out_frames = MAX_OUTPUT_SIZE/nnet.OutputDim();
         if (opts_.copy_posterior)
             out_frames /= skip_frames; 
@@ -245,8 +245,8 @@ public:
 	    std::vector<int> send_frames(num_stream, 0);
 	    std::vector<MatrixIndexT> splice_idx(left_splice+right_splice+1);
 	    Matrix<BaseFloat> feat, nnet_out_host;
-	    //int feat_dim = nnet_transf.InputDim();
-	    int input_dim = nnet.InputDim();
+	    //int tranf_dim = nnet_transf.InputDim();
+	    int input_dim = feature_transform != "" ? nnet_transf.InputDim() : nnet.InputDim();
 	    int out_dim = nnet.OutputDim();
 	    int t, s , k, len;
 

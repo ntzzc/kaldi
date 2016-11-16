@@ -33,6 +33,7 @@
 #include "nnet0/nnet-lstm-streams.h"
 #include "nnet0/nnet-gru-streams.h"
 #include "nnet0/nnet-class-affine-transform.h"
+#include "nnet0/nnet-parallel-component-multitask.h"
 
 namespace kaldi {
 namespace nnet0 {
