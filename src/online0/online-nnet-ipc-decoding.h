@@ -1,4 +1,4 @@
-// online0/online-nnet-decoding.h
+// online0/online-nnet-ipc-decoding.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -17,21 +17,21 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ONLINE0_ONLINE_NNET_DECODING_H_
-#define ONLINE0_ONLINE_NNET_DECODING_H_
+#ifndef ONLINE0_ONLINE_NNET_IPC_DECODING_H_
+#define ONLINE0_ONLINE_NNET_IPC_DECODING_H_
 
 #include "fstext/fstext-lib.h"
 #include "decoder/decodable-matrix.h"
 #include "thread/kaldi-semaphore.h"
 #include "thread/kaldi-mutex.h"
 
-#include "online0/online-message.h"
 #include "online0/online-nnet-faster-decoder.h"
 #include "online0/kaldi-unix-domain-socket.h"
+#include "online0/online-ipc-message.h"
 
 namespace kaldi {
 
-struct OnlineNnetDecodingOptions {
+struct OnlineNnetIpcDecodingOptions {
 	const OnlineNnetFasterDecoderOptions &decoder_opts;
 
 	BaseFloat acoustic_scale;
@@ -40,7 +40,7 @@ struct OnlineNnetDecodingOptions {
 	int32 chunk_length_secs;
 	std::string silence_phones_str;
 
-	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &decoder_opts):
+	OnlineNnetIpcDecodingOptions(const OnlineNnetFasterDecoderOptions &decoder_opts):
                             decoder_opts(decoder_opts),
 							acoustic_scale(0.1), allow_partial(true), word_syms_filename(""),
 							silence_phones_str("")
@@ -105,10 +105,10 @@ private:
 	bool is_finished_;
 };
 
-class OnlineNnetDecodingClass : public MultiThreadable
+class OnlineNnetIpcDecodingClass : public MultiThreadable
 {
 public:
-	OnlineNnetDecodingClass(const OnlineNnetDecodingOptions &opts,
+	OnlineNnetIpcDecodingClass(const OnlineNnetIpcDecodingOptions &opts,
 			OnlineNnetFasterDecoder *decoder,
 			UnixDomainSocket *socket,
 			DecoderSync *decoder_sync,
@@ -124,7 +124,7 @@ public:
 		decodable_ = new OnlineDecodableMatrixMapped(trans_model_, opts.acoustic_scale);
 	}
 
-	~OnlineNnetDecodingClass() {}
+	~OnlineNnetIpcDecodingClass() {}
 
 	void operator () ()
 	{
@@ -193,7 +193,7 @@ public:
 
 private:
 
-	const OnlineNnetDecodingOptions &opts_;
+	const OnlineNnetIpcDecodingOptions &opts_;
 	OnlineNnetFasterDecoder *decoder_;
 	UnixDomainSocket *socket_;
 	DecoderSync *decoder_sync_;

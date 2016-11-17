@@ -1,4 +1,4 @@
-// online0bin/online-nnet-forward-parallel.cc
+// online0bin/online-nnet-ipc-forward.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -19,13 +19,14 @@
 
 #include <limits>
 #include <signal.h>
+
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
 
 #include "nnet0/nnet-nnet.h"
-#include "online0/online-nnet-forwarding.h"
 #include "online0/kaldi-unix-domain-socket-server.h"
+#include "online0/online-nnet-ipc-forwarding.h"
 
 int main(int argc, char *argv[]) {
 	  using namespace kaldi;
@@ -34,18 +35,18 @@ int main(int argc, char *argv[]) {
 
   try {
     const char *usage =
-        "Perform forward pass through Neural Network in online decoding.\n"
+        "Perform forward pass through Neural Network in online ipc decoding.\n"
         "\n"
-        "Usage:  online-nnet-forward-parallel [config option]\n"
+        "Usage:  online-nnet-ipc-forward [config option]\n"
         "e.g.: \n"
-        " online-nnet-forward-parallel --config=conf/forward.conf\n";
+        " online-nnet-ipc-forward --config=conf/forward.conf\n";
 
     ParseOptions po(usage);
 
     PdfPriorOptions prior_opts;
     prior_opts.Register(&po);
 
-    OnlineNnetForwardingOptions opts(&prior_opts);
+    OnlineNnetIpcForwardingOptions opts(&prior_opts);
     opts.Register(&po);
 
     po.Read(argc, argv);
@@ -80,21 +81,21 @@ int main(int argc, char *argv[]) {
 
     int max_thread = 20;
     std::vector<std::vector<UnixDomainSocket*> > client_list(max_thread);
-    std::vector<MultiThreader<OnlineNnetForwardingClass> *> forward_thread(max_thread, NULL);
+    std::vector<MultiThreader<OnlineNnetIpcForwardingClass> *> forward_thread(max_thread, NULL);
     UnixDomainSocketServer *server = new UnixDomainSocketServer(socket_filepath);
     UnixDomainSocket *client = NULL;
-    ForwardSync forward_sync;
+    IpcForwardSync forward_sync;
 
     for (int i = 0; i < num_threads; i++) {
     	client_list[i].resize(num_stream, NULL);
 
 		// initialize forward thread
-		// forward_thread[i] = new OnlineNnetForwardingClass(opts, client_list[i], model_filename);
-		OnlineNnetForwardingClass *forwarding = new OnlineNnetForwardingClass(opts, client_list[i], forward_sync, model_filename);
+		// forward_thread[i] = new OnlineNnetIpcForwardingClass(opts, client_list[i], model_filename);
+		OnlineNnetIpcForwardingClass *forwarding = new OnlineNnetIpcForwardingClass(opts, client_list[i], forward_sync, model_filename);
 		// The initialization of the following class spawns the threads that
 		// process the examples.  They get re-joined in its destructor.
-		// MultiThreader<OnlineNnetForwardingClass> m(1, *forward_thread[i]);
-		forward_thread[i] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
+		// MultiThreader<OnlineNnetIpcForwardingClass> m(1, *forward_thread[i]);
+		forward_thread[i] = new  MultiThreader<OnlineNnetIpcForwardingClass>(1, *forwarding);
     }
 
 
@@ -134,8 +135,8 @@ int main(int argc, char *argv[]) {
             client_list[num_threads].resize(num_stream, NULL);
 			client_list[num_threads][0] = client;
     		// initialize forward thread
-		    OnlineNnetForwardingClass *forwarding = new OnlineNnetForwardingClass(opts, client_list[num_threads], forward_sync, model_filename);
-		    forward_thread[num_threads] = new  MultiThreader<OnlineNnetForwardingClass>(1, *forwarding);
+		    OnlineNnetIpcForwardingClass *forwarding = new OnlineNnetIpcForwardingClass(opts, client_list[num_threads], forward_sync, model_filename);
+		    forward_thread[num_threads] = new  MultiThreader<OnlineNnetIpcForwardingClass>(1, *forwarding);
             num_threads++;
     	}
     }

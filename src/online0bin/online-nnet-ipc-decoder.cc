@@ -1,4 +1,4 @@
-// online0bin/online-nnet-decoder-mqueue.cc
+// online0bin/online-nnet-ipc-decoder.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -18,8 +18,12 @@
 // limitations under the License.
 
 
-#include "../online0/online-nnet-decoding-mqueue.h"
+
+#include "base/timer.h"
 #include "online/onlinebin-util.h"
+
+#include "online0/kaldi-unix-domain-socket.h"
+#include "online0/online-nnet-ipc-decoding.h"
 
 int main(int argc, char *argv[])
 {
@@ -36,17 +40,17 @@ int main(int argc, char *argv[])
 	    	"set via config files whose filenames are passed as options\n"
 	    	"\n"
 	        "Usage: online-nnet-decoder [options] <model-in> <fst-in> "
-	        "<feature-rspecifier> <mqueue-wspecifier> <transcript-wspecifier> [alignments-wspecifier]\n"
+	        "<feature-rspecifier> <socket-filepath> <transcript-wspecifier> [alignments-wspecifier]\n"
 	        "Example: ./online-nnet-decoder --rt-min=0.3 --rt-max=0.5 "
 	        "--max-active=4000 --beam=12.0 --acoustic-scale=0.0769 "
-	        "model HCLG.fst ark:features.ark forward.mq ark,t:trans.txt ark,t:ali.txt";
+	        "model HCLG.fst ark:features.ark /tmp/forward.socket ark,t:trans.txt ark,t:ali.txt";
 
 	    ParseOptions po(usage);
 
 	    OnlineNnetFasterDecoderOptions decoder_opts;
 	    decoder_opts.Register(&po, true);
 
-	    OnlineNnetDecodingOptions decoding_opts(decoder_opts);
+	    OnlineNnetIpcDecodingOptions decoding_opts(decoder_opts);
 	    decoding_opts.Register(&po);
 
 	    po.Read(argc, argv);
@@ -60,7 +64,7 @@ int main(int argc, char *argv[])
 		model_rspecifier = po.GetArg(1),
 		fst_rspecifier = po.GetArg(2),
 		feature_rspecifier = po.GetArg(3),
-		mqueue_wspecifier = po.GetArg(4),
+		socket_filepath = po.GetArg(4),
 		words_wspecifier = po.GetArg(5),
 		alignment_wspecifier = po.GetOptArg(6);
 
@@ -80,67 +84,64 @@ int main(int argc, char *argv[])
 	    if (!(word_syms = fst::SymbolTable::ReadText(decoding_opts.word_syms_filename)))
 	        KALDI_ERR << "Could not read symbol table from file " << decoding_opts.word_syms_filename;
 
-		char mq_name[256];
-		sprintf(mq_name, "/%d.mq", getpid());
-		MessageQueue *mq_decodable = new MessageQueue();
-		struct mq_attr decodable_attr;
-		decodable_attr.mq_maxmsg = MAX_OUTPUT_MQ_MQXMSG;
-		decodable_attr.mq_msgsize = MAX_OUTPUT_MQ_MSGSIZE;
-		mq_decodable->Create(mq_name, &decodable_attr);
-
-	    MessageQueue mq_forward;
-	    mq_forward.Open(mqueue_wspecifier);
+	    UnixDomainSocket *socket = new UnixDomainSocket(socket_filepath, SOCK_STREAM);
 
 	    DecoderSync decoder_sync;
 
 	    OnlineNnetFasterDecoder decoder(*decode_fst, decoder_opts);
 
-	    OnlineNnetDecodingClass decoding(decoding_opts,
-	    								&decoder, mq_decodable, &decoder_sync, trans_model,
+	    OnlineNnetIpcDecodingClass decoding(decoding_opts,
+	    								&decoder, socket, &decoder_sync, trans_model,
 										*word_syms, words_writer, alignment_writer);
 		// The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
-	    MultiThreader<OnlineNnetDecodingClass> m(1, decoding);
+	    MultiThreader<OnlineNnetIpcDecodingClass> m(1, decoding);
 
-	    MQSample mq_sample;
+        // client feature
+        Timer timer;
+
+        kaldi::int64 frame_count = 0;
+	    SocketSample sample;
 	    std::string utt_key;
 	    Matrix<BaseFloat> utt_feat;
 	    int chunk = 10;
-	    memcpy(mq_sample.mq_callback_name, mq_name, MAX_FILE_PATH);
-	    mq_sample.pid = getpid();
-	    for (; !feature_reader.Done(); feature_reader.Next()) {
+	    sample.pid = getpid();
+        while (!feature_reader.Done())
+        {
 	    	utt_key = feature_reader.Key();
 	    	utt_feat = feature_reader.Value();
-	    	memcpy(mq_sample.uttt_key, utt_key.c_str(), MAX_KEY_LEN);
-	    	mq_sample.dim = utt_feat.NumCols();
+	    	memcpy(sample.utt_key, utt_key.c_str(), MAX_KEY_LEN);
+	    	sample.dim = utt_feat.NumCols();
+            sample.is_end = false;
 	    	decoder_sync.SetUtt(utt_key);
+	    	chunk = MAX_SAMPLE_SIZE / sample.dim;
 
 	    	for (int i = 0; i < utt_feat.NumRows(); i += chunk)
 	    	{
-	    		mq_sample.num_sample = utt_feat.NumRows()-i >= chunk ? chunk : utt_feat.NumRows()-i;
-	    		memcpy((char*)mq_sample.sample, (char*)utt_feat.RowData(i), mq_sample.num_sample*utt_feat.NumCols()*sizeof(BaseFloat));
+	    		sample.num_sample = utt_feat.NumRows()-i >= chunk ? chunk : utt_feat.NumRows()-i;
+	    		memcpy((char*)sample.sample, (char*)utt_feat.RowData(i),
+	    				sample.num_sample*utt_feat.NumCols()*sizeof(BaseFloat));
                 
 	    		if (utt_feat.NumRows()-i <= chunk)
-	    			mq_sample.is_end = true;
+	    			sample.is_end = true;
 
-                if (mq_forward.Send((char*)&mq_sample, sizeof(MQSample), 0) == -1)
-                {
-                    const char *c = strerror(errno);
-                    if (c == NULL) { c = "[NULL]"; }
-                    KALDI_ERR << "Error send message to queue " << mqueue_wspecifier << " , errno was: " << c;
-                }
-
-	    		if (utt_feat.NumRows()-i <= chunk)
-                {
-	    			decoder_sync.UtteranceWait();
-                    KALDI_LOG << "Finish decode utterance : " << utt_key;
-                }
+	    		socket->Send((char*)&sample, sizeof(SocketSample), 0);
 	    	}
+
+            frame_count += utt_feat.NumRows();
+            feature_reader.Next();
+            if (feature_reader.Done())
+                decoder_sync.Abort();
+	    	decoder_sync.UtteranceWait();
+            KALDI_LOG << "Finish decode utterance : " << utt_key;
 	    }
 
-	    decoder_sync.Abort();
+        double elapsed = timer.Elapsed();
+        KALDI_LOG << "Time taken [excluding initialization] "<< elapsed
+              << "s: real-time factor assuming 100 frames/sec is "
+              << (elapsed*100.0/frame_count);
 
-	    delete mq_decodable;
+	    delete socket;
 	    delete decode_fst;
 	    delete word_syms;
 	    return 0;

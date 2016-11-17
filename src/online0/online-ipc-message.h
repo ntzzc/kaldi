@@ -1,4 +1,4 @@
-// online0/online-message.h
+// online0/online-ipc-message.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -17,8 +17,8 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ONLINE0_ONLINE_MESSAGE_H_
-#define ONLINE0_ONLINE_MESSAGE_H_
+#ifndef ONLINE0_ONLINE_IPC_MESSAGE_H_
+#define ONLINE0_ONLINE_IPC_MESSAGE_H_
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -100,4 +100,4 @@ struct SocketDecodable {
 
 }
 
-#endif /* ONLINE0_ONLINE_MESSAGE_H_ */
+#endif /* ONLINE0_ONLINE_IPC_MESSAGE_H_ */

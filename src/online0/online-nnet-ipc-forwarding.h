@@ -1,4 +1,4 @@
-// online0/online-nnet-forwarding.h
+// online0/online-nnet-ipc-forwarding.h
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -17,19 +17,20 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ONLINE0_ONLINE_NNET_FORWARDING_H_
-#define ONLINE0_ONLINE_NNET_FORWARDING_H_
+#ifndef ONLINE0_ONLINE_NNET_IPC_FORWARDING_H_
+#define ONLINE0_ONLINE_NNET_IPC_FORWARDING_H_
 
 #include "util/circular-queue.h"
 #include "thread/kaldi-mutex.h"
 #include "nnet0/nnet-trnopts.h"
 #include "nnet0/nnet-pdf-prior.h"
-#include "online0/online-message.h"
+
+#include "online0/online-ipc-message.h"
 #include "online0/kaldi-unix-domain-socket.h"
 
 namespace kaldi {
 
-struct OnlineNnetForwardingOptions {
+struct OnlineNnetIpcForwardingOptions {
     typedef nnet0::PdfPriorOptions PdfPriorOptions;
     std::string feature_transform;
     std::string network_model;
@@ -54,7 +55,7 @@ struct OnlineNnetForwardingOptions {
 
     const PdfPriorOptions *prior_opts;
 
-    OnlineNnetForwardingOptions(const PdfPriorOptions *prior_opts)
+    OnlineNnetIpcForwardingOptions(const PdfPriorOptions *prior_opts)
     	:feature_transform(""),network_model(""),socket_filename(""),no_softmax(true),apply_log(false),copy_posterior(true),use_gpu("no"),gpuid(-1),num_threads(1),
 		 	 	 	 	 	 	 time_shift(0),batch_size(8),num_stream(10),dump_interval(0),
 								 skip_frames(1), sweep_time(1), sweep_frames_str("0"),
@@ -97,9 +98,9 @@ struct OnlineNnetForwardingOptions {
 
 };
 
-class ForwardSync {
+class IpcForwardSync {
 public:
-    ForwardSync() {}
+    IpcForwardSync() {}
 
     void LockGpu() {
         gpu_mutex_.Lock();
@@ -113,13 +114,13 @@ private:
     Mutex gpu_mutex_;
 };
 
-class OnlineNnetForwardingClass : public MultiThreadable {
+class OnlineNnetIpcForwardingClass : public MultiThreadable {
 private:
 	const static int MAX_BUFFER_SIZE = 10;
 	const static int MATRIX_INC_STEP = 1024;
-	const OnlineNnetForwardingOptions &opts_;
+	const OnlineNnetIpcForwardingOptions &opts_;
 	std::vector<UnixDomainSocket*> &client_socket_;
-    ForwardSync &forward_sync_;
+    IpcForwardSync &forward_sync_;
 	std::string model_filename_;
 
     // check client data sample validity
@@ -143,9 +144,9 @@ private:
         
 
 public:
-	OnlineNnetForwardingClass(const OnlineNnetForwardingOptions &opts,
+	OnlineNnetIpcForwardingClass(const OnlineNnetIpcForwardingOptions &opts,
 			std::vector<UnixDomainSocket*> &client_socket,
-			ForwardSync &forward_sync, std::string model_filename):
+			IpcForwardSync &forward_sync, std::string model_filename):
 				opts_(opts), client_socket_(client_socket), 
                 forward_sync_(forward_sync), model_filename_(model_filename)
 
@@ -153,7 +154,7 @@ public:
 
 	}
 
-	~OnlineNnetForwardingClass() {}
+	~OnlineNnetIpcForwardingClass() {}
 
 	void operator () ()
 	{
@@ -445,4 +446,4 @@ public:
 
 }// namespace kaldi
 
-#endif /* ONLINE0_ONLINE_NNET_FORWARDING_H_ */
+#endif /* ONLINE0_ONLINE_NNET_IPC_FORWARDING_H_ */
