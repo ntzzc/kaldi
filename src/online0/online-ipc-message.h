@@ -25,7 +25,8 @@
 
 #define MAX_FILE_PATH 256
 #define MAX_KEY_LEN 256
-#define MAX_SAMPLE_SIZE (8*40*3*11)
+//#define MAX_SAMPLE_SIZE (8*40*3*(5+1+5))
+#define MAX_SAMPLE_SIZE (8*40*3*(5+1+10))
 #define MAX_OUTPUT_SIZE (8*10240)
 
 #define MAX_SAMPLE_MQ_MQXMSG (300)
