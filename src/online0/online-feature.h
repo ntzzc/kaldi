@@ -36,7 +36,7 @@
 #include "feat/feature-mfcc.h"
 #include "feat/feature-plp.h"
 #include "feat/feature-fbank.h"
-#include "itf/online-feature-itf.h"
+#include "online0/online-feature-interface.h"
 
 namespace kaldi {
 /// @addtogroup  onlinefeat OnlineFeatureExtraction
@@ -67,6 +67,13 @@ class OnlineGenericBaseFeature: public OnlineBaseFeature {
   virtual int32 NumFramesReady() const { return features_.size(); }
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
+
+  virtual void Reset() {
+	input_finished_ = false;
+	waveform_offset_ = 0;
+	DeletePointers(&features_);
+	features_.resize(0);
+  }
 
   // Next, functions that are not in the interface.
 
@@ -153,6 +160,8 @@ class OnlineDeltaFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {};
+
   //
   // Next, functions that are not in the interface.
   //
@@ -227,6 +236,11 @@ class OnlineCmvnFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {
+	DeletePointers(&features_);
+	features_.resize(0);
+  }
+
   //
   // Next, functions that are not in the interface.
   //
@@ -289,14 +303,13 @@ class OnlineSpliceFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {}
+
   //
   // Next, functions that are not in the interface.
   //
   OnlineSpliceFeature(const OnlineSpliceOptions &opts,
-                     OnlineFeatureInterface *src): src_(src) {
-	  left_context_ = opts.custom_splice ? opts.left_context : opts.context;
-	  right_context_ = opts.custom_splice ? opts.right_context : opts.context;
-  }
+                     OnlineFeatureInterface *src);
 
  private:
   int32 left_context_;

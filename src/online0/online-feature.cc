@@ -262,6 +262,11 @@ void OnlineCmvnFeature::GetFrame(int32 frame, VectorBase<BaseFloat> *feat)
 /**
  * splice feature
  */
+OnlineSpliceFeature::OnlineSpliceFeature(const OnlineSpliceOptions &opts,
+                     OnlineFeatureInterface *src): src_(src) {
+	left_context_ = opts.custom_splice ? opts.left_context : opts.context;
+	right_context_ = opts.custom_splice ? opts.right_context : opts.context;
+}
 
 int32 OnlineSpliceFeature::NumFramesReady() const {
   int32 num_frames = src_->NumFramesReady();

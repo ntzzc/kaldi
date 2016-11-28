@@ -121,6 +121,7 @@ public:
 	virtual int32 NumFramesReady() const;
 	virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 	virtual BaseFloat FrameShiftInSeconds() const;
+	virtual void Reset();
 
 	/// Accept more data to process.  It won't actually process it until you call
 	/// GetFrame() [probably indirectly via (decoder).AdvanceDecoding()], when you

@@ -86,9 +86,11 @@ class DecodableMatrixScaledMapped: public DecodableInterface {
 class OnlineDecodableMatrixMapped: public DecodableInterface {
  public:
 	OnlineDecodableMatrixMapped(const TransitionModel &tm, BaseFloat scale):
-      trans_model_(tm), scale_(scale), input_is_finished_(false) { }
+      trans_model_(tm), scale_(scale), input_is_finished_(false), num_frames_(0) {
+		loglikes_.Resize(1024, trans_model_.NumPdfs(), kUndefined);
+	}
 
-  virtual int32 NumFramesReady() const { return loglikes_.NumRows(); }
+  virtual int32 NumFramesReady() const { return num_frames_; }
 
   // This function is destructive of the input "loglikes" because it may
   // under some circumstances do a shallow copy using Swap().  This function
@@ -98,25 +100,19 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
   // a number equal to frames_to_discard.  You should only set frames_to_discard
   // to nonzero if you know your decoder won't want to access the loglikes
   // for older frames.
-  void AcceptLoglikes(Matrix<BaseFloat> *loglikes,
-                      int32 frames_to_discard) {
-    if (loglikes->NumRows() == 0) return;
+  void AcceptLoglikes(Matrix<BaseFloat> *loglikes) {
+	int num_frames = loglikes->NumRows();
+	if (num_frames == 0) return;
     KALDI_ASSERT(loglikes->NumCols() == trans_model_.NumPdfs());
-    KALDI_ASSERT(frames_to_discard <= loglikes_.NumRows() &&
-                 frames_to_discard >= 0);
-    if (frames_to_discard == loglikes_.NumRows()) {
-      loglikes_.Swap(loglikes);
-      loglikes->Resize(0, 0);
-    } else {
-      int32 old_rows_kept = loglikes_.NumRows() - frames_to_discard,
-          new_num_rows = old_rows_kept + loglikes->NumRows();
-      Matrix<BaseFloat> new_loglikes(new_num_rows, loglikes->NumCols());
-      new_loglikes.RowRange(0, old_rows_kept).CopyFromMat(
-          loglikes_.RowRange(frames_to_discard, old_rows_kept));
-      new_loglikes.RowRange(old_rows_kept, loglikes->NumRows()).CopyFromMat(
-          *loglikes);
-      loglikes_.Swap(&new_loglikes);
+
+    if (loglikes_.NumRows() < num_frames_ + num_frames) {
+        int step = num_frames > 1024 ? num_frames : 1024;
+    	Matrix<BaseFloat> tmp(loglikes_.NumRows()+step, trans_model_.NumPdfs(), kUndefined);
+    	tmp.RowRange(0, num_frames_).CopyFromMat(loglikes_.RowRange(0, num_frames_));
+    	loglikes_.Swap(&tmp);
     }
+    loglikes_.RowRange(num_frames_, num_frames).CopyFromMat(loglikes);
+    num_frames_ += num_frames;
   }
 
   void InputIsFinished() { input_is_finished_ = true; }
@@ -132,7 +128,8 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
 
   void Reset() {
 	  input_is_finished_ = false;
-	  loglikes_.Resize(0,0);
+	  loglikes_.Resize(1024, trans_model_.NumPdfs(), kUndefined);
+	  num_frames_ = 0;
   }
 
   virtual int32 NumIndices() const { return trans_model_.NumTransitionIds(); }
@@ -144,6 +141,7 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
   Matrix<BaseFloat> loglikes_;
   BaseFloat scale_;
   bool input_is_finished_;
+  int num_frames_;
   KALDI_DISALLOW_COPY_AND_ASSIGN(OnlineDecodableMatrixMapped);
 };
 

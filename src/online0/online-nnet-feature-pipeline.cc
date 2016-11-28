@@ -145,6 +145,10 @@ void OnlineNnetFeaturePipeline::GetFrame(int32 frame,
 	return final_feature_->GetFrame(frame, feat);
 }
 
+void OnlineNnetFeaturePipeline::Reset() {
+	final_feature_->Reset();
+}
+
 BaseFloat OnlineNnetFeaturePipeline::FrameShiftInSeconds() const {
 	return base_feature_->FrameShiftInSeconds();
 }
