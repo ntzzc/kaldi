@@ -68,10 +68,15 @@ int main(int argc, char *argv[])
 	    Int32VectorWriter words_writer(decoding_opts.words_wspecifier);
 	    Int32VectorWriter alignment_writer(decoding_opts.alignment_wspecifier);
 
+	    //SequentialTableReader<WaveHolder> wav_reader(wav_rspecifier);
+	    std::ifstream wav_reader(wav_rspecifier);
+
 	    TransitionModel trans_model;
 		bool binary;
 		Input ki(decoding_opts.model_rspecifier, &binary);
 		trans_model.Read(ki.Stream(), binary);
+
+	    OnlineDecodableMatrixMapped decodable(trans_model, decoding_opts.acoustic_scale);
 
 	    fst::Fst<fst::StdArc> *decode_fst = ReadFstKaldi(decoding_opts.fst_rspecifier);
 	    fst::SymbolTable *word_syms = NULL;
@@ -81,7 +86,6 @@ int main(int argc, char *argv[])
 	    DecoderSync decoder_sync;
 
 	    OnlineNnetFasterDecoder decoder(*decode_fst, decoder_opts);
-	    OnlineDecodableMatrixMapped decodable(trans_model, decoding_opts.acoustic_scale);
 
 	    OnlineNnetDecodingClass decoding(decoding_opts,
 	    								&decoder, &decodable, &decoder_sync,
@@ -90,24 +94,27 @@ int main(int argc, char *argv[])
 	    // process the examples.  They get re-joined in its destructor.
 	    MultiThreader<OnlineNnetDecodingClass> m(1, decoding);
 
-	    SequentialTableReader<WaveHolder> wav_reader(wav_rspecifier);
-
         // client feature
         Timer timer;
 
         OnlineNnetFeaturePipeline feature_pipeline(feature_opts);
         OnlineNnetForward forward(forward_opts);
-        BaseFloat chunk_length_secs = 0.05;
+        BaseFloat chunk_length_secs = decoding_opts.chunk_length_secs;
         int feat_dim = feature_pipeline.Dim();
         int batch_size = forward_opts.batch_size;
         Matrix<BaseFloat> feat(batch_size, feat_dim);
         Matrix<BaseFloat> feat_out;
+        char fn[1024];
 
         kaldi::int64 frame_count = 0;
 
-        while (!wav_reader.Done()) {
-            std::string utt_key = wav_reader.Key();
-        	const WaveData &wave_data = wav_reader.Value();
+        while (wav_reader.getline(fn, 1024)) {
+        	WaveHolder holder;
+        	bool binary;
+        	Input ki(fn, &binary);
+        	holder.Read(ki.Stream());
+
+        	const WaveData &wave_data = holder.Value();
             // get the data for channel zero (if the signal is not mono, we only
             // take the first channel).
             SubVector<BaseFloat> data(wave_data.Data(), 0);
@@ -122,6 +129,7 @@ int main(int argc, char *argv[])
 			}
 
 			feature_pipeline.Reset();
+			decodable.Reset();
 			forward.ResetHistory();
 			int32 samp_offset = 0, frame_offset = 0, frame_ready;
 			while (samp_offset < data.Dim()) {
@@ -155,16 +163,14 @@ int main(int argc, char *argv[])
 				}
 			} //part wav
 
+			wav_reader.close();
+			frame_count += frame_offset;
 			// waiting a utterance finished
 			decoder_sync.UtteranceWait();
-			KALDI_LOG << "Finish decode utterance : " << utt_key;
-
-			frame_count += frame_offset;
-			wav_reader.Next();
-			if (wav_reader.Done())
-				decoder_sync.Abort();
-			decodable.Reset();
+			KALDI_LOG << "Finish decode utterance : " << fn;
         }
+
+        decoder_sync.Abort();
 
         double elapsed = timer.Elapsed();
         KALDI_LOG << "Time taken [excluding initialization] "<< elapsed

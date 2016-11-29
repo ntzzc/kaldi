@@ -57,7 +57,7 @@ struct OnlineNnetDecodingOptions {
 
 	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &opts):
                             decoder_opts(opts),
-							acoustic_scale(0.1), allow_partial(true), chunk_length_secs(0.5),
+							acoustic_scale(0.1), allow_partial(true), chunk_length_secs(0.05),
 							silence_phones_str(""),
                             word_syms_filename(""), fst_rspecifier(""), model_rspecifier(""),
                             words_wspecifier(""), alignment_wspecifier("")
