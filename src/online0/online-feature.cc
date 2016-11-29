@@ -185,27 +185,32 @@ OnlineCmvnFeature::OnlineCmvnFeature(const OnlineCmvnOptions &opts,
 int32 OnlineCmvnFeature::NumFramesReady() const
 {
 	int src_frames_ready = src_->NumFramesReady();
-	int curt_frames_ready = features_.size();
-
 	if (src_frames_ready < opts_.min_window)
 		return 0;
+    
+	return src_frames_ready;
+}
+
+void OnlineCmvnFeature::ComputeCmvnInternal()
+{
+	int src_frames_ready = src_->NumFramesReady();
+	int curt_frames_ready = features_.size();
+    Vector<BaseFloat> *this_feature = NULL;
 
 	if (src_frames_ready >= opts_.min_window) {
-		Vector<BaseFloat> *this_feature = NULL;
-
 		for (int i = curt_frames_ready; i < src_frames_ready; i++) {
 			 this_feature = new Vector<BaseFloat>(src_->Dim(), kUndefined);
 			if (opts_.cmn_window >= 0 && i >= opts_.cmn_window) {
 				src_->GetFrame(i-opts_.cmn_window, this_feature);
-				sum_.AddVec(-1.0, this_feature);
+				sum_.AddVec(-1.0, *this_feature);
 				if (opts_.normalize_variance) {
-					sumsq_.AddVec2(-1.0, this_feature);
+					sumsq_.AddVec2(-1.0, *this_feature);
 				}
 			}
 
 			src_->GetFrame(i, this_feature);
-			sum_.AddVec(1.0, this_feature);
-			sumsq_.AddVec2(1.0, this_feature);
+			sum_.AddVec(1.0, *this_feature);
+			sumsq_.AddVec2(1.0, *this_feature);
 			features_.push_back(this_feature);
 
 			// normalize min_window
@@ -249,11 +254,12 @@ int32 OnlineCmvnFeature::NumFramesReady() const
 		} // end for
 	}
 
-	return features_.size();
 }
 
 void OnlineCmvnFeature::GetFrame(int32 frame, VectorBase<BaseFloat> *feat)
 {
+    ComputeCmvnInternal();
+
 	// 'at' does size checking.
 	feat->CopyFromVec(*(features_.at(frame)));
 }

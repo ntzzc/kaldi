@@ -111,7 +111,7 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
     	tmp.RowRange(0, num_frames_).CopyFromMat(loglikes_.RowRange(0, num_frames_));
     	loglikes_.Swap(&tmp);
     }
-    loglikes_.RowRange(num_frames_, num_frames).CopyFromMat(loglikes);
+    loglikes_.RowRange(num_frames_, num_frames).CopyFromMat(*loglikes);
     num_frames_ += num_frames;
   }
 

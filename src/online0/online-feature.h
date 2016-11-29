@@ -36,6 +36,7 @@
 #include "feat/feature-mfcc.h"
 #include "feat/feature-plp.h"
 #include "feat/feature-fbank.h"
+//#include "feat/pitch-functions.h"
 #include "online0/online-feature-interface.h"
 
 namespace kaldi {
@@ -98,7 +99,7 @@ class OnlineGenericBaseFeature: public OnlineBaseFeature {
     ComputeFeatures();
   }
 
-  ~OnlineGenericBaseFeature() {
+  virtual ~OnlineGenericBaseFeature() {
     DeletePointers(&features_);
   }
 
@@ -222,7 +223,9 @@ class OnlineCmvnFeature: public OnlineFeatureInterface {
   //
   // First, functions that are present in the interface:
   //
-  virtual int32 Dim() const;
+  virtual int32 Dim() const {
+    return src_->Dim();
+  }
 
   virtual bool IsLastFrame(int32 frame) const {
     return src_->IsLastFrame(frame);
@@ -247,12 +250,14 @@ class OnlineCmvnFeature: public OnlineFeatureInterface {
   OnlineCmvnFeature(const OnlineCmvnOptions &opts,
                      OnlineFeatureInterface *src);
 
-  ~OnlineCmvnFeature() {
+  virtual ~OnlineCmvnFeature() {
     DeletePointers(&features_);
   }
 
  private:
-  OnlineCmvnOptions opts_;
+  void ComputeCmvnInternal();
+
+  const OnlineCmvnOptions &opts_;
   OnlineFeatureInterface *src_;  // Not owned here
 
   Vector<double> sum_;

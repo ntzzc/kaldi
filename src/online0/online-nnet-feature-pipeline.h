@@ -80,11 +80,9 @@ struct OnlineNnetFeaturePipelineConfig {
 struct OnlineNnetFeaturePipelineOptions {
 	OnlineNnetFeaturePipelineOptions():
 		feature_type("fbank"), add_pitch(false),
-		add_deltas(false), add_cmvn(false), splice_feats(false) { }
+		add_cmvn(false), add_deltas(false), splice_feats(false) { }
 
 	OnlineNnetFeaturePipelineOptions(const OnlineNnetFeaturePipelineConfig &config);
-
-	BaseFloat FrameShiftInSeconds() const;
 
 	std::string feature_type;  // "mfcc" or "plp" or "fbank"
 
@@ -93,8 +91,8 @@ struct OnlineNnetFeaturePipelineOptions {
 	FbankOptions fbank_opts;  	// options for filterbank computation, if feature_type == "fbank"
 
 	bool add_pitch;
-	PitchExtractionOptions pitch_opts;  // Options for pitch extraction, if done.
-	ProcessPitchOptions pitch_process_opts;  // Options for pitch post-processing
+	//PitchExtractionOptions pitch_opts;  // Options for pitch extraction, if done.
+	//ProcessPitchOptions pitch_process_opts;  // Options for pitch post-processing
 
 	bool add_cmvn;
 	OnlineCmvnOptions cmvn_opts;  // Options for online CMN/CMVN computation.

@@ -24,7 +24,7 @@ namespace kaldi {
 OnlineNnetFeaturePipelineOptions::OnlineNnetFeaturePipelineOptions(
 		const OnlineNnetFeaturePipelineConfig &config):
 		feature_type("fbank"), add_pitch(false),
-		add_deltas(false), add_cmvn(false), splice_feats(false) {
+		add_cmvn(false), add_deltas(false), splice_feats(false) {
 
 	if (config.feature_type == "mfcc" || config.feature_type == "plp" ||
 	  config.feature_type == "fbank") {
@@ -77,7 +77,7 @@ OnlineNnetFeaturePipeline::OnlineNnetFeaturePipeline(
   if (opts.feature_type == "mfcc") {
     base_feature_ = new OnlineMfcc(opts.mfcc_opts);
   } else if (opts.feature_type == "plp") {
-    base_feature_ = new OnlinePlp(info_.plp_opts);
+    base_feature_ = new OnlinePlp(opts.plp_opts);
   } else if (opts.feature_type == "fbank") {
     base_feature_ = new OnlineFbank(opts.fbank_opts);
   } else {

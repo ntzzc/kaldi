@@ -22,6 +22,7 @@
 
 #include "util/circular-queue.h"
 #include "thread/kaldi-mutex.h"
+#include "nnet0/nnet-nnet.h"
 #include "nnet0/nnet-trnopts.h"
 #include "nnet0/nnet-pdf-prior.h"
 
@@ -40,11 +41,11 @@ struct OnlineNnetForwardOptions {
     int32 batch_size;
     int32 num_stream;
 
-    const PdfPriorOptions *prior_opts;
+    PdfPriorOptions prior_opts;
 
-    OnlineNnetForwardOptions(const PdfPriorOptions *prior_opts)
+    OnlineNnetForwardOptions()
     	:feature_transform(""),network_model(""),no_softmax(true),apply_log(false),
-		 use_gpu("no"),gpuid(-1),num_threads(1),batch_size(8),num_stream(1),prior_opts(prior_opts)
+		 use_gpu("no"),gpuid(-1),num_threads(1),batch_size(8),num_stream(1)
     {
 
     }
@@ -64,16 +65,18 @@ struct OnlineNnetForwardOptions {
         po->Register("batch-size", &batch_size, "---LSTM--- BPTT batch size");
         po->Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training");
         //</jiayu>
+
+        prior_opts.Register(po);
     }
 
 };
 
-using namespace kaldi::nnet0;
 
 class OnlineNnetForward {
 public:
 	OnlineNnetForward(const OnlineNnetForwardOptions &opts):
-		opts_(opts)
+		opts_(opts),
+	    pdf_prior_(opts.prior_opts) // we will subtract log-priors later,
 	{
 #if HAVE_CUDA==1
 		if (opts_.use_gpu == "yes") {
@@ -83,6 +86,7 @@ public:
 				CuDevice::Instantiate().SelectPreferGpu(opts_.gpuid);
 		}
 #endif
+        using namespace kaldi::nnet0;
 
 		bool no_softmax = opts_.no_softmax;
 		bool apply_log = opts_.apply_log;
@@ -112,15 +116,13 @@ public:
 	      KALDI_ERR << "Cannot use both --apply-log=true --no-softmax=true, use only one of the two!";
 	    }
 
-	    // we will subtract log-priors later,
-	    pdf_prior_(*opts.prior_opts);
 
 	    int input_dim = feature_transform != "" ? nnet_transf_.InputDim() : nnet_.InputDim();
 	    int output_dim = nnet_.OutputDim();
 	    feat_.Resize(batch_size * num_stream, input_dim, kSetZero, kStrideEqualNumCols);
 	    feat_out_.Resize(batch_size * num_stream, output_dim, kSetZero, kStrideEqualNumCols);
 
-	    new_utt_flags_(opts.num_stream, 1);
+	    new_utt_flags_.resize(opts.num_stream, 1);
 	}
 
 	void Forward(const MatrixBase<BaseFloat> &in, Matrix<BaseFloat> *out) {
@@ -140,11 +142,12 @@ public:
     	}
 
     	// subtract log-priors from log-posteriors or pre-softmax,
-    	if (opts_.prior_opts->class_frame_counts != "") {
+    	if (opts_.prior_opts.class_frame_counts != "") {
     		pdf_prior_.SubtractOnLogpost(&feat_out_);
     	}
 
-    	*out = feat_out_;
+        out->Resize(feat_out_.NumRows(), feat_out_.NumCols(), kUndefined);
+    	out->CopyFromMat(feat_out_);
 	}
 
 	void ResetHistory() {
@@ -153,9 +156,9 @@ public:
 
 private:
 	const OnlineNnetForwardOptions &opts_;
-	Nnet nnet_transf_;
-	Nnet nnet_;
-	PdfPrior pdf_prior_;
+	kaldi::nnet0::PdfPrior pdf_prior_;
+	kaldi::nnet0::Nnet nnet_transf_;
+	kaldi::nnet0::Nnet nnet_;
 	CuMatrix<BaseFloat> feat_;
 	CuMatrix<BaseFloat> feat_out_;
 	std::vector<int> new_utt_flags_;

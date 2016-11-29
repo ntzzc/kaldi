@@ -26,13 +26,13 @@
 #include "thread/kaldi-mutex.h"
 
 #include "online0/online-nnet-faster-decoder.h"
+#include "online0/online-nnet-feature-pipeline.h"
+#include "online0/online-nnet-forward.h"
 
 namespace kaldi {
 
 struct OnlineNnetDecodingOptions {
-	OnlineNnetFeaturePipelineOptions feature_opts;
-	OnlineNnetFasterDecoderOptions decoder_opts;
-	OnlineNnetForwardOptions forward_opts;
+	const OnlineNnetFasterDecoderOptions decoder_opts;
 
 	/// feature pipeline config
 	OnlineNnetFeaturePipelineConfig feature_cfg;
@@ -44,7 +44,6 @@ struct OnlineNnetDecodingOptions {
 	std::string forward_cfg;
 
 	/// decoding options
-
 	BaseFloat acoustic_scale;
 	bool allow_partial;
 	int32 chunk_length_secs;
@@ -56,10 +55,12 @@ struct OnlineNnetDecodingOptions {
 	std::string words_wspecifier;
 	std::string alignment_wspecifier;
 
-	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &decoder_opts):
-                            decoder_opts(decoder_opts),
-							acoustic_scale(0.1), allow_partial(true), word_syms_filename(""),
-							silence_phones_str("")
+	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &opts):
+                            decoder_opts(opts),
+							acoustic_scale(0.1), allow_partial(true), chunk_length_secs(0.5),
+							silence_phones_str(""),
+                            word_syms_filename(""), fst_rspecifier(""), model_rspecifier(""),
+                            words_wspecifier(""), alignment_wspecifier("")
     { }
 
 	void Register(OptionsItf *po)
@@ -71,14 +72,14 @@ struct OnlineNnetDecodingOptions {
 
 		po->Register("acoustic-scale", &acoustic_scale, "Scaling factor for acoustic likelihoods");
 		po->Register("allow-partial", &allow_partial, "Produce output even when final state was not reached");
-		po->Register("word-symbol-table", &word_syms_filename, "Symbol table for words [for debug output]");
 
-		po->Register("silence-phones", &silence_phones_str,
-		                     "Colon-separated list of integer ids of silence phones, e.g. 1:2:3");
 	    po->Register("chunk-length", &chunk_length_secs,
 	                "Length of chunk size in seconds, that we process.  Set to <= 0 "
 	                "to use all input in one chunk.");
+		po->Register("silence-phones", &silence_phones_str,
+                     "Colon-separated list of integer ids of silence phones, e.g. 1:2:3");
 
+		po->Register("word-symbol-table", &word_syms_filename, "Symbol table for words [for debug output]");
 	    po->Register("fst-rspecifier", &fst_rspecifier, "fst filename");
 	    po->Register("model-rspecifier", &model_rspecifier, "transition model filename");
 	    po->Register("words-wspecifier", &words_wspecifier, "transcript wspecifier");
@@ -178,7 +179,6 @@ public:
 		std::vector<int32> tids;
 		typedef OnlineNnetFasterDecoder::DecodeState DecodeState;
 		int batch_size = opts_.decoder_opts.batch_size;
-		SocketDecodable decodable;
 		std::string utt;
 
 		while (!decoder_sync_->IsFinsihed())
@@ -238,8 +238,8 @@ private:
 
 	const OnlineNnetDecodingOptions &opts_;
 	OnlineNnetFasterDecoder *decoder_;
-	DecoderSync *decoder_sync_;
 	OnlineDecodableMatrixMapped *decodable_;
+	DecoderSync *decoder_sync_;
 	fst::SymbolTable &word_syms_;
 	Int32VectorWriter &words_writer_;
 	Int32VectorWriter &alignment_writer_;
