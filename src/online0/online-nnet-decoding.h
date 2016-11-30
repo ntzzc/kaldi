@@ -96,23 +96,19 @@ public:
 	is_finished_(false), is_waited_(true) {}
 	~DecoderSync() {}
 
-	void UtteranceWait()
-	{
+	void UtteranceWait() {
 		sema_utt_.Wait();
 	}
 
-	void UtteranceSignal()
-	{
+	void UtteranceSignal() {
 		sema_utt_.Signal();
 	}
 
-	std::string GetUtt()
-	{
+	std::string GetUtt() {
 		return cur_utt_;
 	}
 
-	void SetUtt(std::string utt)
-	{
+	void SetUtt(std::string utt) {
 		mutex_.Lock();
 		cur_utt_ = utt;
 		mutex_.Unlock();
@@ -134,13 +130,11 @@ public:
 		sema_batch_.Wait();
 	}
 
-    bool IsFinsihed()
-    {
+    bool IsFinsihed() {
         return is_finished_;
     }
 
-    void Abort() 
-    {
+    void Abort() {
         is_finished_ = true;
     }
 

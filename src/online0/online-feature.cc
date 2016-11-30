@@ -217,8 +217,8 @@ void OnlineCmvnFeature::ComputeCmvnInternal()
 			features_.push_back(this_feature);
 
 			// normalize min_window
-			if (i == opts_.min_window-1 || (isfinished && i == src_frames_ready-1)) {
-				int num_frames = isfinished ? src_frames_ready : opts_.min_window;
+			if (i == opts_.min_window-1 || (isfinished && src_frames_ready <= opts_.min_window && i == src_frames_ready-1)) {
+				int num_frames = (isfinished && src_frames_ready <= opts_.min_window) ? src_frames_ready : opts_.min_window;
 				for (int j = 0; j < num_frames; j++) {
 					if (opts_.normalize_mean)
 						features_[j]->AddVec(-1.0/num_frames, sum_);

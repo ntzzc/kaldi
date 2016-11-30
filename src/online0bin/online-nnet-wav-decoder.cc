@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
         int feat_dim = feature_pipeline.Dim();
         int skip_frames = decoding_opts.skip_frames;
         int batch_size = forward_opts.batch_size * skip_frames;
-        Matrix<BaseFloat> feat(batch_size, feat_dim);
+        Matrix<BaseFloat> feat(forward_opts.batch_size, feat_dim);
         Matrix<BaseFloat> feat_out, feat_out_ready;
         char fn[1024];
 
@@ -185,8 +185,8 @@ int main(int argc, char *argv[])
 			KALDI_LOG << "Finish decode utterance: " << fn;
         }
 
-		wav_reader.close();
         decoder_sync.Abort();
+		wav_reader.close();
 
         double elapsed = timer.Elapsed();
         KALDI_LOG << "Time taken [excluding initialization] "<< elapsed
