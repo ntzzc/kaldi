@@ -70,10 +70,11 @@ class OnlineGenericBaseFeature: public OnlineBaseFeature {
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
   virtual void Reset() {
-	input_finished_ = false;
-	waveform_offset_ = 0;
 	DeletePointers(&features_);
 	features_.resize(0);
+	input_finished_ = false;
+	waveform_offset_ = 0;
+    waveform_remainder_.Resize(0);
   }
 
   // Next, functions that are not in the interface.
@@ -161,7 +162,9 @@ class OnlineDeltaFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
-  virtual void Reset() {};
+  virtual void Reset() {
+    src_->Reset();  
+  }
 
   //
   // Next, functions that are not in the interface.
@@ -241,7 +244,10 @@ class OnlineCmvnFeature: public OnlineFeatureInterface {
 
   virtual void Reset() {
 	DeletePointers(&features_);
+	sum_.Resize(src_->Dim());
+	sumsq_.Resize(src_->Dim());
 	features_.resize(0);
+    src_->Reset();
   }
 
   //
@@ -308,7 +314,9 @@ class OnlineSpliceFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
-  virtual void Reset() {}
+  virtual void Reset() {
+    src_->Reset(); 
+  }
 
   //
   // Next, functions that are not in the interface.

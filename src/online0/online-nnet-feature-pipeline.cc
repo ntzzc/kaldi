@@ -55,6 +55,7 @@ OnlineNnetFeaturePipelineOptions::OnlineNnetFeaturePipelineOptions(
 				 << "since feature type is set to " << feature_type << ".";
 	}  // else use the defaults.
 
+    add_cmvn = config.add_cmvn;
 	if (config.cmvn_config != "") {
 		ReadConfigFromFile(config.cmvn_config, &cmvn_opts);
 		if (!add_cmvn)
@@ -62,11 +63,20 @@ OnlineNnetFeaturePipelineOptions::OnlineNnetFeaturePipelineOptions(
 				 << "since you did not supply --add-cmvn option.";
 	}  // else use the defaults.
 
+    add_deltas = config.add_deltas;
 	if (config.delta_config != "") {
 		ReadConfigFromFile(config.delta_config, &delta_opts);
 		if (!add_deltas)
 			KALDI_WARN << "--delta-config option has no effect "
 				 << "since you did not supply --add-deltas option.";
+	}  // else use the defaults.
+
+    splice_feats = config.splice_feats;
+	if (config.splice_config != "") {
+		ReadConfigFromFile(config.splice_config, &splice_opts);
+		if (!splice_feats)
+			KALDI_WARN << "--delta-splice option has no effect "
+				 << "since you did not supply --add-splice option.";
 	}  // else use the defaults.
 }
 
@@ -109,8 +119,6 @@ OnlineNnetFeaturePipeline::OnlineNnetFeaturePipeline(
   } else {
 	  splice_feature_ = NULL;
   }
-
-  final_feature_ = delta_feature_;
 }
 
 OnlineNnetFeaturePipeline::~OnlineNnetFeaturePipeline() {

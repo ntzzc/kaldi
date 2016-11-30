@@ -61,6 +61,8 @@ struct OnlineNnetFeaturePipelineConfig {
 	    opts->Register("online-pitch-config", &online_pitch_config, "Configuration "
 	                   "file for online pitch features, if --add-pitch=true (e.g. "
 	                   "conf/online_pitch.conf)");
+        opts->Register("add-cmvn", &add_cmvn,
+                       "Apply cmvn features.");
 	    opts->Register("cmvn-config", &cmvn_config, "Configuration class "
 	                   "file for online CMVN features (e.g. conf/online_cmvn.conf)");
 	    opts->Register("add-deltas", &add_deltas,

@@ -75,8 +75,7 @@ struct OnlineNnetForwardOptions {
 class OnlineNnetForward {
 public:
 	OnlineNnetForward(const OnlineNnetForwardOptions &opts):
-		opts_(opts),
-	    pdf_prior_(opts.prior_opts) // we will subtract log-priors later,
+		opts_(opts), pdf_prior_(NULL)
 	{
 #if HAVE_CUDA==1
 		if (opts_.use_gpu == "yes") {
@@ -116,6 +115,9 @@ public:
 	      KALDI_ERR << "Cannot use both --apply-log=true --no-softmax=true, use only one of the two!";
 	    }
 
+        // we will subtract log-priors later,
+    	if (opts_.prior_opts.class_frame_counts != "") 
+	        pdf_prior_ = new PdfPrior(opts.prior_opts);
 
 	    int input_dim = feature_transform != "" ? nnet_transf_.InputDim() : nnet_.InputDim();
 	    int output_dim = nnet_.OutputDim();
@@ -125,10 +127,14 @@ public:
 	    new_utt_flags_.resize(opts.num_stream, 1);
 	}
 
+    virtual ~OnlineNnetForward() {
+        if (pdf_prior_ != NULL)
+            delete pdf_prior_;
+    }
+
 	void Forward(const MatrixBase<BaseFloat> &in, Matrix<BaseFloat> *out) {
 		CuMatrix<BaseFloat> feats_transf;
 		feat_.CopyFromMat(in);
-
 		nnet_transf_.Propagate(feat_, &feats_transf); // Feedforward
 		// for streams with new utterance, history states need to be reset
 		nnet_.ResetLstmStreams(new_utt_flags_);
@@ -142,12 +148,13 @@ public:
     	}
 
     	// subtract log-priors from log-posteriors or pre-softmax,
-    	if (opts_.prior_opts.class_frame_counts != "") {
-    		pdf_prior_.SubtractOnLogpost(&feat_out_);
+    	if (pdf_prior_ != NULL) {
+    		pdf_prior_->SubtractOnLogpost(&feat_out_);
     	}
 
         out->Resize(feat_out_.NumRows(), feat_out_.NumCols(), kUndefined);
     	out->CopyFromMat(feat_out_);
+	    new_utt_flags_.resize(opts_.num_stream, 0);
 	}
 
 	void ResetHistory() {
@@ -156,7 +163,7 @@ public:
 
 private:
 	const OnlineNnetForwardOptions &opts_;
-	kaldi::nnet0::PdfPrior pdf_prior_;
+	kaldi::nnet0::PdfPrior *pdf_prior_;
 	kaldi::nnet0::Nnet nnet_transf_;
 	kaldi::nnet0::Nnet nnet_;
 	CuMatrix<BaseFloat> feat_;

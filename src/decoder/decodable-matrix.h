@@ -116,6 +116,7 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
   }
 
   void InputIsFinished() { input_is_finished_ = true; }
+  bool IsInputFinished() { return input_is_finished_;}
 
   virtual bool IsLastFrame(int32 frame) const {
     KALDI_ASSERT(frame < NumFramesReady());

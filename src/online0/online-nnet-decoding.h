@@ -46,7 +46,7 @@ struct OnlineNnetDecodingOptions {
 	/// decoding options
 	BaseFloat acoustic_scale;
 	bool allow_partial;
-	int32 chunk_length_secs;
+	BaseFloat chunk_length_secs;
 	std::string silence_phones_str;
 
 	std::string word_syms_filename;
@@ -179,21 +179,19 @@ public:
 		std::vector<int32> tids;
 		typedef OnlineNnetFasterDecoder::DecodeState DecodeState;
 		int batch_size = opts_.decoder_opts.batch_size;
+        int frame_decoded, frame_ready;
 		std::string utt;
 
 		while (!decoder_sync_->IsFinsihed())
 		{
 			decoder_->ResetDecoder(true);
 			decoder_->InitDecoding();
-			decodable_->Reset();
 
 			while (true)
 			{
 				decoder_sync_->DecoderWait();
 
-				int frame_ready = decodable_->NumFramesReady();
-				int frame_decoded = decoder_->NumFramesDecoded();
-				while (frame_ready >= frame_decoded+batch_size)
+				while (decodable_->NumFramesReady() >= decoder_->NumFramesDecoded() + batch_size)
 				{
 					decoder_->Decode(decodable_);
 					if (decoder_->PartialTraceback(&out_fst))
@@ -204,11 +202,13 @@ public:
 					}
 				}
 
-				if (decodable_->IsLastFrame(frame_ready-1) && frame_ready < frame_decoded+batch_size)
+
+				frame_ready = decodable_->NumFramesReady();
+				frame_decoded = decoder_->NumFramesDecoded();
+				if (decodable_->IsLastFrame(frame_ready-1) && frame_ready <= frame_decoded+batch_size)
 				{
 					utt = decoder_sync_->GetUtt();
 
-					decodable_->InputIsFinished();
 					decoder_->Decode(decodable_);
 
 					decoder_->FinishTraceBack(&out_fst);

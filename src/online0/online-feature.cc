@@ -217,7 +217,7 @@ void OnlineCmvnFeature::ComputeCmvnInternal()
 			if (i == opts_.min_window - 1) {
 				for (int j = 0; j < opts_.min_window; j++) {
 					if (opts_.normalize_mean)
-						features_[i]->AddVec(-1.0/opts_.min_window, sum_);
+						features_[j]->AddVec(-1.0/opts_.min_window, sum_);
 					if (opts_.normalize_variance) {
 						Vector<double> variance(sumsq_);
 						variance.Scale(1.0/opts_.min_window);
@@ -228,7 +228,7 @@ void OnlineCmvnFeature::ComputeCmvnInternal()
 									 << " elements; num-frames was " << opts_.min_window;
 						}
 						variance.ApplyPow(-0.5); // get inverse standard deviation.
-						features_[i]->MulElements(variance);
+						features_[j]->MulElements(variance);
 					}
 				}
 			}

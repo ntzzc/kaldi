@@ -65,6 +65,11 @@ int main(int argc, char *argv[])
 		ReadConfigFromFile(decoding_opts.decoder_cfg, &decoder_opts);
 		ReadConfigFromFile(decoding_opts.forward_cfg, &forward_opts);
 
+#if HAVE_CUDA==1
+    if (forward_opts.use_gpu == "yes")
+        CuDevice::Instantiate().Initialize();
+#endif
+
 	    Int32VectorWriter words_writer(decoding_opts.words_wspecifier);
 	    Int32VectorWriter alignment_writer(decoding_opts.alignment_wspecifier);
 
@@ -77,16 +82,14 @@ int main(int argc, char *argv[])
 		trans_model.Read(ki.Stream(), binary);
 
 	    OnlineDecodableMatrixMapped decodable(trans_model, decoding_opts.acoustic_scale);
+	    DecoderSync decoder_sync;
 
 	    fst::Fst<fst::StdArc> *decode_fst = ReadFstKaldi(decoding_opts.fst_rspecifier);
 	    fst::SymbolTable *word_syms = NULL;
 	    if (!(word_syms = fst::SymbolTable::ReadText(decoding_opts.word_syms_filename)))
 	        KALDI_ERR << "Could not read symbol table from file " << decoding_opts.word_syms_filename;
 
-	    DecoderSync decoder_sync;
-
 	    OnlineNnetFasterDecoder decoder(*decode_fst, decoder_opts);
-
 	    OnlineNnetDecodingClass decoding(decoding_opts,
 	    								&decoder, &decodable, &decoder_sync,
 										*word_syms, words_writer, alignment_writer);
@@ -146,7 +149,9 @@ int main(int argc, char *argv[])
 					frame_ready = feature_pipeline.NumFramesReady();
 					if (!feature_pipeline.IsLastFrame(frame_ready-1) && frame_ready < frame_offset+batch_size)
 						break;
-					else if (feature_pipeline.IsLastFrame(frame_ready-1)) {
+                    else if (feature_pipeline.IsLastFrame(frame_ready-1) && frame_ready == frame_offset)
+                        break;
+					else if (feature_pipeline.IsLastFrame(frame_ready-1) && frame_ready < frame_offset+batch_size) {
 						frame_ready -= frame_offset;
 						feat.SetZero();
 					}
@@ -160,16 +165,18 @@ int main(int argc, char *argv[])
 					forward.Forward(feat, &feat_out);
 					decodable.AcceptLoglikes(&feat_out);
 					decoder_sync.DecoderSignal();
-				}
-			} //part wav
+				} // part wav data
+			} // finish a wav 
 
-			wav_reader.close();
 			frame_count += frame_offset;
+			decodable.InputIsFinished();
+			decoder_sync.DecoderSignal();
 			// waiting a utterance finished
 			decoder_sync.UtteranceWait();
 			KALDI_LOG << "Finish decode utterance : " << fn;
         }
 
+		wav_reader.close();
         decoder_sync.Abort();
 
         double elapsed = timer.Elapsed();
@@ -177,8 +184,8 @@ int main(int argc, char *argv[])
               << "s: real-time factor assuming 100 frames/sec is "
               << (elapsed*100.0/frame_count);
 
-	    delete decode_fst;
-	    delete word_syms;
+	    //delete decode_fst;
+	    //delete word_syms;
 	    return 0;
 	} catch(const std::exception& e) {
 	    std::cerr << e.what();
