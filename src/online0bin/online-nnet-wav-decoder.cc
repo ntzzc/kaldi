@@ -104,9 +104,10 @@ int main(int argc, char *argv[])
         OnlineNnetForward forward(forward_opts);
         BaseFloat chunk_length_secs = decoding_opts.chunk_length_secs;
         int feat_dim = feature_pipeline.Dim();
-        int batch_size = forward_opts.batch_size;
+        int skip_frames = decoding_opts.skip_frames;
+        int batch_size = forward_opts.batch_size * skip_frames;
         Matrix<BaseFloat> feat(batch_size, feat_dim);
-        Matrix<BaseFloat> feat_out;
+        Matrix<BaseFloat> feat_out, feat_out_ready;
         char fn[1024];
 
         kaldi::int64 frame_count = 0;
@@ -158,12 +159,20 @@ int main(int argc, char *argv[])
 					else
 						frame_ready = batch_size;
 
-					for (int i = 0; i < frame_ready; i++) {
-						feature_pipeline.GetFrame(frame_offset, &feat.Row(i));
-						frame_offset++;
+					for (int i = 0; i < frame_ready; i += skip_frames) {
+						feature_pipeline.GetFrame(frame_offset+i, &feat.Row(i/skip_frames));
 					}
+					frame_offset += frame_ready;
+
+					// feed forward to neural network
 					forward.Forward(feat, &feat_out);
-					decodable.AcceptLoglikes(&feat_out);
+
+					// copy posterior
+					feat_out_ready.Resize(frame_ready, feat_out.NumCols(), kUndefined);
+					for (int i = 0; i < frame_ready; i++) {
+						feat_out_ready.Row(i).CopyFromVec(feat_out.Row(i/skip_frames));
+					}
+					decodable.AcceptLoglikes(&feat_out_ready);
 					decoder_sync.DecoderSignal();
 				} // part wav data
 			} // finish a wav 
@@ -173,7 +182,7 @@ int main(int argc, char *argv[])
 			decoder_sync.DecoderSignal();
 			// waiting a utterance finished
 			decoder_sync.UtteranceWait();
-			KALDI_LOG << "Finish decode utterance : " << fn;
+			KALDI_LOG << "Finish decode utterance: " << fn;
         }
 
 		wav_reader.close();

@@ -185,7 +185,8 @@ OnlineCmvnFeature::OnlineCmvnFeature(const OnlineCmvnOptions &opts,
 int32 OnlineCmvnFeature::NumFramesReady() const
 {
 	int src_frames_ready = src_->NumFramesReady();
-	if (src_frames_ready < opts_.min_window)
+	bool isfinished = src_->IsLastFrame(src_frames_ready-1);
+	if (!isfinished && src_frames_ready < opts_.min_window)
 		return 0;
     
 	return src_frames_ready;
@@ -195,9 +196,11 @@ void OnlineCmvnFeature::ComputeCmvnInternal()
 {
 	int src_frames_ready = src_->NumFramesReady();
 	int curt_frames_ready = features_.size();
+    bool isfinished = src_->IsLastFrame(src_frames_ready-1);
+
     Vector<BaseFloat> *this_feature = NULL;
 
-	if (src_frames_ready >= opts_.min_window) {
+	if (src_frames_ready >= opts_.min_window || isfinished) {
 		for (int i = curt_frames_ready; i < src_frames_ready; i++) {
 			 this_feature = new Vector<BaseFloat>(src_->Dim(), kUndefined);
 			if (opts_.cmn_window >= 0 && i >= opts_.cmn_window) {
@@ -214,18 +217,19 @@ void OnlineCmvnFeature::ComputeCmvnInternal()
 			features_.push_back(this_feature);
 
 			// normalize min_window
-			if (i == opts_.min_window - 1) {
-				for (int j = 0; j < opts_.min_window; j++) {
+			if (i == opts_.min_window-1 || (isfinished && i == src_frames_ready-1)) {
+				int num_frames = isfinished ? src_frames_ready : opts_.min_window;
+				for (int j = 0; j < num_frames; j++) {
 					if (opts_.normalize_mean)
-						features_[j]->AddVec(-1.0/opts_.min_window, sum_);
+						features_[j]->AddVec(-1.0/num_frames, sum_);
 					if (opts_.normalize_variance) {
 						Vector<double> variance(sumsq_);
-						variance.Scale(1.0/opts_.min_window);
-						variance.AddVec2(-1.0/(opts_.min_window * opts_.min_window), sum_);
+						variance.Scale(1.0/num_frames);
+						variance.AddVec2(-1.0/(num_frames * num_frames), sum_);
 						int32 num_floored = variance.ApplyFloor(1.0e-10);
 						if (num_floored > 0) {
 						  KALDI_WARN << "Flooring variance When normalizing variance, floored " << num_floored
-									 << " elements; num-frames was " << opts_.min_window;
+									 << " elements; num-frames was " << num_frames;
 						}
 						variance.ApplyPow(-0.5); // get inverse standard deviation.
 						features_[j]->MulElements(variance);

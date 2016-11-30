@@ -47,6 +47,7 @@ struct OnlineNnetDecodingOptions {
 	BaseFloat acoustic_scale;
 	bool allow_partial;
 	BaseFloat chunk_length_secs;
+	int32 skip_frames;
 	std::string silence_phones_str;
 
 	std::string word_syms_filename;
@@ -58,7 +59,7 @@ struct OnlineNnetDecodingOptions {
 	OnlineNnetDecodingOptions(const OnlineNnetFasterDecoderOptions &opts):
                             decoder_opts(opts),
 							acoustic_scale(0.1), allow_partial(true), chunk_length_secs(0.05),
-							silence_phones_str(""),
+							skip_frames(1), silence_phones_str(""),
                             word_syms_filename(""), fst_rspecifier(""), model_rspecifier(""),
                             words_wspecifier(""), alignment_wspecifier("")
     { }
@@ -76,6 +77,7 @@ struct OnlineNnetDecodingOptions {
 	    po->Register("chunk-length", &chunk_length_secs,
 	                "Length of chunk size in seconds, that we process.  Set to <= 0 "
 	                "to use all input in one chunk.");
+	    po->Register("skip-frames", &skip_frames, "skip frames for next input");
 		po->Register("silence-phones", &silence_phones_str,
                      "Colon-separated list of integer ids of silence phones, e.g. 1:2:3");
 
