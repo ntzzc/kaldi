@@ -23,7 +23,7 @@
 #include "util/common-utils.h"
 #include "feat/wave-reader.h"
 
-#include "online0/onlinebin-util.h"
+#include "online/onlinebin-util.h"
 #include "online0/online-nnet-feature-pipeline.h"
 
 int main(int argc, char *argv[])
@@ -66,7 +66,6 @@ int main(int argc, char *argv[])
 		SequentialTableReader<WaveHolder> wav_reader(wav_rspecifier);
 		BaseFloatMatrixWriter feat_writer(output_wspecifier);
 
-		int feat_dim = feature_pipeline.Dim();
 		BaseFloat samp_freq;
 		int frame_ready;
 
@@ -75,7 +74,7 @@ int main(int argc, char *argv[])
 		kaldi::int64 frame_count = 0;
 
 		Timer timer;
-		while (!wav_reader.Done()) {
+		for (; !wav_reader.Done(); wav_reader.Next()) {
 			std::string utt = wav_reader.Key();
 			const WaveData &wave_data = wav_reader.Value();
 			// get the data for channel zero (if the signal is not mono, we only

@@ -1,5 +1,6 @@
-// online/online-faster-decoder.cc
+// online0/online-nnet-faster-decoder.cc
 
+// Copyright 2012 Cisco Systems (author: Matthias Paulik)
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
 //   Modifications to the original contribution by Cisco Systems made by:
@@ -211,7 +212,7 @@ OnlineNnetFasterDecoder::DecodeState
 OnlineNnetFasterDecoder::Decode(DecodableInterface *decodable) {
   if (state_ == kEndFeats) // new utterance
     ResetDecoder(state_ == kEndFeats);
-  //ProcessNonemitting(std::numeric_limits<float>::max());
+  ProcessNonemitting(std::numeric_limits<float>::max());
   int32 batch_frame = 0;
   Timer timer;
   double64 tstart = timer.Elapsed(), tstart_batch = tstart;
