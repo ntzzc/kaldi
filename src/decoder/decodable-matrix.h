@@ -100,7 +100,7 @@ class OnlineDecodableMatrixMapped: public DecodableInterface {
   // a number equal to frames_to_discard.  You should only set frames_to_discard
   // to nonzero if you know your decoder won't want to access the loglikes
   // for older frames.
-  void AcceptLoglikes(Matrix<BaseFloat> *loglikes) {
+  void AcceptLoglikes(const Matrix<BaseFloat> *loglikes) {
 	int num_frames = loglikes->NumRows();
 	if (num_frames == 0) return;
     KALDI_ASSERT(loglikes->NumCols() == trans_model_.NumPdfs());
