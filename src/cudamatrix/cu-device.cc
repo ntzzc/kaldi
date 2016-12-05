@@ -800,7 +800,7 @@ int CuDevice::SelectGpu()
 {
 
 	int max_id = 0;
-	  //select device if more than one
+	// select device if more than one
 	int32 n_gpu = 0;
 	cudaGetDeviceCount(&n_gpu);
 
@@ -809,6 +809,20 @@ int CuDevice::SelectGpu()
 		 return -1;
 	}
 
+	// reset gpuinfo if all GPU are used.
+	int i = 0;
+	for (i = 0; i < gpuinfo_.size(); i++) {
+		if (!gpuinfo_[i].used) {
+			break;
+		}
+	}
+
+	if (i == gpuinfo_.size()) {
+		for (i = 0; i < gpuinfo_.size(); i++)
+			gpuinfo_[i].used = false;
+	}
+
+	// select best GPU
 	if (n_gpu > 0)
 	{
 		for (int i = 0; i < gpuinfo_.size(); i++)
