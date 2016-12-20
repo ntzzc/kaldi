@@ -53,6 +53,10 @@ class LossItf {
 
   /// Get loss value (frame average),
   virtual BaseFloat AvgLoss() = 0;
+
+  /// Merge statistic data
+  virtual void Add(LossItf *loss);
+  virtual void Merge(int myid, int root);
 };
 
 
@@ -92,7 +96,7 @@ class Xent : public LossItf {
   }
 
   /// Merge statistic data
-  void Add(Xent *xent);
+  void Add(LossItf *loss);
   void Merge(int myid, int root);
 
  private: 
@@ -269,7 +273,7 @@ class Mse : public LossItf {
   }
 
   /// Merge statistic data
-  void Add(Mse *mse);
+  void Add(LossItf *loss);
   void Merge(int myid, int root);
 
  private:
@@ -322,6 +326,10 @@ class MultiTaskLoss : public LossItf {
 
   /// Get loss value (frame average),
   BaseFloat AvgLoss();
+
+  /// Merge statistic data
+  void Add(LossItf *loss);
+  void Merge(int myid, int root);
 
  private:
   std::vector<LossItf*>  loss_vec_;

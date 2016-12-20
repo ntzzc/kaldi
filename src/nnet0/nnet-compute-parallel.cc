@@ -195,7 +195,15 @@ private:
 
 	    Xent xent;
 	    Mse mse;
-
+	    MultiTaskLoss multitask;
+	    if (0 == objective_function.compare(0, 9, "multitask")) {
+		  // objective_function contains something like :
+		  // 'multitask,xent,2456,1.0,mse,440,0.001'
+		  //
+		  // the meaning is following:
+		  // 'multitask,<type1>,<dim1>,<weight1>,...,<typeN>,<dimN>,<weightN>'
+		  multitask.InitFromString(objective_function);
+		}
 
 	    Timer time, mpi_time;
 
@@ -294,7 +302,13 @@ private:
 						mse.Eval(frm_weights, nnet_out, tgt_mat, &nnet_diff);
 					else
 						mse.Eval(frm_weights, nnet_out, nnet_tgt, &nnet_diff);
-				} else {
+				} else if (0 == objective_function.compare(0, 9, "multitask")) {
+			          // gradients re-scaled by weights in Eval,
+					if (this->kld_scale > 0)
+						multitask.Eval(frm_weights, nnet_out, tgt_mat, &nnet_diff);
+					else
+						multitask.Eval(frm_weights, nnet_out, nnet_tgt, &nnet_diff);
+			    } else {
 					KALDI_ERR<< "Unknown objective function code : " << objective_function;
 				}
 
@@ -410,7 +424,9 @@ private:
 		 }else if (objective_function == "mse"){
 			//KALDI_LOG << mse.Report();
 			stats_->mse.Add(&mse);
-		 }else {
+		 }else if (0 == opts->objective_function.compare(0, 9, "multitask")) {
+			 stats_->multitask.Add(&multitask);
+         }else {
 			 KALDI_ERR<< "Unknown objective function code : " << objective_function;
 		 }
 

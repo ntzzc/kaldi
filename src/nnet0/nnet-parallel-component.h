@@ -233,6 +233,21 @@ class ParallelComponent : public UpdatableComponent {
     }
   }
 
+  // collection weight
+  int WeightCopy(void *host, int direction, int copykind) {
+	  int pos = 0;
+	  for (int32 i=0; i<nnet_.size(); i++)
+		  pos += nnet_[i].WeightCopy((void*)((char *)host+pos), direction, copykind);
+	  return pos;
+  }
+
+  int32 GetDim() const {
+	  int32 dim = 0;
+	  for (int32 i=0; i<nnet_.size(); i++)
+		  dim += nnet_[i].GetDim();
+	  return dim;
+  }
+
  private:
   std::vector<Nnet> nnet_;
 };

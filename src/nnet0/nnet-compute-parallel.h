@@ -117,6 +117,7 @@ struct NnetStats {
     kaldi::int64 total_frames;
     Xent xent;
     Mse mse;
+    MultiTaskLoss multitask;
 
     NnetStats():num_done(0),num_no_tgt_mat(0),num_other_error(0),total_frames(0){} //{ std::memset(this, 0, sizeof(*this)); }
 
@@ -143,6 +144,8 @@ struct NnetStats {
         		xent.Merge(myid, 0);
         } else if (opts->objective_function == "mse") {
         		mse.Merge(myid, 0);
+        } else if (0 == opts->objective_function.compare(0, 9, "multitask")) {
+        		multitask.Merge(myid, 0);
         } else {
         		KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
         }
@@ -163,6 +166,8 @@ struct NnetStats {
         	KALDI_LOG << xent.Report();
         } else if (opts->objective_function == "mse") {
         	KALDI_LOG << mse.Report();
+        } else if (0 == opts->objective_function.compare(0, 9, "multitask")) {
+    		KALDI_LOG << multitask.Report();
         } else {
         	KALDI_ERR << "Unknown objective function code : " << opts->objective_function;
         }

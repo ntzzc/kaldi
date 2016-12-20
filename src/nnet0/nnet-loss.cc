@@ -719,20 +719,21 @@ void Mse::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 
 /// Merge lost
-void Xent::Add(Xent *xent)
+void Xent::Add(LossItf *loss)
 {
-	  this->frames_ += xent->frames_;
-	  this->correct_ += xent->correct_;
-	  this->loss_ += xent->loss_;
-	  this->entropy_ += xent->entropy_;
+	Xent *xent = dynamic_cast<Xent*>(loss);
+	this->frames_ += xent->frames_;
+	this->correct_ += xent->correct_;
+	this->loss_ += xent->loss_;
+	this->entropy_ += xent->entropy_;
 
-	  // partial results during training
-	  frames_progress_ += xent->frames_progress_;
-	  loss_progress_ += xent->loss_progress_;
-	  entropy_progress_+= xent->entropy_progress_;
+	// partial results during training
+	frames_progress_ += xent->frames_progress_;
+	loss_progress_ += xent->loss_progress_;
+	entropy_progress_+= xent->entropy_progress_;
 
-	  for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
-		  this->loss_vec_[i] += xent->loss_vec_[i];
+	for (int i = 0; i<this->loss_vec_.size() && i < xent->loss_vec_.size(); i++)
+	  this->loss_vec_[i] += xent->loss_vec_[i];
 }
 
 void Xent::Merge(int myid, int root)
@@ -787,17 +788,18 @@ std::string Mse::Report() {
 }
 
 /// Merge lost
-void Mse::Add(Mse *mse)
+void Mse::Add(LossItf *loss)
 {
-	  this->frames_ += mse->frames_;
-	  this->loss_ += mse->loss_;
+	Mse *mse = dynamic_cast<Mse*>(loss);
+	this->frames_ += mse->frames_;
+	this->loss_ += mse->loss_;
 
-	  // partial results during training
-	  frames_progress_ += mse->frames_progress_;
-	  loss_progress_ += mse->loss_progress_;
+	// partial results during training
+	frames_progress_ += mse->frames_progress_;
+	loss_progress_ += mse->loss_progress_;
 
-	  for (int i = 0; i<this->loss_vec_.size() && i<mse->loss_vec_.size(); i++)
-		  this->loss_vec_[i] += mse->loss_vec_[i];
+	for (int i = 0; i<this->loss_vec_.size() && i<mse->loss_vec_.size(); i++)
+	  this->loss_vec_[i] += mse->loss_vec_[i];
 }
 
 void Mse::Merge(int myid, int root)
@@ -903,7 +905,8 @@ std::string MultiTaskLoss::Report() {
 
   // build the message,
   std::ostringstream oss;
-  oss << "MultiTaskLoss, with " << loss_vec_.size() << " parallel loss functions." << std::endl;
+  oss << "MultiTaskLoss, with " << loss_vec_.size()
+	  << " parallel loss functions." << std::endl;
   // individual loss reports first,
   for (int32 i = 0; i < loss_vec_.size(); i++) {
     oss << "Loss " << i+1 << ", " << loss_vec_[i]->Report() << std::endl;
@@ -931,6 +934,21 @@ BaseFloat MultiTaskLoss::AvgLoss() {
   return ans;
 }
 
+/// Merge statistic data
+void MultiTaskLoss::Add(LossItf *loss) {
+
+	MultiTaskLoss *multitask = dynamic_cast<MultiTaskLoss*>(loss);
+	for (int32 i = 0; i < loss_vec_.size(); i++) {
+		loss_vec_[i]->Add(multitask->loss_vec_[i]);
+	}
+}
+
+void MultiTaskLoss::Merge(int myid, int root) {
+
+	for (int32 i = 0; i < loss_vec_.size(); i++) {
+		loss_vec_[i]->Merge(myid, root);
+	}
+}
 
 
 /**CTC**/
