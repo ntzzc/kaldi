@@ -24,6 +24,7 @@
 
 #include "nnet0/nnet-component.h"
 #include "nnet0/nnet-utils.h"
+#include "nnet0/nnet-nnet.h"
 #include "cudamatrix/cu-math.h"
 
 #include <sstream>

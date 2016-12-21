@@ -55,8 +55,8 @@ class LossItf {
   virtual BaseFloat AvgLoss() = 0;
 
   /// Merge statistic data
-  virtual void Add(LossItf *loss);
-  virtual void Merge(int myid, int root);
+  virtual void Add(LossItf *loss){};
+  virtual void Merge(int myid, int root){};
 };
 
 

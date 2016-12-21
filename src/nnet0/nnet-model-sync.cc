@@ -34,7 +34,7 @@
 #include "nnet0/nnet-parallel-component.h"
 
 #include "nnet0/nnet-model-sync.h"
-#include "nnet-model-merge-function.h"
+#include "nnet0/nnet-model-merge-function.h"
 
 namespace kaldi {
 namespace nnet0 {
