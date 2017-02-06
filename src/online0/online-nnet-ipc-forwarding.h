@@ -126,7 +126,11 @@ private:
     // check client data sample validity
     inline bool CheckSample(SocketSample &sample, int input_dim) {
         int size = sample.dim * sample.num_sample;
-        if (size > MAX_SAMPLE_SIZE) {
+        if (size < 0) {
+            KALDI_LOG << Timer::CurrentTime() <<" Invalid sample, dim = " << sample.dim << " num_sample = " << sample.num_sample;
+            return false;
+        }
+        else if (size > MAX_SAMPLE_SIZE) {
             KALDI_LOG << Timer::CurrentTime() <<" Client sample size " << size << " exceed maximum socket sample size " << MAX_SAMPLE_SIZE;
             return false;
         }
@@ -251,6 +255,8 @@ public:
 	    int out_dim = nnet.OutputDim();
 	    int t, s , k, len;
 
+        Timer time, gap_time;
+        double time_now = 0, time_send = 0, time_received = 0, time_forward = 0;
 
 	    while (true)
 	    {
@@ -260,7 +266,9 @@ public:
 	    		while (!decodable_buffer[s].Empty() && send_end[s] == 0 && client_socket_[s] != NULL)
 	    		{
 	    			SocketDecodable* decodable = decodable_buffer[s].Front();
+                    gap_time.Reset();
 	    			int ret = client_socket_[s]->Send((void*)decodable, sizeof(SocketDecodable), MSG_NOSIGNAL);
+                    time_send += gap_time.Elapsed();
 
 	    			if (ret > 0 && ret != sizeof(SocketDecodable)) 
                         KALDI_WARN << Timer::CurrentTime() <<" Send socket decodable: " << ret << " less than " << sizeof(SocketDecodable);
@@ -304,7 +312,10 @@ public:
 
 	    		while (recv_end[s] == 0)
 	    		{
+                    gap_time.Reset();
                     len = client_socket_[s]->Receive((void*)&socket_sample, sizeof(SocketSample));
+                    time_received += gap_time.Elapsed();
+
                     if (len <= 0)
                         break;
 
@@ -325,7 +336,8 @@ public:
 					}
 
                     int size = socket_sample.dim * socket_sample.num_sample * sizeof(float);
-					memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, size);
+                    if (size > 0)
+					    memcpy((char*)feats[s].RowData(lent[s]), (char*)socket_sample.sample, size);
 					lent[s] += socket_sample.num_sample;
 					recv_end[s] = socket_sample.is_end;
 
@@ -363,6 +375,8 @@ public:
 	    		}
 	    	}
 
+            gap_time.Reset();
+
 	    	// apply optional feature transform
 	    	cufeat.Resize(feat.NumRows(), feat.NumCols(), kUndefined);
             cufeat.CopyFromMat(feat);
@@ -389,6 +403,15 @@ public:
 	    	}
 
 			nnet_out.CopyToMat(&nnet_out_host);
+
+            time_forward += gap_time.Elapsed();
+
+            double curt_time = time.Elapsed();
+            if (curt_time - time_now >= 2) {
+                KALDI_LOG << Timer::CurrentTime() << " Thread " << this->thread_id_ << ", time elapsed: " << curt_time << " s, socket send: " << time_send 
+                            << " s, socket receive: " << time_received << " s, gpu forward: " << time_forward << " s.";
+                time_now = time.Elapsed();
+            }
 
             // rearrange output for each client
 			for (s = 0; s < num_stream; s++) {

@@ -911,7 +911,7 @@ CuDevice::SelectPreferGpu(int gpu_id)
 	}
 
 	if (select_id < 0) {
-		KALDI_ERR << "Cannot select valid CUDA capable GPU cards!";
+		KALDI_ERR << "Cannot select valid CUDA capable GPU cards, all CUDA-capable devices are busy or unavailable!";
 	}
 
 	gpu_id = select_id;
