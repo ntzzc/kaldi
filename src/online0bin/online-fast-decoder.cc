@@ -98,6 +98,7 @@ int main(int argc, char *argv[])
 
 			frame_count += loglikes.NumRows();
 			// waiting a utterance finished
+            decoder_sync.DecoderSignal();
 			decoder_sync.UtteranceWait();
 			KALDI_LOG << "Finish decode utterance: " << utt_key;
         }
