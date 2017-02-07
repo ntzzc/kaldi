@@ -46,7 +46,7 @@ struct OnlineNnetFasterDecoderOptions : public FasterDecoderOptions {
 	    update_interval(3), beam_update(0.01),
 	    max_beam_update(0.05) {}
 
-	  void Register(OptionsItf *opts, bool full) {
+	  void Register(OptionsItf *opts, bool full = true) {
 	    FasterDecoderOptions::Register(opts, full);
 	    opts->Register("rt-min", &rt_min,
 	                   "Approximate minimum decoding run time factor");

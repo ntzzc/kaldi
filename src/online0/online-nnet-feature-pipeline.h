@@ -61,6 +61,8 @@ struct OnlineNnetFeaturePipelineConfig {
 	    opts->Register("online-pitch-config", &online_pitch_config, "Configuration "
 	                   "file for online pitch features, if --add-pitch=true (e.g. "
 	                   "conf/online_pitch.conf)");
+        opts->Register("add-cmvn", &add_cmvn,
+                       "Apply cmvn features.");
 	    opts->Register("cmvn-config", &cmvn_config, "Configuration class "
 	                   "file for online CMVN features (e.g. conf/online_cmvn.conf)");
 	    opts->Register("add-deltas", &add_deltas,
@@ -80,11 +82,9 @@ struct OnlineNnetFeaturePipelineConfig {
 struct OnlineNnetFeaturePipelineOptions {
 	OnlineNnetFeaturePipelineOptions():
 		feature_type("fbank"), add_pitch(false),
-		add_deltas(false), add_cmvn(false), splice_feats(false) { }
+		add_cmvn(false), add_deltas(false), splice_feats(false) { }
 
 	OnlineNnetFeaturePipelineOptions(const OnlineNnetFeaturePipelineConfig &config);
-
-	BaseFloat FrameShiftInSeconds() const;
 
 	std::string feature_type;  // "mfcc" or "plp" or "fbank"
 
@@ -93,8 +93,8 @@ struct OnlineNnetFeaturePipelineOptions {
 	FbankOptions fbank_opts;  	// options for filterbank computation, if feature_type == "fbank"
 
 	bool add_pitch;
-	PitchExtractionOptions pitch_opts;  // Options for pitch extraction, if done.
-	ProcessPitchOptions pitch_process_opts;  // Options for pitch post-processing
+	//PitchExtractionOptions pitch_opts;  // Options for pitch extraction, if done.
+	//ProcessPitchOptions pitch_process_opts;  // Options for pitch post-processing
 
 	bool add_cmvn;
 	OnlineCmvnOptions cmvn_opts;  // Options for online CMN/CMVN computation.
@@ -121,6 +121,7 @@ public:
 	virtual int32 NumFramesReady() const;
 	virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 	virtual BaseFloat FrameShiftInSeconds() const;
+	virtual void Reset();
 
 	/// Accept more data to process.  It won't actually process it until you call
 	/// GetFrame() [probably indirectly via (decoder).AdvanceDecoding()], when you

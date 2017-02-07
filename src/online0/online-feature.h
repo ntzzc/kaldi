@@ -36,7 +36,8 @@
 #include "feat/feature-mfcc.h"
 #include "feat/feature-plp.h"
 #include "feat/feature-fbank.h"
-#include "itf/online-feature-itf.h"
+//#include "feat/pitch-functions.h"
+#include "online0/online-feature-interface.h"
 
 namespace kaldi {
 /// @addtogroup  onlinefeat OnlineFeatureExtraction
@@ -68,6 +69,14 @@ class OnlineGenericBaseFeature: public OnlineBaseFeature {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {
+	DeletePointers(&features_);
+	features_.resize(0);
+	input_finished_ = false;
+	waveform_offset_ = 0;
+    waveform_remainder_.Resize(0);
+  }
+
   // Next, functions that are not in the interface.
 
 
@@ -91,7 +100,7 @@ class OnlineGenericBaseFeature: public OnlineBaseFeature {
     ComputeFeatures();
   }
 
-  ~OnlineGenericBaseFeature() {
+  virtual ~OnlineGenericBaseFeature() {
     DeletePointers(&features_);
   }
 
@@ -153,6 +162,10 @@ class OnlineDeltaFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {
+    src_->Reset();  
+  }
+
   //
   // Next, functions that are not in the interface.
   //
@@ -213,7 +226,9 @@ class OnlineCmvnFeature: public OnlineFeatureInterface {
   //
   // First, functions that are present in the interface:
   //
-  virtual int32 Dim() const;
+  virtual int32 Dim() const {
+    return src_->Dim();
+  }
 
   virtual bool IsLastFrame(int32 frame) const {
     return src_->IsLastFrame(frame);
@@ -227,18 +242,28 @@ class OnlineCmvnFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {
+	DeletePointers(&features_);
+	sum_.Resize(src_->Dim());
+	sumsq_.Resize(src_->Dim());
+	features_.resize(0);
+    src_->Reset();
+  }
+
   //
   // Next, functions that are not in the interface.
   //
   OnlineCmvnFeature(const OnlineCmvnOptions &opts,
                      OnlineFeatureInterface *src);
 
-  ~OnlineCmvnFeature() {
+  virtual ~OnlineCmvnFeature() {
     DeletePointers(&features_);
   }
 
  private:
-  OnlineCmvnOptions opts_;
+  void ComputeCmvnInternal();
+
+  const OnlineCmvnOptions &opts_;
   OnlineFeatureInterface *src_;  // Not owned here
 
   Vector<double> sum_;
@@ -289,14 +314,15 @@ class OnlineSpliceFeature: public OnlineFeatureInterface {
 
   virtual void GetFrame(int32 frame, VectorBase<BaseFloat> *feat);
 
+  virtual void Reset() {
+    src_->Reset(); 
+  }
+
   //
   // Next, functions that are not in the interface.
   //
   OnlineSpliceFeature(const OnlineSpliceOptions &opts,
-                     OnlineFeatureInterface *src): src_(src) {
-	  left_context_ = opts.custom_splice ? opts.left_context : opts.context;
-	  right_context_ = opts.custom_splice ? opts.right_context : opts.context;
-  }
+                     OnlineFeatureInterface *src);
 
  private:
   int32 left_context_;

@@ -24,7 +24,7 @@ namespace kaldi {
 OnlineNnetFeaturePipelineOptions::OnlineNnetFeaturePipelineOptions(
 		const OnlineNnetFeaturePipelineConfig &config):
 		feature_type("fbank"), add_pitch(false),
-		add_deltas(false), add_cmvn(false), splice_feats(false) {
+		add_cmvn(false), add_deltas(false), splice_feats(false) {
 
 	if (config.feature_type == "mfcc" || config.feature_type == "plp" ||
 	  config.feature_type == "fbank") {
@@ -55,6 +55,7 @@ OnlineNnetFeaturePipelineOptions::OnlineNnetFeaturePipelineOptions(
 				 << "since feature type is set to " << feature_type << ".";
 	}  // else use the defaults.
 
+    add_cmvn = config.add_cmvn;
 	if (config.cmvn_config != "") {
 		ReadConfigFromFile(config.cmvn_config, &cmvn_opts);
 		if (!add_cmvn)
@@ -62,11 +63,20 @@ OnlineNnetFeaturePipelineOptions::OnlineNnetFeaturePipelineOptions(
 				 << "since you did not supply --add-cmvn option.";
 	}  // else use the defaults.
 
+    add_deltas = config.add_deltas;
 	if (config.delta_config != "") {
 		ReadConfigFromFile(config.delta_config, &delta_opts);
 		if (!add_deltas)
 			KALDI_WARN << "--delta-config option has no effect "
 				 << "since you did not supply --add-deltas option.";
+	}  // else use the defaults.
+
+    splice_feats = config.splice_feats;
+	if (config.splice_config != "") {
+		ReadConfigFromFile(config.splice_config, &splice_opts);
+		if (!splice_feats)
+			KALDI_WARN << "--delta-splice option has no effect "
+				 << "since you did not supply --add-splice option.";
 	}  // else use the defaults.
 }
 
@@ -77,7 +87,7 @@ OnlineNnetFeaturePipeline::OnlineNnetFeaturePipeline(
   if (opts.feature_type == "mfcc") {
     base_feature_ = new OnlineMfcc(opts.mfcc_opts);
   } else if (opts.feature_type == "plp") {
-    base_feature_ = new OnlinePlp(info_.plp_opts);
+    base_feature_ = new OnlinePlp(opts.plp_opts);
   } else if (opts.feature_type == "fbank") {
     base_feature_ = new OnlineFbank(opts.fbank_opts);
   } else {
@@ -109,8 +119,6 @@ OnlineNnetFeaturePipeline::OnlineNnetFeaturePipeline(
   } else {
 	  splice_feature_ = NULL;
   }
-
-  final_feature_ = delta_feature_;
 }
 
 OnlineNnetFeaturePipeline::~OnlineNnetFeaturePipeline() {
@@ -143,6 +151,10 @@ int32 OnlineNnetFeaturePipeline::NumFramesReady() const {
 void OnlineNnetFeaturePipeline::GetFrame(int32 frame,
                                           VectorBase<BaseFloat> *feat) {
 	return final_feature_->GetFrame(frame, feat);
+}
+
+void OnlineNnetFeaturePipeline::Reset() {
+	final_feature_->Reset();
 }
 
 BaseFloat OnlineNnetFeaturePipeline::FrameShiftInSeconds() const {

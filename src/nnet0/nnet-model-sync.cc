@@ -31,9 +31,10 @@
 #include "nnet0/nnet-blstm-streams.h"
 #include "nnet0/nnet-class-affine-transform.h"
 #include "nnet0/nnet-word-vector-transform.h"
+#include "nnet0/nnet-parallel-component.h"
 
 #include "nnet0/nnet-model-sync.h"
-#include "nnet-model-merge-function.h"
+#include "nnet0/nnet-model-merge-function.h"
 
 namespace kaldi {
 namespace nnet0 {
@@ -108,6 +109,7 @@ NnetModelSync::GetDim(Nnet *nnet)
 {
 	int32 dim = 0;
 	AffineTransform* aff_t;
+	ParallelComponent* parallel_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
     CudnnConvolutional2DComponent *cudnn_conv_t;
@@ -238,6 +240,10 @@ NnetModelSync::GetDim(Nnet *nnet)
 					word_transf = (WordVectorTransform*)(nnet->components_[n]);
 					dim += word_transf->wordvector_.SizeInBytes()/sizeof(BaseFloat);
 					break;
+				case Component::kParallelComponent:
+					parallel_t = (ParallelComponent*)(nnet->components_[n]);
+					dim += parallel_t->GetDim();
+					break;
 				default:
 						KALDI_ERR<< "Unimplemented access to parameters "
 						<< "of updatable component "
@@ -261,6 +267,7 @@ NnetModelSync::GetWeight(Nnet *nnet)
 	int32 dst_pitch, src_pitch, width, size;
 	MatrixDim dim;
 	AffineTransform* aff_t;
+	ParallelComponent* parallel_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv_t;
     CudnnConvolutional2DComponent *cudnn_conv_t;
@@ -665,6 +672,10 @@ NnetModelSync::GetWeight(Nnet *nnet)
 
 				pos += word_transf->wordvector_.SizeInBytes();
 				break;
+			case Component::kParallelComponent:
+				parallel_t = (ParallelComponent*)(nnet->components_[n]);
+				pos += parallel_t->WeightCopy(host_data_+pos, 0, 2);
+				break;
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "
 				<< "of updatable component "
@@ -685,6 +696,7 @@ NnetModelSync::SetWeight(Nnet *nnet)
 	int32 dst_pitch, src_pitch, width,  size;
 	MatrixDim dim;
 	AffineTransform* aff_t;
+	ParallelComponent* parallel_t;
 	BatchNormTransform *norm_t;
 	Convolutional2DComponentFast *conv;
 	CudnnConvolutional2DComponent *cudnn_conv;
@@ -1102,6 +1114,10 @@ NnetModelSync::SetWeight(Nnet *nnet)
 										cudaMemcpyHostToDevice));
 
 				pos += word_transf->wordvector_.SizeInBytes();
+				break;
+			case Component::kParallelComponent:
+				parallel_t = (ParallelComponent*)(nnet->components_[n]);
+				pos += parallel_t->WeightCopy(host_data_+pos, 1, 1);
 				break;
 			default:
 				KALDI_ERR<< "Unimplemented access to parameters "

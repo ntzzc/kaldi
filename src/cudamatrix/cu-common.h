@@ -32,6 +32,7 @@
 #if HAVE_CUDA == 1
 #include <cublas_v2.h>
 #include <cuda_runtime_api.h>
+#include <cudnn.h>
 
 
 
@@ -60,6 +61,13 @@
     KALDI_ERR << msg << ", diagnostics: cudaError_t " << ret << " : \"" << cudaGetErrorString((cudaError_t)ret) << "\", in " << __FILE__ << ":" << __LINE__; \
   } \
   cudaDeviceSynchronize(); \
+}
+
+#define CUDNN_CHECK(condition) \
+{  do { \
+    cudnnStatus_t status = condition; \
+    if(status != CUDNN_STATUS_SUCCESS) KALDI_LOG<<cudnnGetErrorString(status);\
+  } while (0); \
 }
 
 namespace kaldi {

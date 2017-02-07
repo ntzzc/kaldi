@@ -24,6 +24,7 @@
 
 #include "nnet0/nnet-component.h"
 #include "nnet0/nnet-utils.h"
+#include "nnet0/nnet-nnet.h"
 #include "cudamatrix/cu-math.h"
 
 #include <sstream>
@@ -231,6 +232,21 @@ class ParallelComponent : public UpdatableComponent {
     for (int32 i=0; i<nnet_.size(); i++) {
       nnet_[i].SetTrainOptions(opts);
     }
+  }
+
+  // collection weight
+  int WeightCopy(void *host, int direction, int copykind) {
+	  int pos = 0;
+	  for (int32 i=0; i<nnet_.size(); i++)
+		  pos += nnet_[i].WeightCopy((void*)((char *)host+pos), direction, copykind);
+	  return pos;
+  }
+
+  int32 GetDim() const {
+	  int32 dim = 0;
+	  for (int32 i=0; i<nnet_.size(); i++)
+		  dim += nnet_[i].GetDim();
+	  return dim;
   }
 
  private:

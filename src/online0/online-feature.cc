@@ -185,45 +185,54 @@ OnlineCmvnFeature::OnlineCmvnFeature(const OnlineCmvnOptions &opts,
 int32 OnlineCmvnFeature::NumFramesReady() const
 {
 	int src_frames_ready = src_->NumFramesReady();
-	int curt_frames_ready = features_.size();
-
-	if (src_frames_ready < opts_.min_window)
+	bool isfinished = src_->IsLastFrame(src_frames_ready-1);
+	if (!isfinished && src_frames_ready < opts_.min_window)
 		return 0;
+    
+	return src_frames_ready;
+}
 
-	if (src_frames_ready >= opts_.min_window) {
-		Vector<BaseFloat> *this_feature = NULL;
+void OnlineCmvnFeature::ComputeCmvnInternal()
+{
+	int src_frames_ready = src_->NumFramesReady();
+	int curt_frames_ready = features_.size();
+    bool isfinished = src_->IsLastFrame(src_frames_ready-1);
 
+    Vector<BaseFloat> *this_feature = NULL;
+
+	if (src_frames_ready >= opts_.min_window || isfinished) {
 		for (int i = curt_frames_ready; i < src_frames_ready; i++) {
 			 this_feature = new Vector<BaseFloat>(src_->Dim(), kUndefined);
 			if (opts_.cmn_window >= 0 && i >= opts_.cmn_window) {
 				src_->GetFrame(i-opts_.cmn_window, this_feature);
-				sum_.AddVec(-1.0, this_feature);
+				sum_.AddVec(-1.0, *this_feature);
 				if (opts_.normalize_variance) {
-					sumsq_.AddVec2(-1.0, this_feature);
+					sumsq_.AddVec2(-1.0, *this_feature);
 				}
 			}
 
 			src_->GetFrame(i, this_feature);
-			sum_.AddVec(1.0, this_feature);
-			sumsq_.AddVec2(1.0, this_feature);
+			sum_.AddVec(1.0, *this_feature);
+			sumsq_.AddVec2(1.0, *this_feature);
 			features_.push_back(this_feature);
 
 			// normalize min_window
-			if (i == opts_.min_window - 1) {
-				for (int j = 0; j < opts_.min_window; j++) {
+			if (i == opts_.min_window-1 || (isfinished && src_frames_ready <= opts_.min_window && i == src_frames_ready-1)) {
+				int num_frames = (isfinished && src_frames_ready <= opts_.min_window) ? src_frames_ready : opts_.min_window;
+				for (int j = 0; j < num_frames; j++) {
 					if (opts_.normalize_mean)
-						features_[i]->AddVec(-1.0/opts_.min_window, sum_);
+						features_[j]->AddVec(-1.0/num_frames, sum_);
 					if (opts_.normalize_variance) {
 						Vector<double> variance(sumsq_);
-						variance.Scale(1.0/opts_.min_window);
-						variance.AddVec2(-1.0/(opts_.min_window * opts_.min_window), sum_);
+						variance.Scale(1.0/num_frames);
+						variance.AddVec2(-1.0/(num_frames * num_frames), sum_);
 						int32 num_floored = variance.ApplyFloor(1.0e-10);
 						if (num_floored > 0) {
 						  KALDI_WARN << "Flooring variance When normalizing variance, floored " << num_floored
-									 << " elements; num-frames was " << opts_.min_window;
+									 << " elements; num-frames was " << num_frames;
 						}
 						variance.ApplyPow(-0.5); // get inverse standard deviation.
-						features_[i]->MulElements(variance);
+						features_[j]->MulElements(variance);
 					}
 				}
 			}
@@ -249,11 +258,12 @@ int32 OnlineCmvnFeature::NumFramesReady() const
 		} // end for
 	}
 
-	return features_.size();
 }
 
 void OnlineCmvnFeature::GetFrame(int32 frame, VectorBase<BaseFloat> *feat)
 {
+    ComputeCmvnInternal();
+
 	// 'at' does size checking.
 	feat->CopyFromVec(*(features_.at(frame)));
 }
@@ -262,6 +272,11 @@ void OnlineCmvnFeature::GetFrame(int32 frame, VectorBase<BaseFloat> *feat)
 /**
  * splice feature
  */
+OnlineSpliceFeature::OnlineSpliceFeature(const OnlineSpliceOptions &opts,
+                     OnlineFeatureInterface *src): src_(src) {
+	left_context_ = opts.custom_splice ? opts.left_context : opts.context;
+	right_context_ = opts.custom_splice ? opts.right_context : opts.context;
+}
 
 int32 OnlineSpliceFeature::NumFramesReady() const {
   int32 num_frames = src_->NumFramesReady();
