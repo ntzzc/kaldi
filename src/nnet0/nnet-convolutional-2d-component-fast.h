@@ -489,14 +489,10 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     int32 num_frames = input.NumRows();
 
     // we use following hyperparameters from the option class
-    //const BaseFloat lr = opts_.learn_rate;
+    const BaseFloat lr = opts_.learn_rate;
     const BaseFloat mmt = opts_.momentum;
-    //const BaseFloat mmt = 0.0;
-    //const BaseFloat l2 = opts_.l2_penalty;
+    const BaseFloat l2 = opts_.l2_penalty;
     //const BaseFloat l1 = opts_.l1_penalty;
-    /* NOT NOW:
-    */
-
 
     //
     // calculate the gradient
@@ -532,16 +528,19 @@ class Convolutional2DComponentFast : public UpdatableComponent {
     filters_grad_.Scale(1.0/out_pad_fmap_size);
     bias_grad_.Scale(1.0/out_pad_fmap_size);
 
-    /* NOT NOW:
     // l2 regularization
-    if (l2 != 0.0) {
-      filters_.AddMat(-lr*l2*num_frames, filters_);
-    }
+	if (l2 != 0.0) {
+	  filters_.AddMat(-lr*l2*num_frames, filters_);
+	}
+
+    /* NOT NOW:
+
     // l1 regularization
     if (l1 != 0.0) {
       cu::RegularizeL1(&filters_, &filters_grad_, lr*l1*num_frames, lr);
     }
     */
+
     for (int32 p = 0; p < out_pad_fmap_size; p++)
     {
 		delete vectorized_input_patches_[p];
@@ -651,6 +650,68 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 		delete vectorized_grad_patches_[p];
 		delete vectorized_diff_patches_[p];
     }
+  }
+
+  int32 GetDim() const {
+	  return filters_.SizeInBytes()/sizeof(BaseFloat) + bias_.Dim();
+  }
+
+
+  int WeightCopy(void *host, int direction, int copykind) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+        Timer tim;
+
+        int32 dst_pitch, src_pitch, width,  size;
+        int pos = 0;
+        void *src, *dst;
+        MatrixDim dim;
+        cudaMemcpyKind kind;
+        switch(copykind)
+        {
+            case 0:
+                kind = cudaMemcpyHostToHost;
+                break;
+            case 1:
+                kind = cudaMemcpyHostToDevice;
+                break;
+            case 2:
+                kind = cudaMemcpyDeviceToHost;
+                break;
+            case 3:
+                kind = cudaMemcpyDeviceToDevice;
+                break;
+            default:
+                KALDI_ERR << "Default based unified virtual address space";
+                break;
+        }
+
+		dim = filters_.Dim();
+		src_pitch = dim.stride*sizeof(BaseFloat);
+		dst_pitch = src_pitch;
+		width = dim.cols*sizeof(BaseFloat);
+        dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)linearity_.Data());
+		src = (void*) (direction==0 ? (char *)linearity_.Data() : ((char *)host+pos));
+		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+		pos += filters_.SizeInBytes();
+
+		size = bias_.Dim()*sizeof(BaseFloat);
+		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)bias_.Data());
+		src = (void*) (direction==0 ? (char *)bias_.Data() : ((char *)host+pos));
+		cudaMemcpy(dst, src, size, kind);
+		pos += size;
+
+  	  CU_SAFE_CALL(cudaGetLastError());
+
+  	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+
+  	  return pos;
+  }else
+#endif
+  	{
+  		// not implemented for CPU yet
+  		return 0;
+  	}
   }
 
  private:

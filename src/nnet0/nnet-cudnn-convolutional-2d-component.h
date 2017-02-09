@@ -1,6 +1,7 @@
 // nnet/nnet-cudnn-convolutional-2d-component.h
 //
-// // Copyright 2016   (author: tao xu),
+// Copyright 2015-2016  Shanghai Jiao Tong University (author: Tao Xu)
+// Copyright 2015-2016  Shanghai Jiao Tong University (author: Wei Deng)
 // //
 //
 // // See ../../COPYING for clarification regarding multiple authors
@@ -456,6 +457,68 @@ public:
     {
         filters_grad_.SetZero();
         bias_grad_.SetZero();
+    }
+
+    int32 GetDim() const {
+  	  return filters_.SizeInBytes()/sizeof(BaseFloat) + bias_.Dim();
+    }
+
+
+    int WeightCopy(void *host, int direction, int copykind) {
+  #if HAVE_CUDA == 1
+    if (CuDevice::Instantiate().Enabled()) {
+          Timer tim;
+
+          int32 dst_pitch, src_pitch, width,  size;
+          int pos = 0;
+          void *src, *dst;
+          MatrixDim dim;
+          cudaMemcpyKind kind;
+          switch(copykind)
+          {
+              case 0:
+                  kind = cudaMemcpyHostToHost;
+                  break;
+              case 1:
+                  kind = cudaMemcpyHostToDevice;
+                  break;
+              case 2:
+                  kind = cudaMemcpyDeviceToHost;
+                  break;
+              case 3:
+                  kind = cudaMemcpyDeviceToDevice;
+                  break;
+              default:
+                  KALDI_ERR << "Default based unified virtual address space";
+                  break;
+          }
+
+  		dim = filters_.Dim();
+  		src_pitch = dim.stride*sizeof(BaseFloat);
+  		dst_pitch = src_pitch;
+  		width = dim.cols*sizeof(BaseFloat);
+          dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)linearity_.Data());
+  		src = (void*) (direction==0 ? (char *)linearity_.Data() : ((char *)host+pos));
+  		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
+  		pos += filters_.SizeInBytes();
+
+  		size = bias_.Dim()*sizeof(BaseFloat);
+  		dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)bias_.Data());
+  		src = (void*) (direction==0 ? (char *)bias_.Data() : ((char *)host+pos));
+  		cudaMemcpy(dst, src, size, kind);
+  		pos += size;
+
+    	  CU_SAFE_CALL(cudaGetLastError());
+
+    	  CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+
+    	  return pos;
+    }else
+  #endif
+    	{
+    		// not implemented for CPU yet
+    		return 0;
+    	}
     }
 
     private:
