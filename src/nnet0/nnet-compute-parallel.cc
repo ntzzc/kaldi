@@ -326,6 +326,7 @@ private:
                     */
 
 					if (parallel_opts->num_threads > 1 && update_frames >= opts->update_frames) {
+					//if (update_frames >= opts->update_frames) {
 						nnet.Backpropagate(nnet_diff, NULL, false);
 						nnet.Gradient();
 

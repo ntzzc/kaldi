@@ -23,7 +23,7 @@
 #define KALDI_NNET_CUDNN_CONVOLUTIONAL_2D_COMPONENT_H_ 
 
 #include <cudnn.h>
-#include "nnet/nnet-component.h"
+#include "nnet0/nnet-component.h"
 #include "base/kaldi-utils.h"
 namespace kaldi{
 namespace nnet0{
@@ -39,12 +39,13 @@ public:
     ~CudnnConvolutional2DComponent()
     {
         initialized_ = false;
+        //CU_SAFE_CALL CU_SAFE_CALL
       if(initialized_){
-        CHECK_EQ(cudnnDestroyTensorDescriptor(in_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnDestroyTensorDescriptor(out_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnDestroyTensorDescriptor(bias_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnDestroyFilterDescriptor(filter_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnDestroyConvolutionDescriptor(conv_desc_), CUDNN_STATUS_SUCCESS);
+        CU_SAFE_CALL(cudnnDestroyTensorDescriptor(in_desc_));
+        CU_SAFE_CALL(cudnnDestroyTensorDescriptor(out_desc_));
+        CU_SAFE_CALL(cudnnDestroyTensorDescriptor(bias_desc_));
+        CU_SAFE_CALL(cudnnDestroyFilterDescriptor(filter_desc_));
+        CU_SAFE_CALL(cudnnDestroyConvolutionDescriptor(conv_desc_));
         cudaStreamDestroy(stream_);
         cudnnDestroy(handle_);
         cudaFree(forward_workspace_ptr_);
@@ -156,7 +157,11 @@ public:
             num_input_fmaps_ = input_dim_ / (fmap_x_len_ * fmap_y_len_);
             filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero, kStrideEqualNumCols);
             bias_grad_.Resize(filters_.NumRows());
-            
+
+            KALDI_LOG << "num_input_fmaps " << num_input_fmaps_;
+            KALDI_LOG << "num_output_fmaps " << num_output_fmaps_;
+            KALDI_LOG << "out_fmap_x_len " << out_fmap_x_len_;
+            KALDI_LOG << "out_fmap_y_len " << out_fmap_y_len_;
     }
 
     void WriteData(std::ostream &os, bool binary) const{
@@ -216,32 +221,32 @@ public:
         //size_t workspace_byte = 8*1024*1024 ;
         size_t back_size = 0 ;
         size_t back_size_w = 0 ;
-        cudaStreamCreate(&stream_);
+        //cudaStreamCreate(&stream_);
         cudnnCreate(&handle_);
-        cudnnSetStream(handle_, stream_);
+        //cudnnSetStream(handle_, stream_);
         cudnnTensorFormat_t format = CUDNN_TENSOR_NCHW ;
       
-        CHECK_EQ(cudnnCreateTensorDescriptor(&in_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnCreateTensorDescriptor(&out_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnCreateTensorDescriptor(&bias_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnCreateFilterDescriptor(&filter_desc_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnCreateConvolutionDescriptor(&conv_desc_),CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnSetFilter4dDescriptor(filter_desc_, 
+        CU_SAFE_CALL(cudnnCreateTensorDescriptor(&in_desc_));
+        CU_SAFE_CALL(cudnnCreateTensorDescriptor(&out_desc_));
+        CU_SAFE_CALL(cudnnCreateTensorDescriptor(&bias_desc_));
+        CU_SAFE_CALL(cudnnCreateFilterDescriptor(&filter_desc_));
+        CU_SAFE_CALL(cudnnCreateConvolutionDescriptor(&conv_desc_));
+        CU_SAFE_CALL(cudnnSetFilter4dDescriptor(filter_desc_, 
                                             CUDNN_DATA_FLOAT, 
                                             format, 
                                             num_output_fmaps_, 
                                             num_input_fmaps_, 
                                             filt_y_len_, 
-                                            filt_x_len_), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnSetConvolution2dDescriptor(conv_desc_, 
+                                            filt_x_len_));
+        CU_SAFE_CALL(cudnnSetConvolution2dDescriptor(conv_desc_, 
                                                  pad_y_len_, 
                                                  pad_x_len_, 
                                                  filt_y_step_, 
                                                  filt_x_step_, 
                                                  1,
                                                  1, 
-                                                 CUDNN_CONVOLUTION), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnSetTensor4dDescriptorEx(in_desc_, 
+                                                 CUDNN_CONVOLUTION));
+        CU_SAFE_CALL(cudnnSetTensor4dDescriptorEx(in_desc_, 
                                               CUDNN_DATA_FLOAT, 
                                               batch_size, 
                                               num_input_fmaps_, 
@@ -249,8 +254,8 @@ public:
                                               fmap_x_len_, 
                                               fmap_y_len_ * fmap_x_len_ * num_input_fmaps_,
                                               fmap_y_len_ * fmap_x_len_,
-                                              fmap_x_len_, 1), CUDNN_STATUS_SUCCESS);
-        CHECK_EQ(cudnnSetTensor4dDescriptorEx(out_desc_,
+                                              fmap_x_len_, 1));
+        CU_SAFE_CALL(cudnnSetTensor4dDescriptorEx(out_desc_,
                                               CUDNN_DATA_FLOAT,
                                               batch_size,
                                               num_output_fmaps_,
@@ -259,7 +264,7 @@ public:
                                               out_fmap_y_len_ * out_fmap_x_len_ * num_output_fmaps_,
                                               out_fmap_y_len_ * out_fmap_x_len_,
                                               out_fmap_x_len_,
-                                              1), CUDNN_STATUS_SUCCESS);
+                                              1));
 
         int32 bias_offset = num_output_fmaps_;
         std::vector<int> bias_shape ;
@@ -272,67 +277,67 @@ public:
         bias_stride.push_back(1);
         bias_stride.push_back(1);
         bias_stride.push_back(1);
-        CHECK_EQ(cudnnSetTensorNdDescriptor(bias_desc_,
+        CU_SAFE_CALL(cudnnSetTensorNdDescriptor(bias_desc_,
                                             CUDNN_DATA_FLOAT,
                                             static_cast<int>(bias_shape.size()),
                                             &bias_shape[0],
-                                            &bias_stride[0]), CUDNN_STATUS_SUCCESS);
+                                            &bias_stride[0]));
 
       
         //CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-        CHECK_EQ(cudnnGetConvolutionForwardAlgorithm(handle_,
+        CU_SAFE_CALL(cudnnGetConvolutionForwardAlgorithm(handle_,
                  in_desc_,
                  filter_desc_,
                  conv_desc_,
                  out_desc_,
                  CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
                  0,
-                 &algo_), CUDNN_STATUS_SUCCESS);
+                 &algo_));
 
-        CHECK_EQ(cudnnGetConvolutionBackwardFilterAlgorithm(handle_,
+        CU_SAFE_CALL(cudnnGetConvolutionBackwardFilterAlgorithm(handle_,
                  in_desc_,
                  out_desc_,
                  conv_desc_,
                  filter_desc_,
                  CUDNN_CONVOLUTION_BWD_FILTER_PREFER_FASTEST,
                  0,
-                 &back_algo_w_), CUDNN_STATUS_SUCCESS);
+                 &back_algo_w_));
 
-        CHECK_EQ(cudnnGetConvolutionBackwardDataAlgorithm(handle_,
+        CU_SAFE_CALL(cudnnGetConvolutionBackwardDataAlgorithm(handle_,
                  filter_desc_,
                  out_desc_,
                  conv_desc_,
                  in_desc_,
                  CUDNN_CONVOLUTION_BWD_DATA_PREFER_FASTEST,
                  0,
-                 &back_algo_), CUDNN_STATUS_SUCCESS);
+                 &back_algo_));
 
-        CHECK_EQ(cudnnGetConvolutionBackwardDataWorkspaceSize(handle_,
+        CU_SAFE_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle_,
                 filter_desc_,
                 out_desc_,
                 conv_desc_,
                 in_desc_,
                 back_algo_,
-                &back_size), CUDNN_STATUS_SUCCESS);
+                &back_size));
 
-        CHECK_EQ(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle_,
+        CU_SAFE_CALL(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle_,
                 in_desc_,
                 out_desc_,
                 conv_desc_,
                 filter_desc_,
                 back_algo_w_,
-                &back_size_w), CUDNN_STATUS_SUCCESS);
+                &back_size_w));
 
 
         backward_workspace_byte_ = std::max(back_size, back_size_w);
 
-        CHECK_EQ(cudnnGetConvolutionForwardWorkspaceSize(handle_,
+        CU_SAFE_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle_,
                 in_desc_,
                 filter_desc_,
                 conv_desc_,
                 out_desc_,
                 algo_,
-                &forward_workspace_byte_), CUDNN_STATUS_SUCCESS); 
+                &forward_workspace_byte_)); 
 
         forward_workspace_ = forward_workspace_byte_ / sizeof(float) + 1;
         backward_workspace_ = backward_workspace_byte_ / sizeof(float) + 1;
@@ -355,7 +360,7 @@ public:
         BaseFloat *filters_ptr = filters_.Data();
         BaseFloat *out_ptr = out->Data();
         BaseFloat* bias_ptr = bias_.Data();
-        CHECK_EQ(cudnnConvolutionForward(handle_,
+        CU_SAFE_CALL(cudnnConvolutionForward(handle_,
                                          &alpha,
                                          in_desc_,
                                          in_ptr,
@@ -367,15 +372,15 @@ public:
                                          forward_workspace_byte_,
                                          &beta,
                                          out_desc_,
-                                         out_ptr), CUDNN_STATUS_SUCCESS);
+                                         out_ptr));
         beta = 1.0f;
-        CHECK_EQ(cudnnAddTensor(handle_,
+        CU_SAFE_CALL(cudnnAddTensor(handle_,
                                 &alpha,
                                 bias_desc_,
                                 bias_ptr,
                                 &beta,
                                 out_desc_,
-                                out_ptr), CUDNN_STATUS_SUCCESS);
+                                out_ptr));
     }
     
     void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
@@ -386,7 +391,7 @@ public:
         BaseFloat* in_diff_ptr = in_diff->Data() ;
         BaseFloat* filters_ptr = filters_.Data();
 
-        CHECK_EQ(cudnnConvolutionBackwardData(handle_,
+        CU_SAFE_CALL(cudnnConvolutionBackwardData(handle_,
                                               &alpha,
                                               filter_desc_,
                                               filters_ptr,
@@ -398,7 +403,7 @@ public:
                                               backward_workspace_byte_,
                                               &beta,
                                               in_desc_,
-                                              in_diff_ptr), CUDNN_STATUS_SUCCESS);
+                                              in_diff_ptr));
     }   
 
     void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
@@ -406,8 +411,8 @@ public:
         Gradient(input, diff);
 
         BaseFloat lr = opts_.learn_rate ;
-        filters_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
-        bias_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
+        //filters_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
+        //bias_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
         filters_.AddMat(-lr*learn_rate_coef_, filters_grad_);
         bias_.AddVec(-lr*bias_learn_rate_coef_, bias_grad_);
     }
@@ -422,15 +427,15 @@ public:
         const BaseFloat* input_ptr = input.Data();
         BaseFloat* filters_grad_ptr = filters_grad_.Data();
 
-        CHECK_EQ(cudnnConvolutionBackwardBias(handle_,
+        CU_SAFE_CALL(cudnnConvolutionBackwardBias(handle_,
                                               &alpha,
                                               out_desc_,
                                               diff_ptr,
                                               &beta,
                                               bias_desc_,
-                                              bias_grad_ptr), CUDNN_STATUS_SUCCESS);
+                                              bias_grad_ptr));
 
-                 cudnnConvolutionBackwardFilter(handle_,
+        CU_SAFE_CALL(cudnnConvolutionBackwardFilter(handle_,
                                                 &alpha,
                                                 in_desc_,
                                                 input_ptr,
@@ -442,13 +447,13 @@ public:
                                                 backward_workspace_byte_,
                                                 &beta,
                                                 filter_desc_,
-                                                filters_grad_ptr);
+                                                filters_grad_ptr));
     }
 
     void UpdateGradient(){
         const BaseFloat lr = opts_.learn_rate;
-        filters_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
-        bias_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
+        //filters_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
+        //bias_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
         filters_.AddMat(-lr*learn_rate_coef_, filters_grad_);
         bias_.AddVec(-lr*bias_learn_rate_coef_, bias_grad_);
     }    

@@ -548,8 +548,6 @@ class Rescale : public UpdatableComponent {
   BaseFloat learn_rate_coef_;
 };
 
-
-
 } // namespace nnet0
 } // namespace kaldi
 
