@@ -21,8 +21,8 @@
 #ifndef KALDI_NNET_CUDNN_CONVOLUTIONAL_2D_COMPONENT_H_
 #define KALDI_NNET_CUDNN_CONVOLUTIONAL_2D_COMPONENT_H_ 
 
-#include <cudnn.h>
-#include "nnet0/nnet-component.h"
+//#include <cudnn.h>
+#include "nnet/nnet-component.h"
 #include "base/kaldi-utils.h"
 namespace kaldi{
 namespace nnet0{
@@ -32,13 +32,11 @@ friend class NnetModelSync;
 public:
     CudnnConvolutional2DComponent(int32 dim_in, int32 dim_out):UpdatableComponent(dim_in, dim_out),fmap_x_len_(0),fmap_y_len_(0),
     filt_x_len_(0), filt_y_len_(0), filt_x_step_(0), filt_y_step_(0),pad_x_len_(0),pad_y_len_(0),num_output_fmaps_(0),num_input_fmaps_(0),
-    out_fmap_x_len_(0), out_fmap_y_len_(0),learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), initialized_(false),
-    forward_workspace_ptr_(NULL),backward_workspace_ptr_(NULL)
+    out_fmap_x_len_(0), out_fmap_y_len_(0),learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), initialized_(false)
     {}
     ~CudnnConvolutional2DComponent()
     {
         initialized_ = false;
-        //CU_SAFE_CALL CU_SAFE_CALL
       if(initialized_){
         CU_SAFE_CALL(cudnnDestroyTensorDescriptor(in_desc_));
         CU_SAFE_CALL(cudnnDestroyTensorDescriptor(out_desc_));
@@ -47,8 +45,6 @@ public:
         CU_SAFE_CALL(cudnnDestroyConvolutionDescriptor(conv_desc_));
         cudaStreamDestroy(stream_);
         cudnnDestroy(handle_);
-        cudaFree(forward_workspace_ptr_);
-        cudaFree(backward_workspace_ptr_);
       }
     }
     
@@ -156,11 +152,7 @@ public:
             num_input_fmaps_ = input_dim_ / (fmap_x_len_ * fmap_y_len_);
             filters_grad_.Resize(filters_.NumRows(), filters_.NumCols(), kSetZero, kStrideEqualNumCols);
             bias_grad_.Resize(filters_.NumRows());
-
-            KALDI_LOG << "num_input_fmaps " << num_input_fmaps_;
-            KALDI_LOG << "num_output_fmaps " << num_output_fmaps_;
-            KALDI_LOG << "out_fmap_x_len " << out_fmap_x_len_;
-            KALDI_LOG << "out_fmap_y_len " << out_fmap_y_len_;
+            
     }
 
     void WriteData(std::ostream &os, bool binary) const{
@@ -215,29 +207,33 @@ public:
            ", lr-coef " + ToString(bias_learn_rate_coef_);
     }
     
-    inline void Init(int32 batch_size){
+    inline void Init(){
         
         //size_t workspace_byte = 8*1024*1024 ;
-        size_t back_size = 0 ;
-        size_t back_size_w = 0 ;
-        //cudaStreamCreate(&stream_);
+        cudaStreamCreate(&stream_);
         cudnnCreate(&handle_);
-        //cudnnSetStream(handle_, stream_);
-        cudnnTensorFormat_t format = CUDNN_TENSOR_NCHW ;
+        cudnnSetStream(handle_, stream_);
       
         CU_SAFE_CALL(cudnnCreateTensorDescriptor(&in_desc_));
         CU_SAFE_CALL(cudnnCreateTensorDescriptor(&out_desc_));
         CU_SAFE_CALL(cudnnCreateTensorDescriptor(&bias_desc_));
         CU_SAFE_CALL(cudnnCreateFilterDescriptor(&filter_desc_));
         CU_SAFE_CALL(cudnnCreateConvolutionDescriptor(&conv_desc_));
-        CU_SAFE_CALL(cudnnSetFilter4dDescriptor(filter_desc_, 
+    }
+
+    void ReShape(int batch_size){ 
+        
+       size_t back_size = 0 ;
+       size_t back_size_w = 0 ;
+       cudnnTensorFormat_t format = CUDNN_TENSOR_NCHW ; 
+       CU_SAFE_CALL(cudnnSetFilter4dDescriptor(filter_desc_, 
                                             CUDNN_DATA_FLOAT, 
                                             format, 
                                             num_output_fmaps_, 
                                             num_input_fmaps_, 
                                             filt_y_len_, 
                                             filt_x_len_));
-        CU_SAFE_CALL(cudnnSetConvolution2dDescriptor(conv_desc_, 
+       CU_SAFE_CALL(cudnnSetConvolution2dDescriptor(conv_desc_, 
                                                  pad_y_len_, 
                                                  pad_x_len_, 
                                                  filt_y_step_, 
@@ -245,7 +241,8 @@ public:
                                                  1,
                                                  1, 
                                                  CUDNN_CONVOLUTION));
-        CU_SAFE_CALL(cudnnSetTensor4dDescriptorEx(in_desc_, 
+
+       CU_SAFE_CALL(cudnnSetTensor4dDescriptorEx(in_desc_, 
                                               CUDNN_DATA_FLOAT, 
                                               batch_size, 
                                               num_input_fmaps_, 
@@ -336,29 +333,34 @@ public:
                 conv_desc_,
                 out_desc_,
                 algo_,
-                &forward_workspace_byte_)); 
+                &forward_workspace_byte_));  // get workspace bytes
 
-        forward_workspace_ = forward_workspace_byte_ / sizeof(float) + 1;
-        backward_workspace_ = backward_workspace_byte_ / sizeof(float) + 1;
-
-        cudaMalloc((void**)&forward_workspace_ptr_, forward_workspace_byte_);
-        cudaMalloc((void**)&backward_workspace_ptr_, backward_workspace_byte_);
+        BaseFloat forward_workspace_size_ = forward_workspace_byte_ / sizeof(float) + 1;
+        BaseFloat backward_workspace_size_ = backward_workspace_byte_ / sizeof(float) + 1;
+        
+        forward_workspace_.Resize(forward_workspace_size_, kUndefined);
+        backward_workspace_.Resize(backward_workspace_size_, kUndefined);
     }
 
     void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
-
-        int batch_size = in.NumRows() ;
         if(!initialized_){
-            Init(batch_size);
+            Init();
             initialized_ = true ;
+            batch_size_ = in.NumRows();
+            ReShape(batch_size_);
         }
-
+        if(batch_size_ != in.NumRows()){
+            batch_size_ = in.NumRows();
+            ReShape(batch_size_);
+        }
         BaseFloat alpha = 1.0f ;
         BaseFloat beta = 0.0f ;
         const BaseFloat *in_ptr = in.Data() ;
         BaseFloat *filters_ptr = filters_.Data();
         BaseFloat *out_ptr = out->Data();
         BaseFloat* bias_ptr = bias_.Data();
+        BaseFloat* forward_workspace_ptr = forward_workspace_.Data();
+
         CU_SAFE_CALL(cudnnConvolutionForward(handle_,
                                          &alpha,
                                          in_desc_,
@@ -367,7 +369,7 @@ public:
                                          filters_ptr,
                                          conv_desc_,
                                          algo_,
-                                         forward_workspace_ptr_,
+                                         forward_workspace_ptr,
                                          forward_workspace_byte_,
                                          &beta,
                                          out_desc_,
@@ -389,6 +391,7 @@ public:
         const BaseFloat* out_diff_ptr = out_diff.Data() ;
         BaseFloat* in_diff_ptr = in_diff->Data() ;
         BaseFloat* filters_ptr = filters_.Data();
+        BaseFloat* backward_workspace_ptr = backward_workspace_.Data();
 
         CU_SAFE_CALL(cudnnConvolutionBackwardData(handle_,
                                               &alpha,
@@ -398,7 +401,7 @@ public:
                                               out_diff_ptr,
                                               conv_desc_,
                                               back_algo_,
-                                              backward_workspace_ptr_,
+                                              backward_workspace_ptr,
                                               backward_workspace_byte_,
                                               &beta,
                                               in_desc_,
@@ -410,14 +413,13 @@ public:
         Gradient(input, diff);
 
         BaseFloat lr = opts_.learn_rate ;
-        //filters_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
-        //bias_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
+        filters_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
+        bias_grad_.Scale(1.0/(out_fmap_x_len_ * out_fmap_y_len_));
         filters_.AddMat(-lr*learn_rate_coef_, filters_grad_);
         bias_.AddVec(-lr*bias_learn_rate_coef_, bias_grad_);
     }
 
     void Gradient(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
-
         BaseFloat mmt = opts_.momentum;
         BaseFloat alpha = 1.0f;
         BaseFloat beta = mmt;
@@ -425,6 +427,7 @@ public:
         BaseFloat* bias_grad_ptr = bias_grad_.Data();
         const BaseFloat* input_ptr = input.Data();
         BaseFloat* filters_grad_ptr = filters_grad_.Data();
+        BaseFloat* backward_workspace_ptr = backward_workspace_.Data();
 
         CU_SAFE_CALL(cudnnConvolutionBackwardBias(handle_,
                                               &alpha,
@@ -434,7 +437,7 @@ public:
                                               bias_desc_,
                                               bias_grad_ptr));
 
-        CU_SAFE_CALL(cudnnConvolutionBackwardFilter(handle_,
+                 cudnnConvolutionBackwardFilter(handle_,
                                                 &alpha,
                                                 in_desc_,
                                                 input_ptr,
@@ -442,12 +445,12 @@ public:
                                                 diff_ptr,
                                                 conv_desc_,
                                                 back_algo_w_,
-                                                backward_workspace_ptr_,
+                                                backward_workspace_ptr,
                                                 backward_workspace_byte_,
                                                 &beta,
                                                 filter_desc_,
-                                                filters_grad_ptr));
-    }
+                                                filters_grad_ptr);
+  }
 
     void UpdateGradient(){
         const BaseFloat lr = opts_.learn_rate;
@@ -477,13 +480,12 @@ public:
 
       CuMatrix<BaseFloat> filters_grad_;  ///< gradient of filters
       CuVector<BaseFloat> bias_grad_;  ///< gradient of biases
-      bool initialized_;
-      BaseFloat* forward_workspace_ptr_;
-      BaseFloat* backward_workspace_ptr_;
-      size_t forward_workspace_ ;
-      size_t backward_workspace_ ;
+      bool initialized_ ;
+      size_t batch_size_ ;
+      CuVector<BaseFloat> forward_workspace_;
+      CuVector<BaseFloat> backward_workspace_;
       size_t forward_workspace_byte_ ;
-      size_t backward_workspace_byte_ ;
+      size_t backward_workspace_byte_;
       cudnnTensorDescriptor_t in_desc_ ;
       cudnnTensorDescriptor_t out_desc_ ;
       cudnnTensorDescriptor_t bias_desc_ ;
