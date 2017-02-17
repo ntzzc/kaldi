@@ -1,4 +1,4 @@
-// bin/ali-join.cc
+// bin/ali-join-to-post.cc
 
 // Copyright 2015-2016   Shanghai Jiao Tong University (author: Wei Deng)
 
@@ -20,16 +20,17 @@
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "matrix/kaldi-matrix.h"
+#include "hmm/posterior.h"
 
 int main(int argc, char *argv[]) {
   try {
     using namespace kaldi;
 
     const char *usage =
-        "Join alignments [and possibly change format]\n"
+        "Join alignments [and possibly change format] to posterior format.\n"
         "Usage: ali-join <align-in-rspecifier1> [<align-in-rspecifier2>"
-        " <align-in-rspecifier3> ...] <align-out-wspecifier>\n"
-    	"  e.g.: ali-join --ali-dim=\"10092:411\" ark:ali1.ark ark:ali2.ark ark:join.ark\n";
+        " <align-in-rspecifier3> ...] <join-post-out-wspecifier>\n"
+    	"  e.g.: ali-join-to-post --ali-dim=\"10092:411\" ark:ali1.ark ark:ali2.ark ark:join_post.ark\n";
 
     ParseOptions po(usage);
 
@@ -43,14 +44,12 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
 
-    
-
     int32 num_args = po.NumArgs();
     std::string ali_in_fn1 = po.GetArg(1),
-    		ali_out_fn = po.GetOptArg(num_args);
+    		posteriors_wspecifier = po.GetOptArg(num_args);
 
     // Output join alignment
-    Int32VectorWriter ali_writer(ali_out_fn);
+    PosteriorWriter posterior_writer(posteriors_wspecifier);
 
     // Input alignment
     SequentialInt32VectorReader ali_reader1(ali_in_fn1);
@@ -72,17 +71,34 @@ int main(int argc, char *argv[]) {
         ali_dim_offset[i] = ali_dim_offset[i-1] + ali_dim[i-1];
 
     int32 num_done = 0, num_missing = 0, i;
+    Posterior post;
     for (; !ali_reader1.Done(); ali_reader1.Next()) {
         std::string key = ali_reader1.Key();
         std::vector<int32> ali1 = ali_reader1.Value();
         //ali_reader1.FreeCurrent();
+        post.clear();
+        post.resize(ali1.size());
+
+        for (int32 j = 0; j < ali1.size(); j++) {
+            std::pair<int32, BaseFloat>  dot(ali1[j] + ali_dim_offset[0], 1.0);
+            post[j].push_back(dot);
+        }
 
         for (i = 0; i < num_args-2; ++i) {
              if (ali_readers[i]->HasKey(key)) {
                std::vector<int32> ali2 = ali_readers[i]->Value(key);
 
-               for (int32 j = 0; j < ali2.size(); j++)
-            	   ali1.push_back(ali2[j] + ali_dim_offset[i+1]);
+               if (ali2.size() != ali1.size()) {
+            	   KALDI_WARN << key << ", length mismatch of targets " << ali2.size()
+            			   << "for rspecifier: " << ali_in_fns[i];
+            	   break;
+               }
+
+               for (int32 j = 0; j < ali1.size(); j++) {
+            	   std::pair<int32, BaseFloat>  dot(ali2[j] + ali_dim_offset[i+1], 1.0);
+            	   post[j].push_back(dot);
+               }
+
            } else {
                 KALDI_WARN << "No alignment found for utterance " << key << " for "
                    << "system " << (i + 2) << ", rspecifier: "
@@ -95,7 +111,7 @@ int main(int argc, char *argv[]) {
         if (i < num_args-2) 
             continue;
 
-        ali_writer.Write(key, ali1);
+        posterior_writer.Write(key, post);
         num_done++;
     }
 
