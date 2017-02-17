@@ -17,9 +17,9 @@ namespace nnet0{
         {
             initialized_ = false;
             if(initialized_){
-                CHECK_EQ(cudnnDestroyTensorDescriptor(in_desc_), CUDNN_STATUS_SUCCESS);
-                CHECK_EQ(cudnnDestroyTensorDescriptor(out_desc_), CUDNN_STATUS_SUCCESS);
-                CHECK_EQ(cudnnDestroyPoolingDescriptor(pooling_desc_), CUDNN_STATUS_SUCCESS);
+                CU_SAFE_CALL(cudnnDestroyTensorDescriptor(in_desc_));
+                CU_SAFE_CALL(cudnnDestroyTensorDescriptor(out_desc_));
+                CU_SAFE_CALL(cudnnDestroyPoolingDescriptor(pooling_desc_));
                 cudaStreamDestroy(stream_);
                 cudnnDestroy(handle_);
             }
@@ -61,28 +61,31 @@ namespace nnet0{
             cudnnSetStream(handle_, stream_);
             nan_prop_ = CUDNN_NOT_PROPAGATE_NAN ;
             
-            CHECK_EQ(cudnnCreatePoolingDescriptor(&pooling_desc_), CUDNN_STATUS_SUCCESS);
-            CHECK_EQ(cudnnCreateTensorDescriptor(&in_desc_), CUDNN_STATUS_SUCCESS);
-            CHECK_EQ(cudnnCreateTensorDescriptor(&out_desc_), CUDNN_STATUS_SUCCESS);
+            CU_SAFE_CALL(cudnnCreatePoolingDescriptor(&pooling_desc_));
+            CU_SAFE_CALL(cudnnCreateTensorDescriptor(&in_desc_));
+            CU_SAFE_CALL(cudnnCreateTensorDescriptor(&out_desc_));
+         }
 
-            CHECK_EQ(cudnnSetTensor4dDescriptor(in_desc_,
+         void ReShape(int batch_size){
+
+            CU_SAFE_CALL(cudnnSetTensor4dDescriptor(in_desc_,
                                                 CUDNN_TENSOR_NCHW,
                                                 dtype_,
                                                 batch_size,
                                                 num_input_fmaps_,
                                                 fmap_y_len_,
-                                                fmap_x_len_), CUDNN_STATUS_SUCCESS);
+                                                fmap_x_len_));
 
-            CHECK_EQ(cudnnSetTensor4dDescriptor(out_desc_,
+            CU_SAFE_CALL(cudnnSetTensor4dDescriptor(out_desc_,
                                                 CUDNN_TENSOR_NCHW,
                                                 dtype_,
                                                 batch_size,
                                                 num_input_fmaps_,
                                                 out_fmap_y_len_,
-                                                out_fmap_x_len_), CUDNN_STATUS_SUCCESS);
+                                                out_fmap_x_len_));
 
 
-            CHECK_EQ(cudnnSetPooling2dDescriptor(pooling_desc_,
+            CU_SAFE_CALL(cudnnSetPooling2dDescriptor(pooling_desc_,
                                                  CUDNN_POOLING_MAX,
                                                  CUDNN_NOT_PROPAGATE_NAN,
                                                  pool_y_len_,
@@ -90,11 +93,9 @@ namespace nnet0{
                                                  pad_y_len_,
                                                  pad_x_len_,
                                                  pool_y_len_,
-                                                 pool_x_len_), CUDNN_STATUS_SUCCESS);
-
-
-
+                                                 pool_x_len_));
         }
+
 
         void ReadData(std::istream &is, bool binary){
 
@@ -144,26 +145,33 @@ namespace nnet0{
             WriteBasicType(os,binary, pad_y_len_);
         }
     
-
         void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
             
             if(!initialized_){
                 Init(in.NumRows()) ;
                 initialized_ = true;
+                batch_size_ = in.NumRows();
+                ReShape(batch_size_);
+            }
+            
+            if(batch_size_ != in.NumRows()){
+                batch_size_ = in.NumRows();
+                ReShape(batch_size_);
             }
 
             BaseFloat alpha = 1.0f, beta = 0.0f ;
             const BaseFloat* data_ptr = in.Data() ;
             BaseFloat* out_ptr = out->Data() ;
-            CHECK_EQ(cudnnPoolingForward(handle_,
+            CU_SAFE_CALL(cudnnPoolingForward(handle_,
                                          pooling_desc_,
                                          &alpha,
                                          in_desc_,
                                          data_ptr,
                                          &beta,
                                          out_desc_,
-                                         out_ptr), CUDNN_STATUS_SUCCESS);
+                                         out_ptr));
         }
+
         void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
                       const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
 
@@ -172,7 +180,7 @@ namespace nnet0{
             const BaseFloat* out_diff_dptr = out_diff.Data();
             const BaseFloat* in_ptr = in.Data();
             BaseFloat* in_diff_ptr = in_diff->Data();
-            CHECK_EQ(cudnnPoolingBackward(handle_,
+            CU_SAFE_CALL(cudnnPoolingBackward(handle_,
                                           pooling_desc_,
                                           &alpha,
                                           out_desc_,
@@ -183,7 +191,7 @@ namespace nnet0{
                                           in_ptr,
                                           &beta,
                                           in_desc_,
-                                          in_diff_ptr), CUDNN_STATUS_SUCCESS);
+                                          in_diff_ptr));
         }
 
         private:
@@ -198,6 +206,7 @@ namespace nnet0{
             cudnnPoolingDescriptor_t pooling_desc_;
             cudnnNanPropagation_t nan_prop_;
             bool initialized_ ;
+            size_t batch_size_ ;
     };
 
 
