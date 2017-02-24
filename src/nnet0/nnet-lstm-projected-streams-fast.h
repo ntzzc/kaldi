@@ -58,7 +58,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     nrecur_(output_dim),
     nstream_(0),
     ntruncated_bptt_size_(0),
-    clip_gradient_(0.0), clip_cell_(50.0),
+    clip_gradient_(0.0), clip_cell_(50.0), clip_cell_scale_(0.0), //0.6
 	learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0)
     //, dropout_rate_(0.0)
   { }
@@ -97,6 +97,8 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
         ReadBasicType(is, false, &clip_gradient_);
       else if (token == "<ClipCell>")
         ReadBasicType(is, false, &clip_cell_);
+      else if (token == "<ClipCellScale>")
+        ReadBasicType(is, false, &clip_cell_scale_);
       //else if (token == "<DropoutRate>")
       //  ReadBasicType(is, false, &dropout_rate_);
       else if (token == "<ParamScale>")
@@ -145,6 +147,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 
     KALDI_ASSERT(clip_gradient_ >= 0.0);
     KALDI_ASSERT(clip_cell_ >= 0.0);
+    KALDI_ASSERT(clip_cell_scale_ >= 0.0);
   }
 
   void ReadData(std::istream &is, bool binary) {
@@ -168,6 +171,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     if ('<' == Peek(is, binary)) {
         ExpectToken(is, binary, "<ClipCell>");
         ReadBasicType(is, binary, &clip_cell_);
+    }
+    if ('<' == Peek(is, binary)) {
+        ExpectToken(is, binary, "<ClipCellScale>");
+        ReadBasicType(is, binary, &clip_cell_scale_);
     }
     //ExpectToken(is, binary, "<DropoutRate>");
     //ReadBasicType(is, binary, &dropout_rate_);
@@ -209,6 +216,10 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
     if (clip_cell_ != 50.0) {
         WriteToken(os, binary, "<ClipCell>");
         WriteBasicType(os, binary, clip_cell_);
+    }
+    if (clip_cell_scale_ != 0.0) {
+        WriteToken(os, binary, "<ClipCellScale>");
+        WriteBasicType(os, binary, clip_cell_scale_);
     }
     //WriteToken(os, binary, "<DropoutRate>");
     //WriteBasicType(os, binary, dropout_rate_);
@@ -768,6 +779,23 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
 	    peephole_o_c_.AddVec(-lr, peephole_o_c_corr_, 1.0);
 
 	    w_r_m_.AddMat(-lr, w_r_m_corr_);
+
+        if (clip_cell_ > 0.0 && clip_cell_scale_ > 0.0) {
+          w_gifo_x_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          w_gifo_x_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+          w_gifo_r_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          w_gifo_r_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+          bias_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          bias_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+          w_r_m_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          w_r_m_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+          peephole_i_c_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          peephole_i_c_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+          peephole_f_c_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          peephole_f_c_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+          peephole_o_c_.ApplyFloor(-clip_cell_*clip_cell_scale_);
+          peephole_o_c_.ApplyCeiling(clip_cell_*clip_cell_scale_);
+        }
   }
 
   void ResetGradient()
@@ -1063,6 +1091,7 @@ class LstmProjectedStreamsFast : public UpdatableComponent {
   BaseFloat clip_gradient_;
   // cell activation clipping value,
   BaseFloat clip_cell_;
+  BaseFloat clip_cell_scale_;
 
   // non-recurrent dropout
   //BaseFloat dropout_rate_;
