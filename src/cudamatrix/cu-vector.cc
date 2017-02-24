@@ -28,7 +28,6 @@
 #include "cudamatrix/cu-vector.h"
 #include "cudamatrix/cu-device.h"
 #include "cudamatrix/cu-kernels.h"
-#include "cudamatrix/cu-randkernels.h"
 #include "cudamatrix/cu-math.h"
 #include "cudamatrix/cu-vector.h"
 #include "cudamatrix/cu-matrix.h"
@@ -524,6 +523,14 @@ void CuVectorBase<Real>::SetRandn() {
   CuRand<Real> tmp;
   tmp.RandGaussian(this);
 }
+
+template<typename Real>
+void CuVectorBase<Real>::SetRandUniform() {
+  if (dim_ == 0) return;
+  CuRand<Real> tmp;
+  tmp.RandUniform(this);
+}
+
 
 
 template<typename Real>
