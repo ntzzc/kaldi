@@ -690,8 +690,8 @@ class Convolutional2DComponentFast : public UpdatableComponent {
 		src_pitch = dim.stride*sizeof(BaseFloat);
 		dst_pitch = src_pitch;
 		width = dim.cols*sizeof(BaseFloat);
-        dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)linearity_.Data());
-		src = (void*) (direction==0 ? (char *)linearity_.Data() : ((char *)host+pos));
+        dst = (void*) (direction==0 ? ((char *)host+pos) : (char *)filters_.Data());
+		src = (void*) (direction==0 ? (char *)filters_.Data() : ((char *)host+pos));
 		cudaMemcpy2D(dst, dst_pitch, src, src_pitch, width, dim.rows, kind);
 		pos += filters_.SizeInBytes();
 

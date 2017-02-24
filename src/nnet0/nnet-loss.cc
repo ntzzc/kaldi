@@ -93,7 +93,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
   // compute derivative wrt. activations of last layer of neurons,
   //*diff = net_out;
-  if (diff->NumRows() != net_out.NumRows())
+  if (diff->NumRows() != net_out.NumRows() || diff->NumCols() != net_out.NumCols())
 	  (static_cast<CuMatrix<BaseFloat>*>(diff))->Resize(net_out.NumRows(), net_out.NumCols(), kUndefined);
 
   diff->CopyFromMat(net_out);

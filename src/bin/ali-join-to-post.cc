@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     for (int32 i = 1; i < num_args-1; i++)
         ali_dim_offset[i] = ali_dim_offset[i-1] + ali_dim[i-1];
 
-    int32 num_done = 0, num_missing = 0, i;
+    int32 num_done = 0, num_missing = 0, num_mismatch = 0, i;
     Posterior post;
     for (; !ali_reader1.Done(); ali_reader1.Next()) {
         std::string key = ali_reader1.Key();
@@ -89,8 +89,9 @@ int main(int argc, char *argv[]) {
                std::vector<int32> ali2 = ali_readers[i]->Value(key);
 
                if (ali2.size() != ali1.size()) {
-            	   KALDI_WARN << key << ", length mismatch of targets " << ali2.size()
-            			   << "for rspecifier: " << ali_in_fns[i];
+            	   KALDI_WARN << key << ", length mismatch of targets " << ali1.size() << ", " << ali2.size()
+            			   << " for rspecifier: " << ali_in_fns[i];
+                   num_mismatch++;
             	   break;
                }
 
@@ -115,8 +116,9 @@ int main(int argc, char *argv[]) {
         num_done++;
     }
 
-    KALDI_LOG << "Processed " << num_done << " alignment utterances successful. "
-                << num_missing << " total missing utterances";
+    KALDI_LOG << "Processed " << num_done << " alignment utterances successful, "
+                << num_missing << " total missing utterances, "
+                << num_mismatch << " total mismatch utterances.";
     return (num_done != 0 ? 0 : 1);
   } catch(const std::exception &e) {
     std::cerr << e.what();
