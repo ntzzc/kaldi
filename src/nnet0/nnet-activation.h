@@ -359,8 +359,8 @@ class CudnnRelu : public Component {
         {
             if(initialized_){
 
-                CHECK_EQ(cudnnDestroyTensorDescriptor(shape_desc_), CUDNN_STATUS_SUCCESS);
-                CHECK_EQ(cudnnDestroyActivationDescriptor(desc_), CUDNN_STATUS_SUCCESS);
+                CU_SAFE_CALL(cudnnDestroyTensorDescriptor(shape_desc_));
+                CU_SAFE_CALL(cudnnDestroyActivationDescriptor(desc_));
 
                 cudaStreamDestroy(stream_);
                 cudnnDestroy(handle_);
@@ -375,16 +375,16 @@ class CudnnRelu : public Component {
             cudnnCreate(&handle_);
             cudnnSetStream(handle_, stream_); 
         
-            CHECK_EQ(cudnnCreateActivationDescriptor(&desc_), CUDNN_STATUS_SUCCESS);
-            CHECK_EQ(cudnnSetActivationDescriptor(desc_, mode_, CUDNN_NOT_PROPAGATE_NAN, ceil_),CUDNN_STATUS_SUCCESS);
-            CHECK_EQ(cudnnCreateTensorDescriptor(&shape_desc_), CUDNN_STATUS_SUCCESS);
-            CHECK_EQ(cudnnSetTensor4dDescriptor(shape_desc_,
+            CU_SAFE_CALL(cudnnCreateActivationDescriptor(&desc_));
+            CU_SAFE_CALL(cudnnSetActivationDescriptor(desc_, mode_, CUDNN_NOT_PROPAGATE_NAN, ceil_));
+            CU_SAFE_CALL(cudnnCreateTensorDescriptor(&shape_desc_));
+            CU_SAFE_CALL(cudnnSetTensor4dDescriptor(shape_desc_,
                                                 CUDNN_TENSOR_NCHW,
                                                 CUDNN_DATA_FLOAT,
                                                 batch_size,
                                                 dim,
                                                 1,
-                                                1), CUDNN_STATUS_SUCCESS);
+                                                1));
         }
         void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out){
 
@@ -398,14 +398,14 @@ class CudnnRelu : public Component {
             const BaseFloat* in_ptr = in.Data();
             BaseFloat* out_ptr = out->Data();
         
-            CHECK_EQ(cudnnActivationForward(handle_,
+            CU_SAFE_CALL(cudnnActivationForward(handle_,
                                             desc_,  
                                             &alpha,
                                             shape_desc_,
                                             in_ptr,
                                             &beta,
                                             shape_desc_,
-                                            out_ptr), CUDNN_STATUS_SUCCESS);
+                                            out_ptr));
         }
 
         
@@ -419,7 +419,7 @@ class CudnnRelu : public Component {
             const BaseFloat* out_diff_ptr = out_diff.Data();
             BaseFloat* in_diff_ptr = in_diff->Data();
             
-            CHECK_EQ(cudnnActivationBackward(handle_,
+            CU_SAFE_CALL(cudnnActivationBackward(handle_,
                                              desc_,
                                              &alpha,
                                              shape_desc_,
@@ -430,7 +430,7 @@ class CudnnRelu : public Component {
                                              in_ptr,
                                              &beta,
                                              shape_desc_,
-                                             in_diff_ptr),CUDNN_STATUS_SUCCESS);
+                                             in_diff_ptr));
         }
     private:
         bool initialized_ ;

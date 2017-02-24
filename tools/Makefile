@@ -1,32 +1,6 @@
 # SHELL += -x
 
 CXX = g++
-<<<<<<< HEAD
-# CXX = clang++  # Uncomment this line to build with Clang.
-CC = gcc    # used for sph2pipe
-
-
-OPENFST_VERSION = 1.3.4
-# Uncomment the next line to build with OpenFst-1.4.1.
- OPENFST_VERSION = 1.4.1
-# Note: OpenFst >= 1.4 requires C++11 support, hence you will need to use a
-# relatively recent C++ compiler, e.g. gcc >= 4.6, clang >= 3.0.
-
-# On Mac OS 10.9+, clang defaults to the new c++ standard library libc++.
-# Since OpenFst-1.3 uses stuff from the tr1 namespace, we need to tell clang
-# to use libstdc++ instead.
-ifeq ($(OPENFST_VERSION), 1.3.4)
-  COMPILER = $(shell $(CXX) -v 2>&1 )
-  ifeq ($(findstring clang,$(COMPILER)),clang)
-    CXXFLAGS += -stdlib=libstdc++
-    LDFLAGS += -stdlib=libstdc++
-  endif
-else
-  ifneq ($(OPENFST_VERSION), 1.4.1)
-    $(error OpenFst version $(OPENFST_VERSION) is not supported. \
-            Supported versions: 1.3.4, 1.4.1)
-  endif
-=======
 CC = gcc         # used for sph2pipe
 # CXX = clang++  # Uncomment these lines
 # CC = clang     # to build with Clang.
@@ -39,7 +13,6 @@ OPENFST_VER_NUM := $(shell echo $(OPENFST_VERSION) | sed 's/\./ /g' | xargs prin
 ifeq ("$(shell expr $(OPENFST_VER_NUM) \< 10503)","1")
     $(error OpenFst-$(OPENFST_VERSION) is not supported. \
             Supported versions: >= 1.5.3)
->>>>>>> kaldi/master
 endif
 
 all: check_required_programs sph2pipe atlas sclite openfst

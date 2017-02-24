@@ -193,7 +193,7 @@ public:
                 /*
 					if (decoder_->PartialTraceback(&out_fst))
 					{
-						fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
+						fst::GetLinearSymbolSequence(out_fst, static_cast<std::vector<int32> *>(0), 
                                                             &word_ids, static_cast<LatticeArc::Weight*>(0));
 						PrintPartialResult(word_ids, &word_syms_, false);
 					}
@@ -211,7 +211,7 @@ public:
 					decoder_->Decode(decodable_);
 
 					decoder_->FinishTraceBack(&out_fst);
-					fst::GetLinearSymbolSequence(out_fst, static_cast<vector<int32> *>(0), 
+					fst::GetLinearSymbolSequence(out_fst, static_cast<std::vector<int32> *>(0), 
                                                         &word_ids, static_cast<LatticeArc::Weight*>(0));
 					PrintPartialResult(word_ids, &word_syms_, true);
 
