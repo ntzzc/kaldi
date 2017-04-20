@@ -203,7 +203,6 @@ private:
 		  // the meaning is following:
 		  // 'multitask,<type1>,<dim1>,<weight1>,...,<typeN>,<dimN>,<weightN>'
 		  multitask.InitFromString(objective_function);
-          stats_->multitask.InitFromString(objective_function);
 		}
 
 	    Timer time, mpi_time;
@@ -499,9 +498,11 @@ void NnetUpdateParallel(const NnetUpdateOptions *opts,
 		    SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
 		    RandomAccessPosteriorReader targets_reader(targets_rspecifier);
 		    RandomAccessBaseFloatVectorReader weights_reader;
-		    if (opts->frame_weights != "") {
-		      weights_reader.Open(opts->frame_weights);
-		    }
+		    if (opts->frame_weights != "") 
+		        weights_reader.Open(opts->frame_weights);
+
+            if (opts->objective_function.compare(0, 9, "multitask") == 0)
+                stats->multitask.InitFromString(opts->objective_function);
 
 	    // The initialization of the following class spawns the threads that
 	    // process the examples.  They get re-joined in its destructor.
