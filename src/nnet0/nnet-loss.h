@@ -176,6 +176,9 @@ class CBXent {
 		  const_class_zt_[i] = classzt(i);
   }
 
+  std::vector<BaseFloat> GetConstZtMean() {
+	  return class_zt_mean_;
+  }
  private:
   double frames_;
   double correct_;
@@ -230,8 +233,8 @@ class CBXent {
   // constant normalizing
   CuVector<BaseFloat> *frame_zt_ptr_;
   std::vector<CuSubVector<BaseFloat>* > *class_frame_zt_ptr_;
-  std::vector<double> class_zt_mean_;
-  std::vector<double> class_zt_variance_;
+  std::vector<BaseFloat> class_zt_mean_;
+  std::vector<BaseFloat> class_zt_variance_;
   std::vector<double> class_frames_;
   // minbatch buffer
   std::vector<int> class_counts_;

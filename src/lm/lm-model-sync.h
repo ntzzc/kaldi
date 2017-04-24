@@ -121,7 +121,7 @@ public:
 
 	void CrossMachineSyncStatus(int32 status);
 
-	void InterMachineSyncStatus(int32 status);
+	void InnerMachineSyncStatus(int32 status);
 
 	bool isLastMerge() { return is_lastmerge_;}
 
@@ -179,7 +179,7 @@ private:
 	Barrier barrier_;
 	Mutex model_mutex_;
 	Mutex stats_mutex_;
-	Mutex inter_mutex_;
+	Mutex inner_mutex_;
 	std::vector<BaseFloat*>	thread_data_;
 	std::vector<BaseFloat*> thread_free_data_;
 
