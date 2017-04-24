@@ -127,11 +127,13 @@ void LmModelSync::SetWeight(Nnet *nnet, int32 thread_idx, int32 buffer_idx)
 	nnet->WeightCopy(host_data_, LmModelSync::kSrcAddress, LmModelSync::kCudaMemcpyHostToDevice);
 }
 
-void  LmModelSync::InterMachineSyncStatus(int32 status)
+void LmModelSync::InterMachineSyncStatus(int32 status)
 {
-	inter_mutex_.Lock();
-	if (status == 0) num_finished_++;
-	inter_mutex_.Unlock();
+    if (status == 0) {
+	    inter_mutex_.Lock();
+	    num_finished_++;
+	    inter_mutex_.Unlock();
+    }
 }
 
 void LmModelSync::CrossMachineSyncStatus(int status)
@@ -160,12 +162,17 @@ void LmModelSync::CrossMachineSync()
 void LmModelSync::ThreadSync(int32 thread_idx, int status)
 {
 	// internal machine thread sync status
-	InterMachineSyncStatus(status);
+	if (status == 0 ) 
+        InterMachineSyncStatus(status);
 	while (true)
 	{
 		this->barrier_.Wait();
 		if (num_finished_ == 0 || num_finished_ == num_threads_)
 			break;
+        else if (status == 1) {
+            is_lastmerge_ = true;
+            return;
+        }
 	}
 
 	// cross machine process sync status
