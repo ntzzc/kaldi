@@ -479,7 +479,8 @@ private:
 				KALDI_VLOG(1) << "Last thread upload model to host.";
 				if (zt_mean_filename != "" && !crossvalidate)
 				{
-					Vector<BaseFloat> class_zt = cbxent.GetConstZtMean();
+					Vector<BaseFloat> class_zt;
+                    cbxent.GetConstZtMean(class_zt);
 					Output out;
 					out.Open(zt_mean_filename, false, false);
 					class_zt.Write(out.Stream(), false);

@@ -169,16 +169,20 @@ class CBXent {
 	  class_frame_zt_ptr_ = class_frame_zt_ptr;
   }
 
-  void SetConstClassZt(Vector<BaseFloat> &classzt) {
+  void SetConstClassZt(const Vector<BaseFloat> &classzt) {
 	  int size = classzt.Dim();
 	  const_class_zt_.resize(size);
 	  for (int i = 0; i < size; i++)
 		  const_class_zt_[i] = classzt(i);
   }
 
-  std::vector<BaseFloat> GetConstZtMean() {
-	  return class_zt_mean_;
+  void GetConstZtMean(Vector<BaseFloat> &const_class_zt) {
+	  int size = class_zt_mean_.size();
+	  const_class_zt.Resize(size);
+	  for (int i = 0; i < size; i++)
+		  const_class_zt(i) = class_zt_mean_[i];
   }
+
  private:
   double frames_;
   double correct_;
