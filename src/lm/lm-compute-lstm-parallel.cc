@@ -180,7 +180,7 @@ private:
 	    nnet.SetTrainOptions(*trn_opts);
 
 	    // using activations directly: remove cbsoftmax, if use constant class zt
-	    if (zt_mean_filename != "") {
+	    if (zt_mean_filename != "" && crossvalidate) {
 	    	if (nnet.GetComponent(nnet.NumComponents()-1).GetType() == kaldi::nnet0::Component::kCBSoftmax) {
 	    		KALDI_LOG << "Removing cbsoftmax from the nnet " << model_filename;
 	    		nnet.RemoveComponent(nnet.NumComponents()-1);
