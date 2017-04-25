@@ -231,18 +231,6 @@ class ClassAffineTransform : public UpdatableComponent {
     ResetStream(output_patches_);
     ResetStream(updateclass_linearity_);
     ResetStream(updateclass_bias_);
-
-    // class
-    /*
-    clen = output_dim_ - class_boundary_.back();
-    CuSubMatrix<BaseFloat> *output_class = new CuSubMatrix<BaseFloat>(out->ColRange(class_boundary_.back(), clen));
-    output_class->AddMatMat(1.0, input_sorted_, kNoTrans, *class_linearity_[num_class_], kTrans, 1.0);
-    delete output_class;
-    
-    input_patches_.push_back(new CuSubMatrix<BaseFloat>(input_sorted_.RowRange(0, input_sorted_.NumRows())));
-	output_patches_.push_back(output_class);
-	updateclass_bias_.push_back(class_bias_.back());
-    */
   }
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,

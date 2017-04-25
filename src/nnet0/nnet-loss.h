@@ -180,7 +180,7 @@ class CBXent {
 	  int size = class_zt_mean_.size();
 	  const_class_zt.Resize(size);
 	  for (int i = 0; i < size; i++)
-		  const_class_zt(i) = class_zt_mean_[i];
+		  const_class_zt(i) = (class_frames_[i] == 0 ? 0 : class_zt_mean_[i]/class_frames_[i]);
   }
 
  private:
