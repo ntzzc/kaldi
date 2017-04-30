@@ -665,9 +665,9 @@ void CBXent::Merge(int myid, int root)
 		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->logzt_variance_));
 		MPI_Reduce(addr, (void*)(&this->logzt_variance_), 1, MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->class_zt_variance_.front()));
-		MPI_Reduce(addr, (void*)(&this->class_zt_variance_.front()), this->class_zt_variance_.size(), MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+		MPI_Reduce(addr, (void*)(&this->class_zt_variance_.front()), this->class_zt_variance_.size(), MPI_FLOAT, MPI_SUM, root, MPI_COMM_WORLD);
 		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->class_zt_mean_.front()));
-		MPI_Reduce(addr, (void*)(&this->class_zt_mean_.front()), this->class_zt_mean_.size(), MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
+		MPI_Reduce(addr, (void*)(&this->class_zt_mean_.front()), this->class_zt_mean_.size(), MPI_FLOAT, MPI_SUM, root, MPI_COMM_WORLD);
 		addr = (void *) (myid==root ? MPI_IN_PLACE : (void*)(&this->class_frames_.front()));
 		MPI_Reduce(addr, (void*)(&this->class_frames_.front()), this->class_frames_.size(), MPI_DOUBLE, MPI_SUM, root, MPI_COMM_WORLD);
 	}

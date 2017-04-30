@@ -477,15 +477,6 @@ private:
 			{
 				model_sync->CopyToHost(&nnet);
 				KALDI_VLOG(1) << "Last thread upload model to host.";
-				if (zt_mean_filename != "" && !crossvalidate)
-				{
-					Vector<BaseFloat> class_zt;
-                    stats_->cbxent.GetConstZtMean(class_zt);
-					Output out;
-					out.Open(zt_mean_filename, false, false);
-					class_zt.Write(out.Stream(), false);
-					out.Close();
-				}
 			}
 		}
 	}
