@@ -139,7 +139,7 @@ void LmModelSync::InnerMachineSyncStatus(int32 status)
 void LmModelSync::CrossMachineSyncStatus(int status)
 {
 	int total_status = 0;
-	if (left_merge_ <= 1 && !is_lastmerge_)
+	if ((left_merge_ <= 1 && !is_lastmerge_) || status == 0)
 	{
 		MPI_Barrier(MPI_COMM_WORLD);
 		MPI_Allreduce(&status, (void*)(&total_status), 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -161,6 +161,7 @@ void LmModelSync::CrossMachineSync()
 
 void LmModelSync::ThreadSync(int32 thread_idx, int status)
 {
+	Timer synctm, tm;
 	// internal machine thread sync status
 	if (status == 0 ) 
         InnerMachineSyncStatus(status);
@@ -186,8 +187,6 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 			return;
 	}
 
-	Timer tm;
-
 	tm.Reset();
 	this->barrier_.Wait();
 
@@ -208,19 +207,19 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 
 	//KALDI_VLOG(2) << "THREAD_Reduce: " << tm.Elapsed();
 
-	tm.Reset();
 	// cross machine reduce
 	if (opts_->num_procs > 1)
 	{
 	    this->barrier_.Wait();
 
+	    tm.Reset();
         if (thread_idx == 0)
 		    CrossMachineSync();
+	    KALDI_VLOG(2) << "CrossMachineSync MPI_AllReduce: " << tm.Elapsed();
         num_jobs *= opts_->num_procs;
 
 	    this->barrier_.Wait();
 	}
-	//KALDI_VLOG(1) << "MPI_Reduce: " << tm.Elapsed();
 
 	tm.Reset();
 	// model merge ...
@@ -234,14 +233,15 @@ void LmModelSync::ThreadSync(int32 thread_idx, int status)
 	cblas_Xaxpy(len, learnrate_, cur_model, 1, gradient, 1);
 
 	// CBM: W(t) = W(t-1) + delta(t)
-	//cblas_Xaxpy(this->dim_, 1.0, this->gradient_data_, 1, this->nnet_data_, 1);
+	cblas_Xaxpy(len, 1.0, gradient, 1, last_model, 1);
 	// NBM: W(t) = W(t-1) + delta(t) + mmt*delta(t)
-	cblas_Xaxpy(len, 1.0+mmt_, gradient, 1, last_model, 1);
+	//cblas_Xaxpy(len, 1.0+mmt_, gradient, 1, last_model, 1);
 
 	this->barrier_.Wait();
 	//KALDI_VLOG(2) << "THREAD_Merge: " << tm.Elapsed();
 
     if (thread_idx == 0) left_merge_--;
+	KALDI_VLOG(2) << "ThreadSync total : " << synctm.Elapsed();
 }
 
 /*

@@ -1232,7 +1232,7 @@ int NnetParallelUtil::NumofMerge(std::string fn, int merge_size)
 		frames += len;
 	}
 
-	if (frames > merge_size/3)
+	if (frames > merge_size/2)
 		piece++;
 
 	return piece;
