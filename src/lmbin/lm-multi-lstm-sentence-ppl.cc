@@ -29,6 +29,7 @@
 #include "nnet0/nnet-activation.h"
 #include "nnet0/nnet-class-affine-transform.h"
 #include "nnet0/nnet-word-vector-transform.h"
+#include "nnet0/nnet-parallel-component-multitask.h"
 
 
 int main(int argc, char *argv[]) {
@@ -83,14 +84,16 @@ int main(int argc, char *argv[]) {
     Nnet nnet;
     nnet.Read(model_filename);
 
-    ParallelComponentMultiTask multitask;
+    ParallelComponentMultiTask *multitask = NULL;
     for (int32 c = 0; c < nnet.NumComponents(); c++) {
     	if (nnet.GetComponent(c).GetType() == Component::kParallelComponentMultiTask)
     		multitask = &(dynamic_cast<ParallelComponentMultiTask&>(nnet.GetComponent(c)));
     }
+    if (multitask == NULL)
+        KALDI_ERR << "Only support mutitask lm network.";
 
     // multiple lm network
-    std::unordered_map<std::string, Nnet> &multi_nnet = multitask.GetNnet();
+    std::unordered_map<std::string, Nnet> &multi_nnet = multitask->GetNnet();
     int num_nnet = multi_nnet.size();
     std::string name;
 
@@ -319,7 +322,7 @@ int main(int argc, char *argv[]) {
     	            nnet.Propagate(words, &nnet_out);
 
     		        // evaluate objective function we've chosen
-    		        if (NULL != class_affine) {
+    		        if (class_affine.size() > 0) {
     		        	cbxent.Eval(sorted_frame_mask, nnet_out, sorted_target, &nnet_diff);
     		        	cbxent.GetTargetWordPosterior(log_post_tgt_sorted);
     	   		    	for (int i = 0; i < num_frames; i++)
@@ -349,7 +352,7 @@ int main(int argc, char *argv[]) {
               << " in " << time.Elapsed()/60 << "min,"
               << " (fps " << total_frames/time.Elapsed() << ")";
 
-    if (NULL != class_affine)
+    if (class_affine.size() > 0)
     	KALDI_LOG << cbxent.Report();
     else
     	KALDI_LOG << xent.Report();
