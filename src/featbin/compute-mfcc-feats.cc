@@ -22,7 +22,7 @@
 #include "util/common-utils.h"
 #include "feat/feature-mfcc.h"
 #include "feat/wave-reader.h"
-
+#include "feat/amr-reader.h"
 int main(int argc, char *argv[]) {
   try {
     using namespace kaldi;
@@ -41,11 +41,12 @@ int main(int argc, char *argv[]) {
     BaseFloat min_duration = 0.0;
     // Define defaults for gobal options
     std::string output_format = "kaldi";
-
+    std::string input_format = "wav";
     // Register the MFCC option struct
     mfcc_opts.Register(&po);
 
     // Register the options
+    po.Register("input-format", &input_format, "Format of the input files [wav, amr]"); 
     po.Register("output-format", &output_format, "Format of the output "
                 "files [kaldi, htk]");
     po.Register("subtract-mean", &subtract_mean, "Subtract mean of each "
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]) {
 
     Mfcc mfcc(mfcc_opts);
 
-    SequentialTableReader<WaveHolder> reader(wav_rspecifier);
+    //SequentialTableReader<WaveHolder> reader(wav_rspecifier);
     BaseFloatMatrixWriter kaldi_writer;  // typedef to TableWriter<something>.
     TableWriter<HtkMatrixHolder> htk_writer;
 
@@ -97,90 +98,167 @@ int main(int argc, char *argv[]) {
     }
 
     int32 num_utts = 0, num_success = 0;
-    for (; !reader.Done(); reader.Next()) {
-      num_utts++;
-      std::string utt = reader.Key();
-      const WaveData &wave_data = reader.Value();
-      if (wave_data.Duration() < min_duration) {
-        KALDI_WARN << "File: " << utt << " is too short ("
-                   << wave_data.Duration() << " sec): producing no output.";
-        continue;
-      }
-      int32 num_chan = wave_data.Data().NumRows(), this_chan = channel;
-      {  // This block works out the channel (0=left, 1=right...)
-        KALDI_ASSERT(num_chan > 0);  // should have been caught in
-        // reading code if no channels.
-        if (channel == -1) {
-          this_chan = 0;
-          if (num_chan != 1)
-            KALDI_WARN << "Channel not specified but you have data with "
+    if(input_format == "wav"){
+        SequentialTableReader<WaveHolder> reader(wav_rspecifier);
+        for (; !reader.Done(); reader.Next()) {
+            num_utts++;
+            std::string utt = reader.Key();
+            const WaveData &wave_data = reader.Value();
+            if (wave_data.Duration() < min_duration) {
+                KALDI_WARN << "File: " << utt << " is too short ("
+                           << wave_data.Duration() << " sec): producing no output.";
+                continue;
+            }
+            int32 num_chan = wave_data.Data().NumRows(), this_chan = channel;
+            {  // This block works out the channel (0=left, 1=right...)
+            KALDI_ASSERT(num_chan > 0);  // should have been caught in
+            // reading code if no channels.
+            if (channel == -1) {
+                this_chan = 0;
+            if (num_chan != 1)
+                KALDI_WARN << "Channel not specified but you have data with "
                        << num_chan  << " channels; defaulting to zero";
-        } else {
-          if (this_chan >= num_chan) {
-            KALDI_WARN << "File with id " << utt << " has "
-                       << num_chan << " channels but you specified channel "
-                       << channel << ", producing no output.";
-            continue;
-          }
-        }
-      }
-      BaseFloat vtln_warp_local;  // Work out VTLN warp factor.
-      if (vtln_map_rspecifier != "") {
-        if (!vtln_map_reader.HasKey(utt)) {
-          KALDI_WARN << "No vtln-map entry for utterance-id (or speaker-id) "
-                     << utt;
-          continue;
-        }
-        vtln_warp_local = vtln_map_reader.Value(utt);
-      } else {
-        vtln_warp_local = vtln_warp;
-      }
-      if (mfcc_opts.frame_opts.samp_freq != wave_data.SampFreq())
-        KALDI_ERR << "Sample frequency mismatch: you specified "
-                  << mfcc_opts.frame_opts.samp_freq << " but data has "
-                  << wave_data.SampFreq() << " (use --sample-frequency "
-                  << "option).  Utterance is " << utt;
+            } else {
+            if (this_chan >= num_chan) {
+                KALDI_WARN << "File with id " << utt << " has "
+                           << num_chan << " channels but you specified channel "
+                           << channel << ", producing no output.";
+                continue;
+            }
+            }
+            }
+            BaseFloat vtln_warp_local;  // Work out VTLN warp factor.
+            if (vtln_map_rspecifier != "") {
+                if (!vtln_map_reader.HasKey(utt)) {
+                KALDI_WARN << "No vtln-map entry for utterance-id (or speaker-id) "
+                           << utt;
+                continue;
+            }
+                vtln_warp_local = vtln_map_reader.Value(utt);
+            } else {
+                vtln_warp_local = vtln_warp;
+            }
+            if (mfcc_opts.frame_opts.samp_freq != wave_data.SampFreq())
+            KALDI_ERR << "Sample frequency mismatch: you specified "
+                      << mfcc_opts.frame_opts.samp_freq << " but data has "
+                      << wave_data.SampFreq() << " (use --sample-frequency "
+                      << "option).  Utterance is " << utt;
 
-      SubVector<BaseFloat> waveform(wave_data.Data(), this_chan);
-      Matrix<BaseFloat> features;
-      try {
-        mfcc.Compute(waveform, vtln_warp_local, &features, NULL);
-      } catch (...) {
-        KALDI_WARN << "Failed to compute features for utterance "
-                   << utt;
-        continue;
-      }
-      if (subtract_mean) {
-        Vector<BaseFloat> mean(features.NumCols());
-        mean.AddRowSumMat(1.0, features);
-        mean.Scale(1.0 / features.NumRows());
-        for (int32 i = 0; i < features.NumRows(); i++)
-          features.Row(i).AddVec(-1.0, mean);
-      }
-      if (output_format == "kaldi") {
-        kaldi_writer.Write(utt, features);
-      } else {
-        std::pair<Matrix<BaseFloat>, HtkHeader> p;
-        p.first.Resize(features.NumRows(), features.NumCols());
-        p.first.CopyFromMat(features);
-        HtkHeader header = {
-          features.NumRows(),
-          100000,  // 10ms shift
-          static_cast<int16>(sizeof(float)*(features.NumCols())),
-          static_cast<uint16>( 006 | // MFCC
-          (mfcc_opts.use_energy ? 0100 : 020000)) // energy; otherwise c0
-        };
-        p.second = header;
-        htk_writer.Write(utt, p);
-      }
-      if (num_utts % 10 == 0)
-        KALDI_LOG << "Processed " << num_utts << " utterances";
-      KALDI_VLOG(2) << "Processed features for key " << utt;
-      num_success++;
-    }
-    KALDI_LOG << " Done " << num_success << " out of " << num_utts
-              << " utterances.";
-    return (num_success != 0 ? 0 : 1);
+            SubVector<BaseFloat> waveform(wave_data.Data(), this_chan);
+            Matrix<BaseFloat> features;
+            try {
+                mfcc.Compute(waveform, vtln_warp_local, &features, NULL);
+            } catch (...) {
+                KALDI_WARN << "Failed to compute features for utterance "
+                       << utt;
+                continue;
+            }
+            if (subtract_mean) {
+                Vector<BaseFloat> mean(features.NumCols());
+                mean.AddRowSumMat(1.0, features);
+                mean.Scale(1.0 / features.NumRows());
+                for (int32 i = 0; i < features.NumRows(); i++)
+                    features.Row(i).AddVec(-1.0, mean);
+            }
+            if (output_format == "kaldi") {
+                kaldi_writer.Write(utt, features);
+            } else {
+                std::pair<Matrix<BaseFloat>, HtkHeader> p;
+                p.first.Resize(features.NumRows(), features.NumCols());
+                p.first.CopyFromMat(features);
+                HtkHeader header = {
+                features.NumRows(),
+                100000,  // 10ms shift
+                static_cast<int16>(sizeof(float)*(features.NumCols())),
+                static_cast<uint16>( 006 | // MFCC
+                (mfcc_opts.use_energy ? 0100 : 020000)) // energy; otherwise c0
+                };
+                p.second = header;
+                htk_writer.Write(utt, p);
+            }
+            if (num_utts % 10 == 0)
+                KALDI_LOG << "Processed " << num_utts << " utterances";
+                KALDI_VLOG(2) << "Processed features for key " << utt;
+                num_success++;
+            }
+            }else if(input_format == "amr"){
+
+               SequentialTableReader<AmrHolder> reader(wav_rspecifier);
+               for (; !reader.Done(); reader.Next()) {
+
+                    num_utts++;
+                    std::string utt = reader.Key();
+                    const AmrData &amr_data = reader.Value();
+                    if (amr_data.Duration() < min_duration) {
+                        KALDI_WARN << "File: " << utt << " is too short ("
+                                   << amr_data.Duration() << " sec): producing no output.";
+                        continue;
+                    }
+                    BaseFloat vtln_warp_local;  // Work out VTLN warp factor.
+                    if (vtln_map_rspecifier != "") {
+
+                        if (!vtln_map_reader.HasKey(utt)) {
+                            KALDI_WARN << "No vtln-map entry for utterance-id (or speaker-id) "
+                                       << utt;
+                            continue;
+                        }
+                        vtln_warp_local = vtln_map_reader.Value(utt);
+                    } else {
+                        vtln_warp_local = vtln_warp;
+                    }
+                   if (mfcc_opts.frame_opts.samp_freq != amr_data.SampFreq())
+                    KALDI_ERR << "Sample frequency mismatch: you specified "
+                              << mfcc_opts.frame_opts.samp_freq << " but data has "
+                              << amr_data.SampFreq() << " (use --sample-frequency "
+                              << "option).  Utterance is " << utt;
+ 
+                  Vector<BaseFloat> waveform(amr_data.Data());
+                  Matrix<BaseFloat> features;
+                  try {
+                    mfcc.Compute(waveform, vtln_warp_local, &features, NULL);
+                  } catch (...) {
+                    KALDI_WARN << "Failed to compute features for utterance "
+                               << utt;
+                    continue;
+                  }
+                       
+                  if (subtract_mean) {
+                        Vector<BaseFloat> mean(features.NumCols());
+                        mean.AddRowSumMat(1.0, features);
+                        mean.Scale(1.0 / features.NumRows());
+                    for (int32 i = 0; i < features.NumRows(); i++)
+                        features.Row(i).AddVec(-1.0, mean);
+                  }
+                 if (output_format == "kaldi") {
+                    kaldi_writer.Write(utt, features);
+                 } else {
+                    std::pair<Matrix<BaseFloat>, HtkHeader> p;
+                    p.first.Resize(features.NumRows(), features.NumCols());
+                    p.first.CopyFromMat(features);
+                    HtkHeader header = {
+                        features.NumRows(),
+                        100000, 
+                        static_cast<int16>(sizeof(float)*(features.NumCols())),
+                        static_cast<uint16>( 006 | 
+                        (mfcc_opts.use_energy ? 0100 : 020000)) 
+                    };
+                    p.second = header;
+                    htk_writer.Write(utt, p);
+                }
+                if (num_utts % 10 == 0)
+                    KALDI_LOG << "Processed " << num_utts << " utterances";
+                    KALDI_VLOG(2) << "Processed features for key " << utt;
+                    num_success++;
+                }
+
+
+            }else{
+
+                KALDI_ERR<<"Invalid input_format string "<<input_format ;
+            }
+            KALDI_LOG << " Done " << num_success << " out of " << num_utts
+                      << " utterances.";
+            return (num_success != 0 ? 0 : 1);
   } catch(const std::exception &e) {
     std::cerr << e.what();
     return -1;

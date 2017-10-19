@@ -4,12 +4,13 @@ all:
 
 include ../kaldi.mk
 
+
 TESTFILES = feature-mfcc-test feature-plp-test feature-fbank-test \
          feature-functions-test pitch-functions-test feature-sdc-test \
          resample-test online-feature-test signal-test
 
 OBJFILES = feature-functions.o feature-mfcc.o feature-plp.o feature-fbank.o \
-           feature-spectrogram.o mel-computations.o wave-reader.o \
+           feature-spectrogram.o mel-computations.o wave-reader.o amr-reader.o \
            pitch-functions.o resample.o online-feature.o signal.o \
 		   feature-window.o
 
